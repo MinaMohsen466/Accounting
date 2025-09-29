@@ -1,0 +1,292 @@
+/* Reports.css */
+.reports {
+  padding: 2rem;
+  min-height: 100vh;
+  background-color: var(--background-color);
+}
+
+.reports-nav {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+
+.nav-btn {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--border-color);
+  background-color: var(--card-background);
+  color: var(--text-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.nav-btn:hover {
+  background-color: var(--hover-color);
+  border-color: var(--primary-color);
+}
+
+.nav-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.reports-content {
+  background-color: var(--card-background);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: var(--card-shadow);
+}
+
+.report-content h2 {
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.table-container th,
+.table-container td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table-container th {
+  background-color: var(--light-gray);
+  font-weight: 600;
+  color: var(--dark-gray);
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+}
+
+.table-container tr:hover {
+  background-color: var(--hover-color);
+}
+
+.total-row {
+  background-color: var(--light-blue);
+  font-weight: 600;
+}
+
+.total-row td {
+  border-top: 2px solid var(--primary-color);
+}
+
+.coming-soon {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+}
+
+.coming-soon p {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* Financial Statements Styling */
+.financial-statement {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.statement-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 1rem;
+}
+
+.statement-header h3 {
+  color: var(--primary-color);
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.statement-header p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Income Statement Specific Styles */
+.income-statement .table-container table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.income-statement .table-container td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.income-statement .table-container td:first-child {
+  text-align: right;
+  width: 70%;
+}
+
+.income-statement .table-container td:last-child {
+  text-align: right;
+  width: 30%;
+  font-weight: 500;
+}
+
+.income-statement .indent {
+  padding-right: 2rem !important;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.income-statement .sub-detail {
+  padding-right: 3rem !important;
+  font-size: 0.9rem;
+  color: var(--text-muted, #888) !important;
+  font-style: normal;
+}
+
+.income-statement .revenue-section td:first-child,
+.income-statement .expense-section td:first-child {
+  color: var(--primary-color);
+  font-weight: 600;
+  border-top: 2px solid var(--primary-color);
+  padding-top: 1rem;
+}
+
+.income-statement .subtotal td {
+  font-weight: 600;
+  border-top: 1px solid var(--text-color);
+  border-bottom: 1px solid var(--text-color);
+  background-color: var(--hover-color);
+}
+
+.income-statement .gross-profit td,
+.income-statement .net-income td {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--success-color, #28a745);
+  border-top: 3px double var(--primary-color);
+  border-bottom: 3px double var(--primary-color);
+  background-color: var(--success-light, #f8f9fa);
+}
+
+/* Balance Sheet Specific Styles */
+.balance-sheet .table-container table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.balance-sheet .table-container td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.balance-sheet .table-container td:first-child {
+  text-align: right;
+  width: 70%;
+}
+
+.balance-sheet .table-container td:last-child {
+  text-align: right;
+  width: 30%;
+  font-weight: 500;
+}
+
+.balance-sheet .section-header td {
+  color: var(--primary-color);
+  font-weight: 700;
+  font-size: 1.2rem;
+  border-top: 3px solid var(--primary-color);
+  border-bottom: 2px solid var(--primary-color);
+  background-color: var(--primary-light, #f8f9fa);
+  padding: 1rem;
+}
+
+.balance-sheet .subsection-header td {
+  color: var(--text-color);
+  font-weight: 600;
+  border-top: 1px solid var(--text-color);
+  background-color: var(--hover-color);
+}
+
+.balance-sheet .indent {
+  padding-right: 2rem !important;
+  color: var(--text-secondary);
+}
+
+.balance-sheet .subtotal td {
+  font-weight: 600;
+  border-top: 1px solid var(--text-color);
+  border-bottom: 1px solid var(--text-color);
+  background-color: var(--hover-color);
+}
+
+.balance-sheet .total-assets td,
+.balance-sheet .total-liabilities-equity td {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--primary-color);
+  border-top: 3px double var(--primary-color);
+  border-bottom: 3px double var(--primary-color);
+  background-color: var(--primary-light, #f8f9fa);
+}
+
+.balance-sheet .separator td {
+  border-bottom: none;
+  padding: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .reports {
+    padding: 1rem;
+  }
+  
+  .reports-nav {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .nav-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .reports-content {
+    padding: 1rem;
+  }
+  
+  .table-container th,
+  .table-container td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* RTL Support */
+.rtl .table-container th,
+.rtl .table-container td {
+  text-align: right;
+}
+
+.rtl .nav-btn {
+  text-align: right;
+}
