@@ -14,7 +14,7 @@ const CustomersSuppliers = () => {
     updateSupplier,
     deleteSupplier
   } = useAccounting()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   const [activeTab, setActiveTab] = useState('customers')
   const [showModal, setShowModal] = useState(false)
@@ -73,9 +73,11 @@ const CustomersSuppliers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Validation
     if (!formData.name.trim()) {
-      showNotification('يرجى إدخال الاسم', 'error')
+      showNotification(
+        language === 'ar' ? 'يرجى إدخال الاسم' : 'Please enter name', 
+        'error'
+      )
       return
     }
 
@@ -94,39 +96,43 @@ const CustomersSuppliers = () => {
       }
 
       if (result.success) {
-        showNotification(
-          `تم ${editingItem ? 'تحديث' : 'إضافة'} ${isCustomer ? 'العميل' : 'المورد'} بنجاح`
-        )
+        const successMessage = editingItem
+          ? (isCustomer ? t('customerUpdatedSuccess') : t('supplierUpdatedSuccess'))
+          : (isCustomer ? t('customerAddedSuccess') : t('supplierAddedSuccess'))
+        showNotification(successMessage)
         closeModal()
       } else {
         showNotification(result.error, 'error')
       }
     } catch (err) {
-      showNotification('حدث خطأ غير متوقع', 'error')
+      showNotification(t('unexpectedError'), 'error')
     }
   }
 
   const handleDelete = async (item) => {
     const isCustomer = activeTab === 'customers'
-    const type = isCustomer ? 'العميل' : 'المورد'
+    const confirmMessage = isCustomer 
+      ? `${t('confirmDeleteCustomer')} "${item.name}"؟`
+      : `${t('confirmDeleteSupplier')} "${item.name}"؟`
     
-    if (window.confirm(`هل أنت متأكد من حذف ${type} "${item.name}"؟`)) {
+    if (window.confirm(confirmMessage)) {
       const result = isCustomer 
         ? deleteCustomer(item.id)
         : deleteSupplier(item.id)
         
       if (result.success) {
-        showNotification(`تم حذف ${type} بنجاح`)
+        const successMessage = isCustomer 
+          ? t('customerDeletedSuccess')
+          : t('supplierDeletedSuccess')
+        showNotification(successMessage)
       } else {
         showNotification(result.error, 'error')
       }
     }
   }
 
-  // Get current data based on active tab
   const currentData = activeTab === 'customers' ? customers : suppliers
   
-  // Filter data based on search term
   const filteredData = currentData.filter(item => 
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.phone && item.phone.includes(searchTerm)) ||
@@ -136,9 +142,9 @@ const CustomersSuppliers = () => {
   return (
     <div className="customers-suppliers">
       <div className="page-header">
-        <h1>إدارة العملاء والموردين</h1>
+        <h1>{t('customersAndSuppliers')}</h1>
         <button className="btn btn-primary" onClick={() => openModal()}>
-          إضافة {activeTab === 'customers' ? 'عميل' : 'مورد'} جديد
+          {activeTab === 'customers' ? t('addNewCustomer') : t('addNewSupplier')}
         </button>
       </div>
 
@@ -148,45 +154,42 @@ const CustomersSuppliers = () => {
         </div>
       )}
 
-      {/* Tabs */}
       <div className="client-tabs">
         <button 
           className={`tab-btn ${activeTab === 'customers' ? 'active' : ''}`}
           onClick={() => { setActiveTab('customers'); setSearchTerm('') }}
         >
-          العملاء ({customers.length})
+          {t('customers')} ({customers.length})
         </button>
         <button 
           className={`tab-btn ${activeTab === 'suppliers' ? 'active' : ''}`}
           onClick={() => { setActiveTab('suppliers'); setSearchTerm('') }}
         >
-          الموردون ({suppliers.length})
+          {t('suppliers')} ({suppliers.length})
         </button>
       </div>
 
-      {/* Search */}
       <div className="search-section">
         <input
           type="text"
-          placeholder={`البحث في ${activeTab === 'customers' ? 'العملاء' : 'الموردين'}...`}
+          placeholder={t('searchCustomersSuppliers')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input"
         />
       </div>
 
-      {/* Data Table */}
       <div className="table-container">
         {filteredData.length > 0 ? (
           <table>
             <thead>
               <tr>
-                <th>الاسم</th>
-                <th>الهاتف</th>
-                <th>البريد الإلكتروني</th>
-                <th>العنوان</th>
-                <th>الرصيد</th>
-                <th>الإجراءات</th>
+                <th>{language === 'ar' ? 'الاسم' : 'Name'}</th>
+                <th>{t('phone')}</th>
+                <th>{t('email')}</th>
+                <th>{t('address')}</th>
+                <th>{t('balance')}</th>
+                <th>{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -202,20 +205,20 @@ const CustomersSuppliers = () => {
                   <td>{item.email || '-'}</td>
                   <td className="address-cell">{item.address || '-'}</td>
                   <td className={`balance-cell ${item.balance > 0 ? 'positive' : item.balance < 0 ? 'negative' : ''}`}>
-                    {parseFloat(item.balance || 0).toFixed(2)}
+                    {parseFloat(item.balance || 0).toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}
                   </td>
                   <td>
                     <button 
                       className="btn btn-secondary btn-sm"
                       onClick={() => openModal(item)}
                     >
-                      تعديل
+                      {language === 'ar' ? 'تعديل' : 'Edit'}
                     </button>
                     <button 
                       className="btn btn-danger btn-sm"
                       onClick={() => handleDelete(item)}
                     >
-                      حذف
+                      {language === 'ar' ? 'حذف' : 'Delete'}
                     </button>
                   </td>
                 </tr>
@@ -226,23 +229,26 @@ const CustomersSuppliers = () => {
           <div className="empty-state">
             <p>
               {searchTerm 
-                ? `لا توجد نتائج للبحث "${searchTerm}"`
-                : `لا يوجد ${activeTab === 'customers' ? 'عملاء' : 'موردين'} مسجلين`
+                ? (language === 'ar' 
+                    ? `لا توجد نتائج للبحث "${searchTerm}"`
+                    : `No results found for "${searchTerm}"`)
+                : (activeTab === 'customers' 
+                    ? t('noCustomersFound')
+                    : t('noSuppliersFound'))
               }
             </p>
           </div>
         )}
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-content client-modal">
             <div className="modal-header">
               <h2>
                 {editingItem 
-                  ? `تعديل ${activeTab === 'customers' ? 'العميل' : 'المورد'}`
-                  : `إضافة ${activeTab === 'customers' ? 'عميل' : 'مورد'} جديد`
+                  ? (activeTab === 'customers' ? t('editCustomer') : t('editSupplier'))
+                  : (activeTab === 'customers' ? t('addNewCustomer') : t('addNewSupplier'))
                 }
               </h2>
               <button className="close-btn" onClick={closeModal}>&times;</button>
@@ -250,19 +256,19 @@ const CustomersSuppliers = () => {
             
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>الاسم *</label>
+                <label>{activeTab === 'customers' ? t('customerName') : t('supplierName')} *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="اسم العميل أو المورد"
+                  placeholder={language === 'ar' ? 'اسم العميل أو المورد' : 'Customer or Supplier name'}
                   required
                 />
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>رقم الهاتف</label>
+                  <label>{t('phone')}</label>
                   <input
                     type="tel"
                     value={formData.phone}
@@ -272,7 +278,7 @@ const CustomersSuppliers = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>البريد الإلكتروني</label>
+                  <label>{t('email')}</label>
                   <input
                     type="email"
                     value={formData.email}
@@ -283,44 +289,50 @@ const CustomersSuppliers = () => {
               </div>
               
               <div className="form-group">
-                <label>العنوان</label>
+                <label>{t('address')}</label>
                 <textarea
                   value={formData.address}
                   onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="العنوان الكامل"
+                  placeholder={language === 'ar' ? 'العنوان الكامل' : 'Full address'}
                   rows="3"
                 />
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>الرصيد الابتدائي</label>
+                  <label>{language === 'ar' ? 'الرصيد الابتدائي' : 'Initial Balance'}</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="0.001"
                     value={formData.balance}
                     onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))}
-                    placeholder="0.00"
+                    placeholder="0.000"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>ملاحظات</label>
+                  <label>{t('notes')}</label>
                   <input
                     type="text"
                     value={formData.notes}
                     onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="ملاحظات إضافية"
+                    placeholder={language === 'ar' ? 'ملاحظات إضافية' : 'Additional notes'}
                   />
                 </div>
               </div>
               
               <div className="modal-actions">
                 <button type="submit" className="btn btn-primary">
-                  {editingItem ? 'حفظ التغييرات' : `إضافة ${activeTab === 'customers' ? 'العميل' : 'المورد'}`}
+                  {editingItem ? 
+                    (language === 'ar' ? 'حفظ التغييرات' : 'Save Changes') : 
+                    (activeTab === 'customers' ? 
+                      (language === 'ar' ? 'إضافة عميل' : 'Add Customer') : 
+                      (language === 'ar' ? 'إضافة مورد' : 'Add Supplier')
+                    )
+                  }
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                  إلغاء
+                  {t('cancel')}
                 </button>
               </div>
             </form>

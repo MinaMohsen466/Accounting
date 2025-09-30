@@ -12,7 +12,7 @@ const ChartOfAccounts = () => {
     loading, 
     error 
   } = useAccounting()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   
   const [showModal, setShowModal] = useState(false)
   const [editingAccount, setEditingAccount] = useState(null)
@@ -28,26 +28,26 @@ const ChartOfAccounts = () => {
     description: ''
   })
 
-  // Account types and categories in Arabic
+  // Account types and categories with translation support
   const accountTypes = {
-    asset: 'أصول',
-    liability: 'خصوم',
-    equity: 'حقوق الملكية',
-    revenue: 'إيرادات',
-    expense: 'مصاريف'
+    asset: language === 'ar' ? 'أصول' : 'Assets',
+    liability: language === 'ar' ? 'خصوم' : 'Liabilities',
+    equity: language === 'ar' ? 'حقوق الملكية' : 'Equity',
+    revenue: language === 'ar' ? 'إيرادات' : 'Revenue',
+    expense: language === 'ar' ? 'مصاريف' : 'Expenses'
   }
 
   const accountCategories = {
-    current: 'متداولة',
-    fixed: 'ثابتة',
-    long_term: 'طويلة الأجل',
-    capital: 'رأس المال',
-    retained_earnings: 'أرباح محتجزة',
-    sales: 'مبيعات',
-    other: 'أخرى',
-    cost_of_goods: 'تكلفة البضاعة',
-    operating: 'تشغيلية',
-    administrative: 'إدارية'
+    current: language === 'ar' ? 'متداولة' : 'Current',
+    fixed: language === 'ar' ? 'ثابتة' : 'Fixed',
+    long_term: language === 'ar' ? 'طويلة الأجل' : 'Long Term',
+    capital: language === 'ar' ? 'رأس المال' : 'Capital',
+    retained_earnings: language === 'ar' ? 'أرباح محتجزة' : 'Retained Earnings',
+    sales: language === 'ar' ? 'مبيعات' : 'Sales',
+    other: language === 'ar' ? 'أخرى' : 'Other',
+    cost_of_goods: language === 'ar' ? 'تكلفة البضاعة' : 'Cost of Goods',
+    operating: language === 'ar' ? 'تشغيلية' : 'Operating',
+    administrative: language === 'ar' ? 'إدارية' : 'Administrative'
   }
 
   const resetForm = () => {
@@ -102,7 +102,7 @@ const ChartOfAccounts = () => {
     )
     
     if (existingAccount) {
-      showNotification('رقم الحساب موجود بالفعل', 'error')
+      showNotification(t('accountCodeExists'), 'error')
       return
     }
 
@@ -116,22 +116,22 @@ const ChartOfAccounts = () => {
 
       if (result.success) {
         showNotification(
-          editingAccount ? 'تم تحديث الحساب بنجاح' : 'تم إضافة الحساب بنجاح'
+          editingAccount ? t('accountUpdatedSuccess') : t('accountAddedSuccess')
         )
         closeModal()
       } else {
         showNotification(result.error, 'error')
       }
     } catch (err) {
-      showNotification('حدث خطأ غير متوقع', 'error')
+      showNotification(t('unexpectedError'), 'error')
     }
   }
 
   const handleDelete = async (account) => {
-    if (window.confirm(`هل أنت متأكد من حذف الحساب "${account.name}"؟`)) {
+    if (window.confirm(`${t('confirmDeleteAccount')} "${account.name}"؟`)) {
       const result = deleteAccount(account.id)
       if (result.success) {
-        showNotification('تم حذف الحساب بنجاح')
+        showNotification(t('accountDeletedSuccess'))
       } else {
         showNotification(result.error, 'error')
       }
@@ -147,15 +147,15 @@ const ChartOfAccounts = () => {
   })
 
   if (loading) {
-    return <div className="loading">جاري تحميل البيانات...</div>
+    return <div className="loading">{t('loadingData')}</div>
   }
 
   return (
     <div className="chart-of-accounts">
       <div className="page-header">
-        <h1>دليل الحسابات</h1>
+        <h1>{t('chartOfAccounts')}</h1>
         <button className="btn btn-primary" onClick={() => openModal()}>
-          إضافة حساب جديد
+          {t('addNewAccount')}
         </button>
       </div>
 
@@ -179,19 +179,19 @@ const ChartOfAccounts = () => {
             onChange={(e) => setFilterType(e.target.value)}
             className="filter-select"
           >
-            <option value="all">جميع الحسابات</option>
-            <option value="asset">الأصول</option>
-            <option value="liability">الخصوم</option>
-            <option value="equity">حقوق الملكية</option>
-            <option value="revenue">الإيرادات</option>
-            <option value="expense">المصاريف</option>
+            <option value="all">{t('filterAll')}</option>
+            <option value="asset">{t('assets')}</option>
+            <option value="liability">{t('liabilities')}</option>
+            <option value="equity">{t('equity')}</option>
+            <option value="revenue">{t('revenue')}</option>
+            <option value="expense">{t('expenses')}</option>
           </select>
         </div>
         
         <div className="form-group">
           <input
             type="text"
-            placeholder="البحث في الحسابات..."
+            placeholder={t('searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -205,11 +205,11 @@ const ChartOfAccounts = () => {
           <table>
             <thead>
               <tr>
-                <th>رقم الحساب</th>
-                <th>اسم الحساب</th>
-                <th>النوع</th>
-                <th>التصنيف</th>
-                <th>الإجراءات</th>
+                <th>{t('accountCode')}</th>
+                <th>{t('accountName')}</th>
+                <th>{t('accountType')}</th>
+                <th>{t('accountCategory')}</th>
+                <th>{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -224,13 +224,13 @@ const ChartOfAccounts = () => {
                       className="btn btn-secondary btn-sm"
                       onClick={() => openModal(account)}
                     >
-                      تعديل
+                      {t('editAccount')}
                     </button>
                     <button 
                       className="btn btn-danger btn-sm"
                       onClick={() => handleDelete(account)}
                     >
-                      حذف
+                      {t('deleteAccount')}
                     </button>
                   </td>
                 </tr>
@@ -239,7 +239,7 @@ const ChartOfAccounts = () => {
           </table>
         ) : (
           <div className="empty-state">
-            <p>لا توجد حسابات متاحة</p>
+            <p>{language === 'ar' ? 'لا توجد حسابات متاحة' : 'No accounts available'}</p>
           </div>
         )}
       </div>
@@ -249,50 +249,50 @@ const ChartOfAccounts = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h2>{editingAccount ? 'تعديل حساب' : 'إضافة حساب جديد'}</h2>
+              <h2>{editingAccount ? t('editAccount') : t('addNewAccount')}</h2>
               <button className="close-btn" onClick={closeModal}>&times;</button>
             </div>
             
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>رقم الحساب *</label>
+                <label>{t('accountCode')} *</label>
                 <input
                   type="text"
                   value={formData.code}
                   onChange={(e) => setFormData({...formData, code: e.target.value})}
-                  placeholder="مثال: 1001"
+                  placeholder={language === 'ar' ? 'مثال: 1001' : 'Example: 1001'}
                   required
                 />
               </div>
               
               <div className="form-group">
-                <label>اسم الحساب *</label>
+                <label>{t('accountName')} *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder="مثال: النقدية"
+                  placeholder={language === 'ar' ? 'مثال: النقدية' : 'Example: Cash'}
                   required
                 />
               </div>
               
               <div className="form-group">
-                <label>نوع الحساب *</label>
+                <label>{t('accountType')} *</label>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({...formData, type: e.target.value, category: 'current'})}
                   required
                 >
-                  <option value="asset">أصول</option>
-                  <option value="liability">خصوم</option>
-                  <option value="equity">حقوق الملكية</option>
-                  <option value="revenue">إيرادات</option>
-                  <option value="expense">مصاريف</option>
+                  <option value="asset">{accountTypes.asset}</option>
+                  <option value="liability">{accountTypes.liability}</option>
+                  <option value="equity">{accountTypes.equity}</option>
+                  <option value="revenue">{accountTypes.revenue}</option>
+                  <option value="expense">{accountTypes.expense}</option>
                 </select>
               </div>
               
               <div className="form-group">
-                <label>تصنيف الحساب *</label>
+                <label>{t('accountCategory')} *</label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({...formData, category: e.target.value})}
@@ -300,54 +300,54 @@ const ChartOfAccounts = () => {
                 >
                   {formData.type === 'asset' && (
                     <>
-                      <option value="current">متداولة</option>
-                      <option value="fixed">ثابتة</option>
+                      <option value="current">{accountCategories.current}</option>
+                      <option value="fixed">{accountCategories.fixed}</option>
                     </>
                   )}
                   {formData.type === 'liability' && (
                     <>
-                      <option value="current">متداولة</option>
-                      <option value="long_term">طويلة الأجل</option>
+                      <option value="current">{accountCategories.current}</option>
+                      <option value="long_term">{accountCategories.long_term}</option>
                     </>
                   )}
                   {formData.type === 'equity' && (
                     <>
-                      <option value="capital">رأس المال</option>
-                      <option value="retained_earnings">أرباح محتجزة</option>
+                      <option value="capital">{accountCategories.capital}</option>
+                      <option value="retained_earnings">{accountCategories.retained_earnings}</option>
                     </>
                   )}
                   {formData.type === 'revenue' && (
                     <>
-                      <option value="sales">مبيعات</option>
-                      <option value="other">أخرى</option>
+                      <option value="sales">{accountCategories.sales}</option>
+                      <option value="other">{accountCategories.other}</option>
                     </>
                   )}
                   {formData.type === 'expense' && (
                     <>
-                      <option value="cost_of_goods">تكلفة البضاعة</option>
-                      <option value="operating">تشغيلية</option>
-                      <option value="administrative">إدارية</option>
+                      <option value="cost_of_goods">{accountCategories.cost_of_goods}</option>
+                      <option value="operating">{accountCategories.operating}</option>
+                      <option value="administrative">{accountCategories.administrative}</option>
                     </>
                   )}
                 </select>
               </div>
               
               <div className="form-group">
-                <label>وصف الحساب</label>
+                <label>{t('description')}</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="وصف اختياري للحساب"
+                  placeholder={language === 'ar' ? 'وصف اختياري للحساب' : 'Optional account description'}
                   rows="3"
                 />
               </div>
               
               <div className="modal-actions">
                 <button type="submit" className="btn btn-primary">
-                  {editingAccount ? 'حفظ التغييرات' : 'إضافة الحساب'}
+                  {editingAccount ? t('save') : t('addNewAccount')}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                  إلغاء
+                  {t('cancel')}
                 </button>
               </div>
             </form>

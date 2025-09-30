@@ -1015,7 +1015,6 @@ const Invoices = () => {
                               ref={el => dropdownRefs.current[index] = el}
                             >
                               <div className="product-search-wrapper">
-                                <span className="product-search-icon">🔍</span>
                                 <input
                                   ref={el => inputRefs.current[index] = el}
                                   type="text"

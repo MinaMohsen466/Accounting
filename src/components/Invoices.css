@@ -435,7 +435,7 @@
 
 .product-search-input {
   width: 100%;
-  padding: 10px 16px 10px 40px;
+  padding: 10px 16px;
   border: 2px solid var(--border-light);
   border-radius: var(--radius-md);
   font-size: 14px;
