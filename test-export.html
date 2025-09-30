@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار تصدير localStorage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            direction: rtl;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        
+        .stats {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .stats h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border-right: 4px solid #007bff;
+        }
+        
+        .stat-label {
+            display: block;
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            display: block;
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .message {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .file-label {
+            display: inline-block;
+            padding: 15px 25px;
+            background: #6c757d;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        .file-label:hover {
+            background: #545b62;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 اختبار تصدير localStorage</h1>
+            <p>أداة بسيطة لتصدير واستيراد بيانات localStorage</p>
+        </div>
+
+        <!-- إحصائيات localStorage -->
+        <div class="stats">
+            <h3>📊 إحصائيات localStorage الحالية</h3>
+            <div class="stats-grid" id="statsContainer">
+                <div class="stat-item">
+                    <span class="stat-label">عدد المفاتيح</span>
+                    <span class="stat-value" id="keysCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">الحجم الإجمالي</span>
+                    <span class="stat-value" id="totalSize">0 KB</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">أكبر مفتاح</span>
+                    <span class="stat-value" id="largestKey">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- الأزرار الرئيسية -->
+        <div class="buttons">
+            <button class="btn btn-primary" onclick="exportData()">
+                💾 تصدير localStorage
+            </button>
+            
+            <button class="btn btn-success" onclick="addSampleData()">
+                ➕ إضافة بيانات تجريبية
+            </button>
+            
+            <button class="btn btn-warning" onclick="showLocalStorageData()">
+                👁️ عرض البيانات
+            </button>
+            
+            <button class="btn btn-danger" onclick="clearLocalStorage()">
+                🗑️ مسح localStorage
+            </button>
+        </div>
+
+        <!-- استيراد ملف -->
+        <div style="text-align: center; margin: 20px 0;">
+            <input type="file" id="fileInput" accept=".json" onchange="importData(event)">
+            <label for="fileInput" class="file-label">
+                📁 استيراد من ملف JSON
+            </label>
+        </div>
+
+        <!-- منطقة الرسائل -->
+        <div id="messageArea"></div>
+
+        <!-- عرض البيانات -->
+        <div id="dataDisplay" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        // ExportService - نسخة مبسطة
+        class ExportService {
+            static getAllLocalStorageData() {
+                const data = {}
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i)
+                    try {
+                        const value = localStorage.getItem(key)
+                        try {
+                            data[key] = JSON.parse(value)
+                        } catch {
+                            data[key] = value
+                        }
+                    } catch (error) {
+                        console.warn(`تعذر قراءة المفتاح: ${key}`, error)
+                    }
+                }
+                return data
+            }
+
+            static exportLocalStorageToFile() {
+                try {
+                    const data = this.getAllLocalStorageData()
+                    const backupData = {
+                        exportDate: new Date().toISOString(),
+                        exportTimestamp: Date.now(),
+                        dataCount: Object.keys(data).length,
+                        totalSize: JSON.stringify(data).length,
+                        data: data
+                    }
+
+                    const jsonString = JSON.stringify(backupData, null, 2)
+                    const blob = new Blob([jsonString], { type: 'application/json' })
+                    const downloadLink = document.createElement('a')
+                    const url = URL.createObjectURL(blob)
+
+                    downloadLink.href = url
+                    downloadLink.download = 'backup_localStorage.json'
+                    downloadLink.style.display = 'none'
+
+                    document.body.appendChild(downloadLink)
+                    downloadLink.click()
+                    document.body.removeChild(downloadLink)
+                    URL.revokeObjectURL(url)
+
+                    return true
+                } catch (error) {
+                    console.error('خطأ في التصدير:', error)
+                    return false
+                }
+            }
+
+            static getLocalStorageStats() {
+                const stats = {
+                    totalKeys: localStorage.length,
+                    keys: [],
+                    totalSize: 0,
+                    largestKey: null,
+                    largestSize: 0
+                }
+
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i)
+                    const value = localStorage.getItem(key)
+                    const size = value ? value.length : 0
+
+                    stats.keys.push({ key, size, sizeKB: (size / 1024).toFixed(2) })
+                    stats.totalSize += size
+
+                    if (size > stats.largestSize) {
+                        stats.largestSize = size
+                        stats.largestKey = key
+                    }
+                }
+
+                stats.totalSizeKB = (stats.totalSize / 1024).toFixed(2)
+                return stats
+            }
+
+            static importFromFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader()
+                    reader.onload = (event) => {
+                        try {
+                            const jsonData = JSON.parse(event.target.result)
+                            let dataToImport = jsonData.data || jsonData
+
+                            Object.keys(dataToImport).forEach(key => {
+                                const value = dataToImport[key]
+                                if (typeof value === 'object') {
+                                    localStorage.setItem(key, JSON.stringify(value))
+                                } else {
+                                    localStorage.setItem(key, value)
+                                }
+                            })
+
+                            resolve({ success: true, importedKeys: Object.keys(dataToImport).length })
+                        } catch (error) {
+                            reject(new Error(`خطأ في قراءة الملف: ${error.message}`))
+                        }
+                    }
+                    reader.onerror = () => reject(new Error('خطأ في قراءة الملف'))
+                    reader.readAsText(file)
+                })
+            }
+        }
+
+        // الوظائف الرئيسية
+        function exportData() {
+            const success = ExportService.exportLocalStorageToFile()
+            if (success) {
+                showMessage('تم تصدير البيانات بنجاح! تحقق من مجلد التنزيلات.', 'success')
+            } else {
+                showMessage('فشل في تصدير البيانات!', 'error')
+            }
+            updateStats()
+        }
+
+        function addSampleData() {
+            const sampleData = {
+                accounts: [
+                    { id: 1, code: '1000', name: 'النقدية', type: 'asset' },
+                    { id: 2, code: '2000', name: 'الذمم الدائنة', type: 'liability' }
+                ],
+                invoices: [
+                    { id: 1, number: 'INV-001', amount: 1500, date: '2024-01-15' },
+                    { id: 2, number: 'INV-002', amount: 2300, date: '2024-01-16' }
+                ],
+                settings: {
+                    language: 'ar',
+                    currency: 'KWD',
+                    dateFormat: 'DD/MM/YYYY'
+                }
+            }
+
+            Object.keys(sampleData).forEach(key => {
+                localStorage.setItem(key, JSON.stringify(sampleData[key]))
+            })
+
+            // إضافة بعض البيانات النصية أيضاً
+            localStorage.setItem('appVersion', '1.0.0')
+            localStorage.setItem('lastLogin', new Date().toISOString())
+            localStorage.setItem('theme', 'default')
+
+            showMessage('تم إضافة البيانات التجريبية بنجاح!', 'success')
+            updateStats()
+        }
+
+        function showLocalStorageData() {
+            const data = ExportService.getAllLocalStorageData()
+            const displayArea = document.getElementById('dataDisplay')
+            
+            if (Object.keys(data).length === 0) {
+                displayArea.innerHTML = '<div class="message">localStorage فارغ!</div>'
+                return
+            }
+
+            let html = '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px;">'
+            html += '<h3>📋 محتويات localStorage:</h3>'
+            html += '<pre style="background: white; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 14px; border: 1px solid #dee2e6;">'
+            html += JSON.stringify(data, null, 2)
+            html += '</pre></div>'
+            
+            displayArea.innerHTML = html
+        }
+
+        function clearLocalStorage() {
+            if (confirm('هل أنت متأكد من مسح جميع بيانات localStorage؟')) {
+                localStorage.clear()
+                showMessage('تم مسح localStorage بنجاح!', 'success')
+                updateStats()
+                document.getElementById('dataDisplay').innerHTML = ''
+            }
+        }
+
+        function importData(event) {
+            const file = event.target.files[0]
+            if (!file) return
+
+            ExportService.importFromFile(file)
+                .then((result) => {
+                    showMessage(`تم استيراد ${result.importedKeys} مفتاح بنجاح!`, 'success')
+                    updateStats()
+                })
+                .catch((error) => {
+                    showMessage(`فشل في الاستيراد: ${error.message}`, 'error')
+                })
+
+            event.target.value = ''
+        }
+
+        function showMessage(text, type) {
+            const messageArea = document.getElementById('messageArea')
+            const messageDiv = document.createElement('div')
+            messageDiv.className = `message ${type}`
+            messageDiv.textContent = text
+            
+            messageArea.innerHTML = ''
+            messageArea.appendChild(messageDiv)
+            
+            setTimeout(() => {
+                messageArea.innerHTML = ''
+            }, 5000)
+        }
+
+        function updateStats() {
+            const stats = ExportService.getLocalStorageStats()
+            document.getElementById('keysCount').textContent = stats.totalKeys
+            document.getElementById('totalSize').textContent = stats.totalSizeKB + ' KB'
+            document.getElementById('largestKey').textContent = stats.largestKey || '-'
+        }
+
+        // تحديث الإحصائيات عند تحميل الصفحة
+        window.onload = function() {
+            updateStats()
+        }
+    </script>
+</body>
+</html>

@@ -36,7 +36,7 @@ const AppContent = () => {
       case 'reports':
         return <Reports />
       default:
-        return <Dashboard />
+        return <Dashboard onNavigate={setCurrentView} />
     }
   }
 

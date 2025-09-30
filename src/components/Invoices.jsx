@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
 import './Invoices.css'
@@ -15,13 +15,54 @@ const Invoices = () => {
     getInventoryItems,
     updateInventoryItem
   } = useAccounting()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   const [showModal, setShowModal] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState(null)
   const [activeTab, setActiveTab] = useState('all')
   const [notification, setNotification] = useState(null)
   const [searchResults, setSearchResults] = useState({})
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterType, setFilterType] = useState('all')
+  const [sortBy, setSortBy] = useState('date')
+  const [sortOrder, setSortOrder] = useState('desc')
+  
+  // Refs for dropdown management
+  const dropdownRefs = useRef({})
+  const inputRefs = useRef({})
+
+  // Function to calculate dropdown position
+  const getDropdownStyle = (index) => {
+    if (!inputRefs.current[index]) return {}
+    
+    const inputRect = inputRefs.current[index].getBoundingClientRect()
+    return {
+      top: inputRect.bottom + 2,
+      left: inputRect.left,
+      width: Math.max(300, inputRect.width)
+    }
+  }
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      Object.keys(searchResults).forEach(index => {
+        if (dropdownRefs.current[index] && !dropdownRefs.current[index].contains(event.target)) {
+          setSearchResults(prev => {
+            const newResults = { ...prev }
+            delete newResults[index]
+            return newResults
+          })
+        }
+      })
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [searchResults])
   
   const [formData, setFormData] = useState({
     type: 'sales', // sales or purchase
@@ -143,7 +184,7 @@ const Invoices = () => {
     }
   }
 
-  // Handle product search
+  // Handle product search with enhanced filtering
   const handleProductSearch = (itemIndex, searchTerm) => {
     // Update the item name in formData
     const newItems = [...formData.items]
@@ -152,14 +193,44 @@ const Invoices = () => {
 
     // Perform search if searchTerm has at least 1 character
     if (searchTerm.trim().length > 0) {
-      const filtered = inventoryItems?.filter(product =>
-        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-      ) || []
+      const searchLower = searchTerm.toLowerCase()
+      const filtered = inventoryItems?.filter(product => {
+        return (
+          product.name?.toLowerCase().includes(searchLower) ||
+          product.sku?.toLowerCase().includes(searchLower) ||
+          product.category?.toLowerCase().includes(searchLower) ||
+          product.description?.toLowerCase().includes(searchLower)
+        )
+      })
+      .sort((a, b) => {
+        // Sort by relevance: exact matches first, then name matches, then SKU matches
+        const aName = a.name?.toLowerCase() || ''
+        const bName = b.name?.toLowerCase() || ''
+        const aSku = a.sku?.toLowerCase() || ''
+        const bSku = b.sku?.toLowerCase() || ''
+        
+        const aExactName = aName === searchLower
+        const bExactName = bName === searchLower
+        const aStartsName = aName.startsWith(searchLower)
+        const bStartsName = bName.startsWith(searchLower)
+        const aExactSku = aSku === searchLower
+        const bExactSku = bSku === searchLower
+        
+        if (aExactName && !bExactName) return -1
+        if (!aExactName && bExactName) return 1
+        if (aExactSku && !bExactSku) return -1
+        if (!aExactSku && bExactSku) return 1
+        if (aStartsName && !bStartsName) return -1
+        if (!aStartsName && bStartsName) return 1
+        
+        return aName.localeCompare(bName)
+      }) || []
+      
+      console.log('Search term:', searchTerm, 'Results:', filtered.length) // Debug log
       
       setSearchResults(prev => ({
         ...prev,
-        [itemIndex]: filtered.slice(0, 5) // Show only first 5 results
+        [itemIndex]: filtered.slice(0, 8) // Show up to 8 results
       }))
     } else {
       // Clear search results if search term is empty
@@ -477,11 +548,61 @@ const Invoices = () => {
     }
   }
 
-  // Filter invoices based on active tab
-  const filteredInvoices = invoices.filter(invoice => {
-    if (activeTab === 'all') return true
-    return invoice.type === activeTab
-  })
+  // Enhanced filter and search functionality
+  const filteredAndSortedInvoices = () => {
+    let filtered = invoices.filter(invoice => {
+      // Tab filter
+      const matchesTab = activeTab === 'all' || invoice.type === activeTab
+      
+      // Search filter
+      const matchesSearch = searchTerm === '' || 
+        invoice.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(invoice.total || 0).includes(searchTerm)
+      
+      // Status filter
+      const matchesStatus = filterStatus === 'all' || 
+        (invoice.paymentStatus || 'paid') === filterStatus
+      
+      // Type filter
+      const matchesType = filterType === 'all' || invoice.type === filterType
+      
+      return matchesTab && matchesSearch && matchesStatus && matchesType
+    })
+
+    // Sort the filtered invoices
+    filtered.sort((a, b) => {
+      let aValue = a[sortBy] || ''
+      let bValue = b[sortBy] || ''
+      
+      // Handle date sorting
+      if (sortBy === 'date' || sortBy === 'dueDate') {
+        aValue = new Date(aValue)
+        bValue = new Date(bValue)
+      }
+      // Handle numeric fields
+      else if (sortBy === 'total') {
+        aValue = parseFloat(aValue) || 0
+        bValue = parseFloat(bValue) || 0
+      }
+      // Handle string fields
+      else {
+        aValue = String(aValue).toLowerCase()
+        bValue = String(bValue).toLowerCase()
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1
+      } else {
+        return aValue < bValue ? 1 : -1
+      }
+    })
+
+    return filtered
+  }
+
+  const filteredInvoices = filteredAndSortedInvoices()
 
   return (
     <div className="invoices">
@@ -520,6 +641,80 @@ const Invoices = () => {
         </button>
       </div>
 
+      {/* Search and Filter Controls */}
+      <div className="invoice-controls">
+        <div className="search-filters">
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder={t('searchInvoices')}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            <span className="search-icon">🔍</span>
+          </div>
+          
+          <div className="filter-controls">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">{t('allTypes')}</option>
+              <option value="sales">{t('salesInvoices')}</option>
+              <option value="purchase">{t('purchaseInvoices')}</option>
+            </select>
+            
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">{t('allStatuses')}</option>
+              <option value="paid">{t('paid')}</option>
+              <option value="pending">{t('pending')}</option>
+              <option value="overdue">{t('overdue')}</option>
+            </select>
+            
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="sort-select"
+            >
+              <option value="date">{t('sortByDate')}</option>
+              <option value="invoiceNumber">{t('sortByInvoiceNumber')}</option>
+              <option value="clientName">{t('sortByClient')}</option>
+              <option value="total">{t('sortByAmount')}</option>
+            </select>
+            
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="sort-order-btn"
+              title={sortOrder === 'asc' ? t('sortDescending') : t('sortAscending')}
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
+        </div>
+        
+        {(searchTerm || filterStatus !== 'all' || filterType !== 'all') && (
+          <div className="search-results">
+            <span>{t('showingResults')}: {filteredInvoices.length} {t('of')} {invoices.length}</span>
+            <button 
+              onClick={() => {
+                setSearchTerm('')
+                setFilterStatus('all')
+                setFilterType('all')
+              }}
+              className="clear-search-btn"
+            >
+              {t('clearSearch')}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Invoices Table */}
       <div className="table-container">
         {filteredInvoices.length > 0 ? (
@@ -545,7 +740,7 @@ const Invoices = () => {
                     </span>
                   </td>
                   <td>{invoice.clientName}</td>
-                  <td>{new Date(invoice.date).toLocaleDateString()}</td>
+                  <td>{new Date(invoice.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
                   <td>{parseFloat(invoice.total).toFixed(3)} {t('kwd')}</td>
                   <td>
                     <span className={`payment-status ${invoice.paymentStatus || 'paid'}`}>
@@ -575,7 +770,11 @@ const Invoices = () => {
           </table>
         ) : (
           <div className="empty-state">
-            <p>لا توجد فواتير متاحة</p>
+            {invoices.length === 0 ? (
+              <p>لا توجد فواتير متاحة</p>
+            ) : (
+              <p>{t('noSearchResults')}</p>
+            )}
           </div>
         )}
       </div>
@@ -689,17 +888,27 @@ const Invoices = () => {
                       {formData.items.map((item, index) => (
                         <tr key={index}>
                           <td>
-                            <div className="product-select-container">
-                              <input
-                                type="text"
-                                value={item.itemName}
-                                onChange={(e) => handleProductSearch(index, e.target.value)}
-                                placeholder="ابحث عن المنتج..."
-                                className="product-search-input"
-                                required
-                              />
+                            <div 
+                              className="product-select-container"
+                              ref={el => dropdownRefs.current[index] = el}
+                            >
+                              <div className="product-search-wrapper">
+                                <span className="product-search-icon">🔍</span>
+                                <input
+                                  ref={el => inputRefs.current[index] = el}
+                                  type="text"
+                                  value={item.itemName}
+                                  onChange={(e) => handleProductSearch(index, e.target.value)}
+                                  placeholder="ابحث عن المنتج..."
+                                  className="product-search-input"
+                                  required
+                                />
+                              </div>
                               {searchResults[index] && (
-                                <div className="product-dropdown">
+                                <div 
+                                  className="product-dropdown"
+                                  style={getDropdownStyle(index)}
+                                >
                                   {searchResults[index].length > 0 ? (
                                     searchResults[index].map(product => (
                                       <div
@@ -707,20 +916,34 @@ const Invoices = () => {
                                         className="product-option"
                                         onClick={() => selectProduct(index, product)}
                                       >
-                                        <span className="product-name">{product.name}</span>
+                                        <div className="product-header">
+                                          <span className="product-name">{product.name}</span>
+                                          {product.category && (
+                                            <span className="product-category">{product.category}</span>
+                                          )}
+                                        </div>
                                         <div className="product-details">
-                                          <div>
-                                            <strong>SKU:</strong> {product.sku}
-                                            {product.quantity > 0 ? (
-                                              <span className="stock-available"> • متوفر: {product.quantity}</span>
-                                            ) : (
-                                              <span className="stock-out"> • غير متوفر</span>
+                                          <div className="product-info">
+                                            <span className="product-sku">
+                                              <strong>SKU:</strong> {product.sku}
+                                            </span>
+                                            {product.quantity !== undefined && (
+                                              product.quantity > 0 ? (
+                                                <span className="stock-available"> • متوفر: {product.quantity}</span>
+                                              ) : (
+                                                <span className="stock-out"> • غير متوفر</span>
+                                              )
                                             )}
                                           </div>
                                           <span className="product-price">
                                             {(product.price || product.unitPrice || 0).toFixed(3)} {t('kwd')}
                                           </span>
                                         </div>
+                                        {product.description && (
+                                          <div className="product-description">
+                                            {product.description}
+                                          </div>
+                                        )}
                                       </div>
                                     ))
                                   ) : (

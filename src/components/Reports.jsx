@@ -162,7 +162,7 @@ const Reports = () => {
         retainedEarnings,
         totalEquity
       },
-      date: currentDate.toLocaleDateString('ar-SA')
+      date: currentDate.toLocaleDateString('ar-EG')
     }
   }
 

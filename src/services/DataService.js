@@ -299,33 +299,7 @@ class DataService {
   static initializeDefaultAccounts() {
     const existingAccounts = this.getAccounts()
     if (existingAccounts.length === 0) {
-      const defaultAccounts = [
-        // Assets
-        { code: '1001', name: 'النقدية', type: 'asset', category: 'current' },
-        { code: '1002', name: 'البنك', type: 'asset', category: 'current' },
-        { code: '1101', name: 'العملاء', type: 'asset', category: 'current' },
-        { code: '1201', name: 'المخزون', type: 'asset', category: 'current' },
-        { code: '1501', name: 'الأثاث والمعدات', type: 'asset', category: 'fixed' },
-        
-        // Liabilities
-        { code: '2001', name: 'الموردون', type: 'liability', category: 'current' },
-        { code: '2101', name: 'القروض قصيرة الأجل', type: 'liability', category: 'current' },
-        { code: '2501', name: 'القروض طويلة الأجل', type: 'liability', category: 'long_term' },
-        
-        // Equity
-        { code: '3001', name: 'رأس المال', type: 'equity', category: 'capital' },
-        { code: '3101', name: 'الأرباح المحتجزة', type: 'equity', category: 'retained_earnings' },
-        
-        // Revenue
-        { code: '4001', name: 'مبيعات البضاعة', type: 'revenue', category: 'sales' },
-        { code: '4101', name: 'إيرادات أخرى', type: 'revenue', category: 'other' },
-        
-        // Expenses
-        { code: '5001', name: 'تكلفة البضاعة المباعة', type: 'expense', category: 'cost_of_goods' },
-        { code: '5101', name: 'مصاريف التشغيل', type: 'expense', category: 'operating' },
-        { code: '5201', name: 'مصاريف الإيجار', type: 'expense', category: 'operating' },
-        { code: '5301', name: 'مصاريف الكهرباء', type: 'expense', category: 'operating' }
-      ]
+      const defaultAccounts = []
       
       defaultAccounts.forEach(account => {
         this.addAccount(account)
@@ -339,11 +313,7 @@ class DataService {
     const existingSuppliers = this.getSuppliers()
     
     if (existingCustomers.length === 0) {
-      const defaultCustomers = [
-        { name: 'شركة الأعمال المتقدمة', phone: '0501234567', email: 'info@advanced.com', address: 'الرياض، المملكة العربية السعودية' },
-        { name: 'مؤسسة التجارة الحديثة', phone: '0507654321', email: 'sales@modern.com', address: 'جدة، المملكة العربية السعودية' },
-        { name: 'شركة الخليج للاستثمار', phone: '0503456789', email: 'contact@gulf.com', address: 'الدمام، المملكة العربية السعودية' }
-      ]
+      const defaultCustomers = []
       
       defaultCustomers.forEach(customer => {
         this.addCustomer(customer)
@@ -351,11 +321,7 @@ class DataService {
     }
     
     if (existingSuppliers.length === 0) {
-      const defaultSuppliers = [
-        { name: 'شركة المواد الخام', phone: '0509876543', email: 'supply@rawmat.com', address: 'الرياض، المملكة العربية السعودية' },
-        { name: 'مؤسسة التوريدات العامة', phone: '0506543210', email: 'orders@supplies.com', address: 'جدة، المملكة العربية السعودية' },
-        { name: 'شركة الخدمات اللوجستية', phone: '0504321098', email: 'logistics@services.com', address: 'الخبر، المملكة العربية السعودية' }
-      ]
+      const defaultSuppliers = []
       
       defaultSuppliers.forEach(supplier => {
         this.addSupplier(supplier)
@@ -369,62 +335,7 @@ class DataService {
     
     // Force refresh for testing - remove this line in production
     if (existingItems.length === 0 || existingItems.some(item => !item.price && !item.unitPrice)) {
-      const defaultItems = [
-        { 
-          id: 'item_1',
-          name: 'كمبيوتر محمول Dell', 
-          sku: 'DELL-LT-001', 
-          category: 'أجهزة الكمبيوتر', 
-          quantity: 15, 
-          price: 250.000, 
-          description: 'كمبيوتر محمول Dell Inspiron 15'
-        },
-        { 
-          id: 'item_2',
-          name: 'ماوس لاسلكي', 
-          sku: 'MSE-WL-001', 
-          category: 'ملحقات الكمبيوتر', 
-          quantity: 50, 
-          price: 8.500, 
-          description: 'ماوس لاسلكي عالي الجودة'
-        },
-        { 
-          id: 'item_3',
-          name: 'لوحة مفاتيح آبل', 
-          sku: 'APL-KB-001', 
-          category: 'ملحقات الكمبيوتر', 
-          quantity: 25, 
-          price: 45.750, 
-          description: 'لوحة مفاتيح Apple Magic Keyboard'
-        },
-        { 
-          id: 'item_4',
-          name: 'شاشة Samsung 24 بوصة', 
-          sku: 'SAM-MON-24', 
-          category: 'شاشات', 
-          quantity: 12, 
-          price: 120.500, 
-          description: 'شاشة Samsung LED 24 بوصة Full HD'
-        },
-        { 
-          id: 'item_5',
-          name: 'طابعة HP LaserJet', 
-          sku: 'HP-LJ-001', 
-          category: 'طابعات', 
-          quantity: 8, 
-          price: 180.250, 
-          description: 'طابعة HP LaserJet Pro للأعمال'
-        },
-        { 
-          id: 'item_6',
-          name: 'محرك أقراص خارجي 1TB', 
-          sku: 'EXT-HD-1TB', 
-          category: 'أجهزة التخزين', 
-          quantity: 20, 
-          price: 35.000, 
-          description: 'محرك أقراص خارجي WD 1TB'
-        }
-      ]
+      const defaultItems = []
       
       defaultItems.forEach(item => {
         this.addInventoryItem(item)

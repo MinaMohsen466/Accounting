@@ -11,7 +11,7 @@ const JournalEntries = () => {
     updateJournalEntry, 
     deleteJournalEntry 
   } = useAccounting()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   const [showModal, setShowModal] = useState(false)
   const [editingEntry, setEditingEntry] = useState(null)
@@ -221,7 +221,7 @@ const JournalEntries = () => {
                 return (
                   <tr key={entry.id}>
                     <td>{entry.entryNumber}</td>
-                    <td>{new Date(entry.date).toLocaleDateString()}</td>
+                    <td>{new Date(entry.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
                     <td>{entry.description}</td>
                     <td>{entry.reference || '-'}</td>
                     <td>{totalDebit.toFixed(2)}</td>

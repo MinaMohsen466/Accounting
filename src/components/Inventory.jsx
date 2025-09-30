@@ -15,6 +15,10 @@ const Inventory = () => {
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [notification, setNotification] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterCategory, setFilterCategory] = useState('all')
+  const [sortBy, setSortBy] = useState('name')
+  const [sortOrder, setSortOrder] = useState('asc')
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -106,6 +110,50 @@ const Inventory = () => {
     }
   }
 
+  // Search and filter logic
+  const filteredAndSortedItems = () => {
+    let filtered = inventoryItems.filter(item => {
+      const matchesSearch = searchTerm === '' || 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      
+      const matchesCategory = filterCategory === 'all' || 
+        (item.category && item.category.toLowerCase() === filterCategory.toLowerCase())
+      
+      return matchesSearch && matchesCategory
+    })
+
+    // Sort the filtered items
+    filtered.sort((a, b) => {
+      let aValue = a[sortBy] || ''
+      let bValue = b[sortBy] || ''
+      
+      // Handle numeric fields
+      if (sortBy === 'quantity' || sortBy === 'price') {
+        aValue = parseFloat(aValue) || 0
+        bValue = parseFloat(bValue) || 0
+      } else {
+        aValue = String(aValue).toLowerCase()
+        bValue = String(bValue).toLowerCase()
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1
+      } else {
+        return aValue < bValue ? 1 : -1
+      }
+    })
+
+    return filtered
+  }
+
+  const displayedItems = filteredAndSortedItems()
+  
+  // Get unique categories for filter dropdown
+  const categories = [...new Set(inventoryItems.map(item => item.category).filter(Boolean))]
+
   const totalValue = inventoryItems.reduce((sum, item) => 
     sum + (item.quantity * (item.price || item.unitPrice || 0)), 0
   )
@@ -128,7 +176,7 @@ const Inventory = () => {
       <div className="inventory-stats">
         <div className="stat-card">
           <h3>{t('totalProducts')}</h3>
-          <p>{inventoryItems?.length || 0}</p>
+          <p>{displayedItems?.length || 0} / {inventoryItems?.length || 0}</p>
         </div>
         <div className="stat-card">
           <h3>{t('totalValue')}</h3>
@@ -136,8 +184,72 @@ const Inventory = () => {
         </div>
       </div>
 
+      {/* Search and Filter Controls */}
+      <div className="inventory-controls">
+        <div className="search-filters">
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder={t('searchInventory')}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            <span className="search-icon">🔍</span>
+          </div>
+          
+          <div className="filter-controls">
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">{t('allCategories')}</option>
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+            
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="sort-select"
+            >
+              <option value="name">{t('sortByName')}</option>
+              <option value="sku">{t('sortBySKU')}</option>
+              <option value="category">{t('sortByCategory')}</option>
+              <option value="quantity">{t('sortByQuantity')}</option>
+              <option value="price">{t('sortByPrice')}</option>
+            </select>
+            
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="sort-order-btn"
+              title={sortOrder === 'asc' ? t('sortDescending') : t('sortAscending')}
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
+        </div>
+        
+        {(searchTerm || filterCategory !== 'all') && (
+          <div className="search-results">
+            <span>{t('showingResults')}: {displayedItems.length} {t('of')} {inventoryItems.length}</span>
+            <button 
+              onClick={() => {
+                setSearchTerm('')
+                setFilterCategory('all')
+              }}
+              className="clear-search-btn"
+            >
+              {t('clearSearch')}
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="table-container">
-        {inventoryItems?.length > 0 ? (
+        {displayedItems?.length > 0 ? (
           <table>
             <thead>
               <tr>
@@ -151,7 +263,7 @@ const Inventory = () => {
               </tr>
             </thead>
             <tbody>
-              {inventoryItems.map(item => (
+              {displayedItems.map(item => (
                 <tr key={item.id}>
                   <td>{item.sku}</td>
                   <td>{item.name}</td>
@@ -179,7 +291,11 @@ const Inventory = () => {
           </table>
         ) : (
           <div className="empty-state">
-            <p>{t('noProducts')}</p>
+            {inventoryItems.length === 0 ? (
+              <p>{t('noProducts')}</p>
+            ) : (
+              <p>{t('noSearchResults')}</p>
+            )}
           </div>
         )}
       </div>

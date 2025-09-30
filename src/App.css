@@ -332,7 +332,8 @@ table tr:hover {
   max-width: 500px;
   width: 90%;
   max-height: 80vh;
-  overflow-y: auto;
+  overflow: visible;
+  position: relative;
 }
 
 .modal-header {
@@ -357,6 +358,13 @@ table tr:hover {
 
 .close-btn:hover {
   color: #e74c3c;
+}
+
+/* Modal scrollable content */
+.modal-scrollable-content {
+  max-height: calc(80vh - 100px);
+  overflow-y: auto;
+  overflow-x: visible;
 }
 
 /* Page Header */
