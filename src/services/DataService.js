@@ -1,12 +1,12 @@
 // LocalStorage Data Management Service
 
 const STORAGE_KEYS = {
-  ACCOUNTS: 'accounting_accounts',
-  JOURNAL_ENTRIES: 'accounting_journal_entries',
-  INVOICES: 'accounting_invoices',
-  CUSTOMERS: 'accounting_customers',
-  SUPPLIERS: 'accounting_suppliers',
-  INVENTORY: 'accounting_inventory',
+  ACCOUNTS: 'accounts',  // تم تغييرها من 'accounting_accounts' إلى 'accounts'
+  JOURNAL_ENTRIES: 'journalEntries',  // تم تغييرها من 'accounting_journal_entries' إلى 'journalEntries'
+  INVOICES: 'invoices',  // تم تغييرها من 'accounting_invoices' إلى 'invoices'
+  CUSTOMERS: 'customers',  // تم تغييرها من 'accounting_customers' إلى 'customers'
+  SUPPLIERS: 'suppliers',  // تم تغييرها من 'accounting_suppliers' إلى 'suppliers'
+  INVENTORY: 'inventoryItems',  // تم تغييرها من 'accounting_inventory' إلى 'inventoryItems'
   SETTINGS: 'accounting_settings'
 }
 
@@ -15,9 +15,22 @@ class DataService {
   static get(key) {
     try {
       const data = localStorage.getItem(key)
-      return data ? JSON.parse(data) : null
+      if (data === null || data === undefined) {
+        return null
+      }
+      // التحقق من أن البيانات ليست فارغة أو معطوبة
+      if (data === '' || data === 'null' || data === 'undefined') {
+        return null
+      }
+      return JSON.parse(data)
     } catch (error) {
-      console.error('Error getting data from localStorage:', error)
+      console.error(`Error getting data from localStorage for key ${key}:`, error)
+      // في حالة الخطأ، نحاول مسح البيانات المعطوبة
+      try {
+        localStorage.removeItem(key)
+      } catch (removeError) {
+        console.error('Error removing corrupted data:', removeError)
+      }
       return null
     }
   }
@@ -333,8 +346,7 @@ class DataService {
   static initializeDefaultInventoryItems() {
     const existingItems = this.getInventoryItems()
     
-    // Force refresh for testing - remove this line in production
-    if (existingItems.length === 0 || existingItems.some(item => !item.price && !item.unitPrice)) {
+    if (existingItems.length === 0) {
       const defaultItems = []
       
       defaultItems.forEach(item => {
@@ -359,6 +371,33 @@ class DataService {
     })
     
     return { debit: debitTotal, credit: creditTotal, balance: debitTotal - creditTotal }
+  }
+
+  // Debug method to check data status
+  static getDataStatus() {
+    const status = {
+      accounts: this.getAccounts()?.length || 0,
+      journalEntries: this.getJournalEntries()?.length || 0,
+      invoices: this.getInvoices()?.length || 0,
+      customers: this.getCustomers()?.length || 0,
+      suppliers: this.getSuppliers()?.length || 0,
+      inventoryItems: this.getInventoryItems()?.length || 0
+    }
+    
+    console.log('📊 حالة البيانات الحالية:', status)
+    return status
+  }
+
+  // Method to refresh all data
+  static refreshAllData() {
+    console.log('🔄 إعادة تحميل جميع البيانات...')
+    
+    // التحقق من وجود البيانات وإعادة تهيئتها إذا لزم الأمر
+    this.initializeDefaultAccounts()
+    this.initializeDefaultCustomersSuppliers()
+    this.initializeDefaultInventoryItems()
+    
+    return this.getDataStatus()
   }
 }
 

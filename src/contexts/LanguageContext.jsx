@@ -42,6 +42,7 @@ const translations = {
     chartOfAccounts: 'دليل الحسابات',
     journalEntries: 'القيود اليومية',
     invoices: 'الفواتير',
+    invoicesManagement: 'إدارة الفواتير',
     customersSuppliers: 'العملاء والموردين',
     inventory: 'إدارة المخزون',
     reports: 'التقارير',
@@ -113,6 +114,7 @@ const translations = {
     
     // Invoices
     createNewInvoice: 'إنشاء فاتورة جديدة',
+    editInvoice: 'تعديل الفاتورة',
     invoiceNumber: 'رقم الفاتورة',
     invoiceType: 'نوع الفاتورة',
     salesInvoice: 'فاتورة مبيعات',
@@ -120,11 +122,34 @@ const translations = {
     client: 'العميل',
     supplier: 'المورد',
     selectProduct: 'اختر المنتج',
+    selectClient: 'اختر العميل',
+    selectSupplier: 'اختر المورد',
+    invoiceDate: 'تاريخ الفاتورة',
+    dueDate: 'تاريخ الاستحقاق',
+    paymentStatus: 'حالة الدفع',
+    invoiceDescription: 'وصف الفاتورة',
+    invoiceDescriptionPlaceholder: 'وصف مختصر للفاتورة',
+    invoiceItems: 'عناصر الفاتورة',
+    addItem: 'إضافة عنصر',
+    searchProduct: 'ابحث عن المنتج...',
+    noProductsFound: 'لا توجد منتجات مطابقة للبحث',
+    available: 'متوفر',
+    notAvailable: 'غير متوفر',
     subtotal: 'المجموع الفرعي',
     discount: 'خصم',
+    discountAmount: 'مبلغ الخصم',
+    discountRate: 'نسبة الخصم',
+    discountType: 'نوع الخصم',
+    amount: 'مبلغ',
+    percentage: 'نسبة مئوية',
     vatRate: 'معدل ض.ق.م',
     vatAmount: 'مبلغ ض.ق.م',
+    vatPercentage: 'نسبة ض.ق.م',
+    vatType: 'نوع ض.ق.م',
     grandTotal: 'الإجمالي الكلي',
+    createJournalEntry: 'إنشاء قيد محاسبي تلقائي',
+    createInvoiceBtn: 'إنشاء الفاتورة',
+    saveChanges: 'حفظ التغييرات',
     kwd: 'د.ك',
     
     // Customers/Suppliers
@@ -139,6 +164,41 @@ const translations = {
     updateSuccess: 'تم التحديث بنجاح',
     error: 'حدث خطأ',
     confirmDelete: 'هل أنت متأكد من الحذف؟',
+    
+    // Invoice validation messages
+    selectClientSupplier: 'يرجى اختيار العميل/المورد',
+    enterInvoiceDescription: 'يرجى إدخال وصف الفاتورة',
+    addAtLeastOneItem: 'يجب إضافة عنصر واحد على الأقل',
+    invoiceCreatedSuccess: 'تم إنشاء الفاتورة بنجاح',
+    invoiceUpdatedSuccess: 'تم تحديث الفاتورة بنجاح',
+    invoiceDeletedSuccess: 'تم حذف الفاتورة بنجاح',
+    unexpectedError: 'حدث خطأ غير متوقع',
+    
+    // Invoice types and statuses
+    sales: 'مبيعات',
+    purchase: 'مشتريات',
+    
+    // Button texts
+    viewEdit: 'عرض/تعديل',
+    
+    // Table headers
+    invoiceNum: 'رقم الفاتورة',
+    type: 'النوع',
+    clientSupplier: 'العميل/المورد',
+    totalAmount: 'المبلغ الإجمالي',
+    status: 'الحالة',
+    
+    // Invoice tabs
+    allInvoices: 'جميع الفواتير',
+    salesInvoices: 'فواتير المبيعات',
+    purchaseInvoices: 'فواتير المشتريات',
+    withDiscount: 'بخصم',
+    withVAT: 'بضريبة',
+    hasDiscount: 'يحتوي على خصم',
+    hasVAT: 'يحتوي على ضريبة قيمة مضافة',
+    
+    // Messages
+    noInvoicesAvailable: 'لا توجد فواتير متاحة',
     
     // Currency
     currency: 'د.ك',
@@ -191,8 +251,42 @@ const translations = {
     pending: 'معلقة',
     overdue: 'متأخرة',
     
+    // Data Management
+    dataManagement: 'إدارة البيانات',
+    dataManagementDescription: 'تصدير واستيراد بيانات النظام مع إجراءات الحماية',
+    exportData: 'تصدير البيانات',
+    exportDescription: 'تصدير جميع بيانات النظام إلى ملف JSON',
+    exportWithLocation: 'تصدير مع اختيار المكان',
+    exportInfo: 'سيتم تصدير جميع البيانات (الحسابات، القيود، الفواتير، العملاء، المخزون) إلى ملف JSON يمكن استيراده لاحقاً',
+    exportSuccess: 'تم تصدير البيانات بنجاح',
+    exportError: 'حدث خطأ أثناء التصدير',
+    importData: 'استيراد البيانات',
+    importDescription: 'استيراد البيانات من ملف النسخة الاحتياطية',
+    enableImport: 'تفعيل الاستيراد',
+    importEnabled: 'الاستيراد مفعل',
+    autoDisableAfter30Seconds: 'سيتم إلغاء التفعيل تلقائياً بعد 30 ثانية',
+    importWarningTitle: 'تحذير مهم!',
+    importWarningMessage: 'استيراد البيانات سيؤدي إلى حذف جميع البيانات الموجودة واستبدالها بالبيانات من الملف المختار. تأكد من أن لديك نسخة احتياطية قبل المتابعة.',
+    selectFile: 'اختيار ملف',
+    filePreview: 'معاينة الملف',
+    fileName: 'اسم الملف',
+    fileSize: 'حجم الملف',
+    exportDate: 'تاريخ التصدير',
+    dataCount: 'عدد العناصر',
+    confirmDataReplacement: 'أؤكد أنني أريد استبدال جميع البيانات الحالية',
+    executeImport: 'تنفيذ الاستيراد',
+    importSuccess: 'تم استيراد البيانات بنجاح! سيتم إعادة تحميل الصفحة',
+    importError: 'حدث خطأ أثناء الاستيراد',
+    pleaseConfirmImport: 'يرجى تأكيد الاستيراد أولاً',
+    invalidFileType: 'نوع الملف غير صحيح. يرجى اختيار ملف JSON',
+    invalidJsonFile: 'الملف المختار ليس ملف JSON صحيح',
+    unknown: 'غير معروف',
+    pending: 'معلقة',
+    overdue: 'متأخرة',
+    
     // Language
     language: 'اللغة',
+    settings: 'الإعدادات',
     arabic: 'العربية',
     english: 'English'
   },
@@ -228,6 +322,7 @@ const translations = {
     chartOfAccounts: 'Chart of Accounts',
     journalEntries: 'Journal Entries',
     invoices: 'Invoices',
+    invoicesManagement: 'Invoice Management',
     customersSuppliers: 'Customers & Suppliers',
     inventory: 'Inventory Management',
     reports: 'Reports',
@@ -299,6 +394,7 @@ const translations = {
     
     // Invoices
     createNewInvoice: 'Create New Invoice',
+    editInvoice: 'Edit Invoice',
     invoiceNumber: 'Invoice Number',
     invoiceType: 'Invoice Type',
     salesInvoice: 'Sales Invoice',
@@ -306,11 +402,34 @@ const translations = {
     client: 'Customer',
     supplier: 'Supplier',
     selectProduct: 'Select Product',
+    selectClient: 'Select Customer',
+    selectSupplier: 'Select Supplier',
+    invoiceDate: 'Invoice Date',
+    dueDate: 'Due Date',
+    paymentStatus: 'Payment Status',
+    invoiceDescription: 'Invoice Description',
+    invoiceDescriptionPlaceholder: 'Brief description of the invoice',
+    invoiceItems: 'Invoice Items',
+    addItem: 'Add Item',
+    searchProduct: 'Search for product...',
+    noProductsFound: 'No products found matching the search',
+    available: 'Available',
+    notAvailable: 'Not Available',
     subtotal: 'Subtotal',
     discount: 'Discount',
+    discountAmount: 'Discount Amount',
+    discountRate: 'Discount Rate',
+    discountType: 'Discount Type',
+    amount: 'Amount',
+    percentage: 'Percentage',
     vatRate: 'VAT Rate',
     vatAmount: 'VAT Amount',
+    vatPercentage: 'VAT Percentage',
+    vatType: 'VAT Type',
     grandTotal: 'Grand Total',
+    createJournalEntry: 'Create automatic journal entry',
+    createInvoiceBtn: 'Create Invoice',
+    saveChanges: 'Save Changes',
     kwd: 'KWD',
     
     // Customers/Suppliers
@@ -325,6 +444,41 @@ const translations = {
     updateSuccess: 'Updated successfully',
     error: 'An error occurred',
     confirmDelete: 'Are you sure you want to delete?',
+    
+    // Invoice validation messages
+    selectClientSupplier: 'Please select customer/supplier',
+    enterInvoiceDescription: 'Please enter invoice description',
+    addAtLeastOneItem: 'Must add at least one item',
+    invoiceCreatedSuccess: 'Invoice created successfully',
+    invoiceUpdatedSuccess: 'Invoice updated successfully',
+    invoiceDeletedSuccess: 'Invoice deleted successfully',
+    unexpectedError: 'An unexpected error occurred',
+    
+    // Invoice types and statuses
+    sales: 'Sales',
+    purchase: 'Purchase',
+    
+    // Button texts
+    viewEdit: 'View/Edit',
+    
+    // Table headers
+    invoiceNum: 'Invoice Number',
+    type: 'Type',
+    clientSupplier: 'Customer/Supplier',
+    totalAmount: 'Total Amount',
+    status: 'Status',
+    
+    // Invoice tabs
+    allInvoices: 'All Invoices',
+    salesInvoices: 'Sales Invoices',
+    purchaseInvoices: 'Purchase Invoices',
+    withDiscount: 'With Discount',
+    withVAT: 'With VAT',
+    hasDiscount: 'Has Discount',
+    hasVAT: 'Has VAT',
+    
+    // Messages
+    noInvoicesAvailable: 'No invoices available',
     
     // Currency
     currency: 'KWD',
@@ -377,8 +531,40 @@ const translations = {
     pending: 'Pending',
     overdue: 'Overdue',
     
+    // Data Management
+    dataManagement: 'Data Management',
+    dataManagementDescription: 'Export and import system data with security measures',
+    exportData: 'Export Data',
+    exportDescription: 'Export all system data to a JSON file',
+    exportWithLocation: 'Export with Location Selection',
+    exportInfo: 'All data (accounts, entries, invoices, customers, inventory) will be exported to a JSON file that can be imported later',
+    exportSuccess: 'Data exported successfully',
+    exportError: 'Error occurred during export',
+    importData: 'Import Data',
+    importDescription: 'Import data from backup file',
+    enableImport: 'Enable Import',
+    importEnabled: 'Import Enabled',
+    autoDisableAfter30Seconds: 'Will auto-disable after 30 seconds',
+    importWarningTitle: 'Important Warning!',
+    importWarningMessage: 'Importing data will delete all existing data and replace it with data from the selected file. Make sure you have a backup before proceeding.',
+    selectFile: 'Select File',
+    filePreview: 'File Preview',
+    fileName: 'File Name',
+    fileSize: 'File Size',
+    exportDate: 'Export Date',
+    dataCount: 'Data Count',
+    confirmDataReplacement: 'I confirm that I want to replace all current data',
+    executeImport: 'Execute Import',
+    importSuccess: 'Data imported successfully! Page will reload',
+    importError: 'Error occurred during import',
+    pleaseConfirmImport: 'Please confirm import first',
+    invalidFileType: 'Invalid file type. Please select a JSON file',
+    invalidJsonFile: 'Selected file is not a valid JSON file',
+    unknown: 'Unknown',
+    
     // Language
     language: 'Language',
+    settings: 'Settings',
     arabic: 'العربية',
     english: 'English'
   }

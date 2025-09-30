@@ -318,46 +318,132 @@ export const useAccounting = () => {
     const lines = []
     
     if (invoice.type === 'sales') {
-      // Sales invoice: Debit Customer, Credit Sales
+      // Sales invoice: Debit Customer, Credit Sales, Handle Discount and VAT
       const customersAccount = accounts.find(acc => acc.code === '1101') // العملاء
       const salesAccount = accounts.find(acc => acc.code === '4001') // المبيعات
+      const discountAccount = accounts.find(acc => acc.code === '5002') // خصم مسموح
+      const vatAccount = accounts.find(acc => acc.code === '2101') // ضريبة القيمة المضافة مستحقة
+      
+      const subtotal = parseFloat(invoice.subtotal) || 0
+      const invoiceDiscountAmount = parseFloat(invoice.discountAmount) || 0
+      
+      // Calculate total discount from line items
+      let itemsDiscountAmount = 0
+      if (invoice.items && Array.isArray(invoice.items)) {
+        itemsDiscountAmount = invoice.items.reduce((sum, item) => {
+          const itemTotal = parseFloat(item.quantity || 0) * parseFloat(item.unitPrice || 0)
+          const itemDiscount = (itemTotal * parseFloat(item.discount || 0)) / 100
+          return sum + itemDiscount
+        }, 0)
+      }
+      
+      const totalDiscountAmount = invoiceDiscountAmount + itemsDiscountAmount
+      const vatAmount = parseFloat(invoice.vatAmount) || 0
+      const total = parseFloat(invoice.total) || 0
       
       if (customersAccount && salesAccount) {
+        // Debit Customer for total amount (including VAT, minus discount)
         lines.push({
           accountId: customersAccount.id,
           accountName: customersAccount.name,
-          debit: invoice.total,
+          debit: total,
           credit: 0,
           description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`
         })
         
+        // Credit Sales for subtotal (before discount and VAT)
         lines.push({
           accountId: salesAccount.id,
           accountName: salesAccount.name,
           debit: 0,
-          credit: invoice.total,
+          credit: subtotal,
           description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`
         })
+        
+        // Handle discount if any (both invoice discount and line item discounts)
+        if (totalDiscountAmount > 0 && discountAccount) {
+          lines.push({
+            accountId: discountAccount.id,
+            accountName: discountAccount.name,
+            debit: totalDiscountAmount,
+            credit: 0,
+            description: `خصم مسموح - فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+          })
+        }
+        
+        // Handle VAT if any
+        if (vatAmount > 0 && vatAccount) {
+          lines.push({
+            accountId: vatAccount.id,
+            accountName: vatAccount.name,
+            debit: 0,
+            credit: vatAmount,
+            description: `ضريبة قيمة مضافة - فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+          })
+        }
       }
     } else if (invoice.type === 'purchase') {
-      // Purchase invoice: Debit Inventory/Expenses, Credit Supplier
+      // Purchase invoice: Debit Inventory/Expenses, Credit Supplier, Handle Discount and VAT
       const suppliersAccount = accounts.find(acc => acc.code === '2001') // الموردون
       const inventoryAccount = accounts.find(acc => acc.code === '1201') // المخزون
+      const discountAccount = accounts.find(acc => acc.code === '4002') // خصم مكتسب
+      const vatAccount = accounts.find(acc => acc.code === '1301') // ضريبة القيمة المضافة قابلة للاسترداد
+      
+      const subtotal = parseFloat(invoice.subtotal) || 0
+      const invoiceDiscountAmount = parseFloat(invoice.discountAmount) || 0
+      
+      // Calculate total discount from line items
+      let itemsDiscountAmount = 0
+      if (invoice.items && Array.isArray(invoice.items)) {
+        itemsDiscountAmount = invoice.items.reduce((sum, item) => {
+          const itemTotal = parseFloat(item.quantity || 0) * parseFloat(item.unitPrice || 0)
+          const itemDiscount = (itemTotal * parseFloat(item.discount || 0)) / 100
+          return sum + itemDiscount
+        }, 0)
+      }
+      
+      const totalDiscountAmount = invoiceDiscountAmount + itemsDiscountAmount
+      const vatAmount = parseFloat(invoice.vatAmount) || 0
+      const total = parseFloat(invoice.total) || 0
       
       if (suppliersAccount && inventoryAccount) {
+        // Debit Inventory for subtotal (before discount and VAT)
         lines.push({
           accountId: inventoryAccount.id,
           accountName: inventoryAccount.name,
-          debit: invoice.total,
+          debit: subtotal,
           credit: 0,
           description: `فاتورة مشتريات رقم ${invoice.invoiceNumber}`
         })
         
+        // Handle discount if any (both invoice discount and line item discounts)
+        if (totalDiscountAmount > 0 && discountAccount) {
+          lines.push({
+            accountId: discountAccount.id,
+            accountName: discountAccount.name,
+            debit: 0,
+            credit: totalDiscountAmount,
+            description: `خصم مكتسب - فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+          })
+        }
+        
+        // Handle VAT if any
+        if (vatAmount > 0 && vatAccount) {
+          lines.push({
+            accountId: vatAccount.id,
+            accountName: vatAccount.name,
+            debit: vatAmount,
+            credit: 0,
+            description: `ضريبة قيمة مضافة - فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+          })
+        }
+        
+        // Credit Supplier for total amount
         lines.push({
           accountId: suppliersAccount.id,
           accountName: suppliersAccount.name,
           debit: 0,
-          credit: invoice.total,
+          credit: total,
           description: `فاتورة مشتريات رقم ${invoice.invoiceNumber}`
         })
       }

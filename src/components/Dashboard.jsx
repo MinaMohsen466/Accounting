@@ -1,6 +1,5 @@
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
-import { ExportService } from '../services/ExportService'
 import './Dashboard.css'
 
 const Dashboard = ({ onNavigate }) => {
@@ -41,16 +40,6 @@ const Dashboard = ({ onNavigate }) => {
   const formatDate = (dateString) => {
     const date = new Date(dateString)
     return language === 'ar' ? date.toLocaleDateString('ar-EG') : date.toLocaleDateString('en-US')
-  }
-
-  // وظيفة تصدير البيانات
-  const handleExportData = () => {
-    const success = ExportService.exportLocalStorageToFile()
-    if (success) {
-      alert(language === 'ar' ? 'تم تصدير البيانات بنجاح!' : 'Data exported successfully!')
-    } else {
-      alert(language === 'ar' ? 'فشل في تصدير البيانات!' : 'Failed to export data!')
-    }
   }
 
   // وظائف التنقل للأزرار
@@ -227,31 +216,28 @@ const Dashboard = ({ onNavigate }) => {
       {/* Quick Actions */}
       <div className="quick-actions">
         <h3>{t('quickActions')}</h3>
-        <div className="actions-grid">
-          <div className="action-card" onClick={handleAddNewEntry} style={{cursor: 'pointer'}}>
-            <div className="action-icon">📝</div>
-            <h4>{t('addNewEntry')}</h4>
-            <p>{t('addNewEntryDesc')}</p>
-          </div>
-          <div className="action-card" onClick={handleCreateInvoice} style={{cursor: 'pointer'}}>
-            <div className="action-icon">🧾</div>
-            <h4>{t('createInvoice')}</h4>
-            <p>{t('createInvoiceDesc')}</p>
-          </div>
-          <div className="action-card" onClick={handleAddClient} style={{cursor: 'pointer'}}>
-            <div className="action-icon">👤</div>
-            <h4>{t('addClient')}</h4>
-            <p>{t('addClientDesc')}</p>
-          </div>
-          <div className="action-card" onClick={handleViewReports} style={{cursor: 'pointer'}}>
-            <div className="action-icon">📈</div>
-            <h4>{t('viewReports')}</h4>
-            <p>{t('viewReportsDesc')}</p>
-          </div>
-          <div className="action-card" onClick={handleExportData} style={{cursor: 'pointer'}}>
-            <div className="action-icon">💾</div>
-            <h4>{t('exportData')}</h4>
-            <p>{t('exportDataDesc')}</p>
+        <div className="actions-container">
+          <div className="actions-grid">
+            <div className="action-card" onClick={handleAddNewEntry} style={{cursor: 'pointer'}}>
+              <div className="action-icon">📝</div>
+              <h4>{t('addNewEntry')}</h4>
+              <p>{t('addNewEntryDesc')}</p>
+            </div>
+            <div className="action-card" onClick={handleCreateInvoice} style={{cursor: 'pointer'}}>
+              <div className="action-icon">🧾</div>
+              <h4>{t('createInvoice')}</h4>
+              <p>{t('createInvoiceDesc')}</p>
+            </div>
+            <div className="action-card" onClick={handleAddClient} style={{cursor: 'pointer'}}>
+              <div className="action-icon">👤</div>
+              <h4>{t('addClient')}</h4>
+              <p>{t('addClientDesc')}</p>
+            </div>
+            <div className="action-card" onClick={handleViewReports} style={{cursor: 'pointer'}}>
+              <div className="action-icon">📈</div>
+              <h4>{t('viewReports')}</h4>
+              <p>{t('viewReportsDesc')}</p>
+            </div>
           </div>
         </div>
       </div>

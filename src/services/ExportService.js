@@ -27,17 +27,15 @@ export class ExportService {
   }
 
   /**
-   * إنشاء نسخة احتياطية من localStorage وتحميلها كملف JSON
+   * تصدير البيانات مع اختيار مكان الحفظ
    */
-  static exportLocalStorageToFile() {
+  static async exportWithLocationPicker() {
     try {
-      // قراءة جميع البيانات
       const data = this.getAllLocalStorageData()
-      
-      // إضافة معلومات إضافية للنسخة الاحتياطية
       const backupData = {
         exportDate: new Date().toISOString(),
         exportTimestamp: Date.now(),
+        version: '1.0',
         browserInfo: {
           userAgent: navigator.userAgent,
           language: navigator.language,
@@ -47,36 +45,53 @@ export class ExportService {
         totalSize: JSON.stringify(data).length,
         data: data
       }
-      
-      // تحويل البيانات إلى JSON منسق
+
       const jsonString = JSON.stringify(backupData, null, 2)
-      
-      // إنشاء Blob من البيانات
-      const blob = new Blob([jsonString], { type: 'application/json' })
-      
-      // إنشاء رابط تحميل
-      const downloadLink = document.createElement('a')
-      const url = URL.createObjectURL(blob)
-      
-      // تعيين خصائص الرابط
-      downloadLink.href = url
-      downloadLink.download = 'backup_localStorage.json'
-      downloadLink.style.display = 'none'
-      
-      // إضافة الرابط للصفحة وتفعيله
-      document.body.appendChild(downloadLink)
-      downloadLink.click()
-      
-      // تنظيف الذاكرة وإزالة الرابط
-      document.body.removeChild(downloadLink)
-      URL.revokeObjectURL(url)
-      
-      console.log('تم تصدير localStorage بنجاح:', backupData)
-      return true
-      
+      const timestamp = new Date().toISOString().split('T')[0]
+      const defaultName = `accounting_backup_${timestamp}.json`
+
+      // استخدام File System Access API إذا كان متاحاً
+      if ('showSaveFilePicker' in window) {
+        try {
+          const fileHandle = await window.showSaveFilePicker({
+            suggestedName: defaultName,
+            types: [{
+              description: 'JSON Backup Files',
+              accept: { 'application/json': ['.json'] }
+            }]
+          })
+
+          const writable = await fileHandle.createWritable()
+          await writable.write(jsonString)
+          await writable.close()
+
+          return { success: true, method: 'filePicker' }
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            return { success: false, canceled: true }
+          }
+          throw error
+        }
+      } else {
+        // التصدير التقليدي للمتصفحات القديمة
+        const blob = new Blob([jsonString], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        
+        const downloadLink = document.createElement('a')
+        downloadLink.href = url
+        downloadLink.download = defaultName
+        downloadLink.style.display = 'none'
+        
+        document.body.appendChild(downloadLink)
+        downloadLink.click()
+        document.body.removeChild(downloadLink)
+        URL.revokeObjectURL(url)
+
+        return { success: true, method: 'traditional' }
+      }
     } catch (error) {
-      console.error('خطأ في تصدير localStorage:', error)
-      return false
+      console.error('خطأ في التصدير:', error)
+      return { success: false, error: error.message }
     }
   }
 

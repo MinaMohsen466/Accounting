@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>فحص البيانات في localStorage</title>
+</head>
+<body>
+    <h1>فحص البيانات المحملة</h1>
+    <div id="output"></div>
+    
+    <script>
+        const output = document.getElementById('output');
+        let html = '<h2>البيانات الموجودة في localStorage:</h2>';
+        
+        // فحص جميع المفاتيح في localStorage
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const value = localStorage.getItem(key);
+            
+            html += `<h3>${key}:</h3>`;
+            
+            try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) {
+                    html += `<p>عدد العناصر: ${parsed.length}</p>`;
+                    html += `<pre>${JSON.stringify(parsed, null, 2)}</pre>`;
+                } else {
+                    html += `<pre>${JSON.stringify(parsed, null, 2)}</pre>`;
+                }
+            } catch {
+                html += `<p>${value}</p>`;
+            }
+            
+            html += '<hr>';
+        }
+        
+        output.innerHTML = html;
+    </script>
+</body>
+</html>

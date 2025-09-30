@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تشخيص البيانات</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .data-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .data-count {
+            background: #3498db;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #27ae60;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 أداة تشخيص البيانات</h1>
+        
+        <div>
+            <button class="btn" onclick="checkAllData()">🔄 فحص جميع البيانات</button>
+            <button class="btn" onclick="clearAllData()">🗑️ مسح جميع البيانات</button>
+            <button class="btn" onclick="exportCurrentData()">💾 تصدير البيانات الحالية</button>
+        </div>
+        
+        <div id="status"></div>
+    </div>
+
+    <div class="grid" id="dataDisplay">
+        <!-- سيتم عرض البيانات هنا -->
+    </div>
+
+    <script>
+        function checkAllData() {
+            const statusDiv = document.getElementById('status');
+            const dataDisplay = document.getElementById('dataDisplay');
+            
+            try {
+                // قائمة المفاتيح المتوقعة
+                const expectedKeys = ['accounts', 'journalEntries', 'invoices', 'customers', 'suppliers', 'inventoryItems'];
+                
+                let html = '';
+                let totalItems = 0;
+                let foundKeys = [];
+                
+                expectedKeys.forEach(key => {
+                    const data = localStorage.getItem(key);
+                    let parsedData = null;
+                    let count = 0;
+                    
+                    if (data) {
+                        try {
+                            parsedData = JSON.parse(data);
+                            if (Array.isArray(parsedData)) {
+                                count = parsedData.length;
+                                totalItems += count;
+                                foundKeys.push(key);
+                            }
+                        } catch (error) {
+                            console.error(`خطأ في قراءة ${key}:`, error);
+                        }
+                    }
+                    
+                    html += `
+                        <div class="container">
+                            <h3>${getArabicName(key)} <span class="data-count">${count}</span></h3>
+                            ${data ? 
+                                `<div class="success">✅ البيانات موجودة</div>
+                                 <pre>${JSON.stringify(parsedData, null, 2)}</pre>` : 
+                                `<div class="error">❌ البيانات غير موجودة</div>`
+                            }
+                        </div>
+                    `;
+                });
+                
+                // عرض الملخص
+                statusDiv.innerHTML = `
+                    <div class="${totalItems > 0 ? 'success' : 'error'}">
+                        <h2>📊 ملخص البيانات</h2>
+                        <p>إجمالي العناصر: ${totalItems}</p>
+                        <p>الأقسام المتوفرة: ${foundKeys.length}/${expectedKeys.length}</p>
+                        <p>المفاتيح الموجودة: ${foundKeys.join(', ')}</p>
+                    </div>
+                `;
+                
+                dataDisplay.innerHTML = html;
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ خطأ في فحص البيانات: ${error.message}</div>`;
+            }
+        }
+        
+        function getArabicName(key) {
+            const names = {
+                'accounts': 'الحسابات',
+                'journalEntries': 'القيود المحاسبية',
+                'invoices': 'الفواتير',
+                'customers': 'العملاء',
+                'suppliers': 'الموردون',
+                'inventoryItems': 'عناصر المخزون'
+            };
+            return names[key] || key;
+        }
+        
+        function clearAllData() {
+            if (confirm('هل أنت متأكد من مسح جميع البيانات؟')) {
+                const keys = ['accounts', 'journalEntries', 'invoices', 'customers', 'suppliers', 'inventoryItems'];
+                keys.forEach(key => {
+                    localStorage.removeItem(key);
+                });
+                
+                document.getElementById('status').innerHTML = '<div class="success">✅ تم مسح جميع البيانات</div>';
+                checkAllData();
+            }
+        }
+        
+        function exportCurrentData() {
+            const keys = ['accounts', 'journalEntries', 'invoices', 'customers', 'suppliers', 'inventoryItems'];
+            const exportData = {
+                exportDate: new Date().toISOString(),
+                data: {}
+            };
+            
+            keys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    try {
+                        exportData.data[key] = JSON.parse(data);
+                    } catch (error) {
+                        console.error(`خطأ في تصدير ${key}:`, error);
+                    }
+                }
+            });
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `data_export_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // تشغيل فحص البيانات عند تحميل الصفحة
+        window.onload = function() {
+            checkAllData();
+        };
+    </script>
+</body>
+</html>

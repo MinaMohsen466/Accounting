@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 فحص البيانات في localStorage</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .data-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .data-section h3 {
+            margin-top: 0;
+            color: #34495e;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .data-info {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+        }
+        .data-count {
+            font-weight: bold;
+            color: #27ae60;
+        }
+        .empty-data {
+            color: #e74c3c;
+            font-style: italic;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: background 0.3s ease;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn.danger {
+            background: #e74c3c;
+        }
+        .btn.danger:hover {
+            background: #c0392b;
+        }
+        .sample-data {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 فحص البيانات في localStorage</h1>
+        
+        <div style="text-align: center; margin-bottom: 30px;">
+            <button class="btn" onclick="loadData()">🔄 تحديث البيانات</button>
+            <button class="btn danger" onclick="clearAllData()">🗑️ حذف جميع البيانات</button>
+        </div>
+
+        <div id="data-container">
+            <!-- سيتم تحميل البيانات هنا -->
+        </div>
+    </div>
+
+    <script>
+        const dataKeys = [
+            { key: 'accounts', name: 'الحسابات', icon: '📊' },
+            { key: 'journalEntries', name: 'القيود المحاسبية', icon: '📝' },
+            { key: 'invoices', name: 'الفواتير', icon: '🧾' },
+            { key: 'customers', name: 'العملاء', icon: '👥' },
+            { key: 'suppliers', name: 'الموردين', icon: '🏭' },
+            { key: 'inventoryItems', name: 'المخزون', icon: '📦' },
+            { key: 'language', name: 'اللغة', icon: '🌐' }
+        ];
+
+        function loadData() {
+            const container = document.getElementById('data-container');
+            container.innerHTML = '';
+
+            dataKeys.forEach(dataType => {
+                const section = createDataSection(dataType);
+                container.appendChild(section);
+            });
+        }
+
+        function createDataSection(dataType) {
+            const section = document.createElement('div');
+            section.className = 'data-section';
+
+            const data = localStorage.getItem(dataType.key);
+            
+            section.innerHTML = `
+                <h3>${dataType.icon} ${dataType.name}</h3>
+                <div class="data-info">
+                    ${data ? createDataInfo(dataType.key, data) : `<span class="empty-data">لا توجد بيانات</span>`}
+                </div>
+            `;
+
+            return section;
+        }
+
+        function createDataInfo(key, data) {
+            try {
+                if (key === 'language') {
+                    return `<span class="data-count">القيمة: ${data}</span>`;
+                }
+
+                const parsed = JSON.parse(data);
+                if (Array.isArray(parsed)) {
+                    let info = `<span class="data-count">العدد: ${parsed.length}</span>`;
+                    
+                    if (parsed.length > 0) {
+                        // عرض عينة من البيانات
+                        const sample = parsed.slice(0, 3);
+                        info += `<div class="sample-data">`;
+                        info += `<strong>عينة من البيانات:</strong><br>`;
+                        sample.forEach((item, index) => {
+                            info += `${index + 1}. `;
+                            if (item.name) info += `الاسم: ${item.name}, `;
+                            if (item.code) info += `الكود: ${item.code}, `;
+                            if (item.invoiceNumber) info += `رقم الفاتورة: ${item.invoiceNumber}, `;
+                            if (item.entryNumber) info += `رقم القيد: ${item.entryNumber}, `;
+                            if (item.total) info += `المجموع: ${item.total}, `;
+                            if (item.type) info += `النوع: ${item.type}`;
+                            info += `<br>`;
+                        });
+                        if (parsed.length > 3) {
+                            info += `... و ${parsed.length - 3} عنصر آخر`;
+                        }
+                        info += `</div>`;
+                    }
+                    
+                    return info;
+                } else {
+                    return `<span class="data-count">نوع البيانات: كائن</span>`;
+                }
+            } catch (error) {
+                return `<span class="empty-data">خطأ في قراءة البيانات: ${error.message}</span>`;
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('هل أنت متأكد من حذف جميع البيانات؟')) {
+                dataKeys.forEach(dataType => {
+                    localStorage.removeItem(dataType.key);
+                });
+                
+                alert('تم حذف جميع البيانات بنجاح!');
+                loadData();
+            }
+        }
+
+        // تحميل البيانات عند فتح الصفحة
+        window.onload = function() {
+            loadData();
+        };
+
+        // تحديث البيانات كل 5 ثوانٍ
+        setInterval(loadData, 5000);
+    </script>
+</body>
+</html>

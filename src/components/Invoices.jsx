@@ -73,11 +73,16 @@ const Invoices = () => {
     paymentStatus: 'paid', // paid, pending, overdue
     description: '',
     items: [
-      { itemId: '', itemName: '', quantity: 1, unitPrice: 0, discount: 0, total: 0 }
+      { itemId: '', itemName: '', quantity: 1, unitPrice: 0, total: 0 }
     ],
     subtotal: 0,
-    discount: 0,
-    vatRate: 0, // VAT rate percentage
+    discount: 0, // discount amount (not percentage)
+    discountAmount: 0, // Always contains the actual discount amount
+    discountType: 'amount', // 'amount' or 'percentage'
+    discountRate: 0, // calculated discount percentage
+    vatRate: 0, // VAT amount (not percentage)
+    vatType: 'amount', // 'amount' or 'percentage'
+    vatPercentage: 0, // calculated VAT percentage
     vatAmount: 0,
     total: 0,
     createJournalEntry: true
@@ -86,6 +91,16 @@ const Invoices = () => {
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3000)
+  }
+
+  // Helper functions to check for discount and VAT
+  const hasDiscount = (invoice) => {
+    const invoiceDiscount = parseFloat(invoice.discountAmount || invoice.discount) || 0
+    return invoiceDiscount > 0
+  }
+
+  const hasVAT = (invoice) => {
+    return parseFloat(invoice.vatAmount) > 0
   }
 
   const resetForm = () => {
@@ -98,11 +113,16 @@ const Invoices = () => {
       paymentStatus: 'paid',
       description: '',
       items: [
-        { itemId: '', itemName: '', quantity: 1, unitPrice: 0, discount: 0, total: 0 }
+        { itemId: '', itemName: '', quantity: 1, unitPrice: 0, total: 0 }
       ],
       subtotal: 0,
       discount: 0,
+      discountAmount: 0,
+      discountType: 'amount',
+      discountRate: 0,
       vatRate: 0,
+      vatType: 'amount',
+      vatPercentage: 0,
       vatAmount: 0,
       total: 0,
       createJournalEntry: true
@@ -118,7 +138,6 @@ const Invoices = () => {
         itemName: it.itemName || it.name || '',
         quantity: parseFloat(it.quantity) || 0,
         unitPrice: parseFloat(it.unitPrice ?? it.price ?? 0) || 0,
-        discount: parseFloat(it.discount) || 0,
         total: parseFloat(it.total) || 0
       }))
 
@@ -130,10 +149,15 @@ const Invoices = () => {
         dueDate: invoice.dueDate || '',
         description: invoice.description || '',
         paymentStatus: invoice.paymentStatus || 'paid',
-        items: normalizedItems.length ? normalizedItems : [{ itemId: '', itemName: '', quantity: 1, unitPrice: 0, discount: 0, total: 0 }],
+        items: normalizedItems.length ? normalizedItems : [{ itemId: '', itemName: '', quantity: 1, unitPrice: 0, total: 0 }],
         subtotal: parseFloat(invoice.subtotal) || 0,
         discount: parseFloat(invoice.discount) || 0,
+        discountAmount: parseFloat(invoice.discountAmount) || 0,
+        discountType: invoice.discountType || 'amount',
+        discountRate: parseFloat(invoice.discountRate) || 0,
         vatRate: parseFloat(invoice.vatRate) || 0,
+        vatType: invoice.vatType || 'amount',
+        vatPercentage: parseFloat(invoice.vatPercentage) || 0,
         vatAmount: parseFloat(invoice.vatAmount) || 0,
         total: parseFloat(invoice.total) || 0,
         createJournalEntry: false
@@ -164,7 +188,7 @@ const Invoices = () => {
   }
 
   const addItem = () => {
-    setFormData(prev => ({
+    setFormData(prev => calculateTotals({
       ...prev,
       items: [...prev.items, { itemId: '', itemName: '', quantity: 1, unitPrice: 0, total: 0 }]
     }))
@@ -172,7 +196,7 @@ const Invoices = () => {
 
   const removeItem = (index) => {
     if (formData.items.length > 1) {
-      setFormData(prev => ({
+      setFormData(prev => calculateTotals({
         ...prev,
         items: prev.items.filter((_, i) => i !== index)
       }))
@@ -243,11 +267,21 @@ const Invoices = () => {
   // Handle product selection from dropdown
   const selectProduct = (itemIndex, product) => {
     const newItems = [...formData.items]
+    const unitPrice = product.price || product.unitPrice || 0
+    const quantity = parseFloat(newItems[itemIndex].quantity) || 1
+    const discount = parseFloat(newItems[itemIndex].discount) || 0
+    
+    // Calculate total for this item
+    const lineTotal = quantity * unitPrice
+    const discountAmount = (lineTotal * discount) / 100
+    const total = lineTotal - discountAmount
+    
     newItems[itemIndex] = {
       ...newItems[itemIndex],
       itemId: product.id,
       itemName: product.name,
-      unitPrice: product.price || product.unitPrice || 0
+      unitPrice: unitPrice,
+      total: total
     }
     
     setFormData(prev => calculateTotals({ ...prev, items: newItems }))
@@ -273,13 +307,10 @@ const Invoices = () => {
             }
           }
           
-          // Recalculate total for this item
+          // Recalculate total for this item (without discount)
           const quantity = parseFloat(updatedItem.quantity) || 0
           const unitPrice = parseFloat(updatedItem.unitPrice) || 0
-          const discount = parseFloat(updatedItem.discount) || 0
-          const lineTotal = quantity * unitPrice
-          const discountAmount = (lineTotal * discount) / 100
-          updatedItem.total = lineTotal - discountAmount
+          updatedItem.total = quantity * unitPrice
           
           return updatedItem
         }
@@ -292,16 +323,44 @@ const Invoices = () => {
 
   const calculateTotals = (data) => {
     const subtotal = data.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0)
-    const totalDiscount = parseFloat(data.discount) || 0
-    const discountAmount = (subtotal * totalDiscount) / 100
+    
+    // Calculate discount
+    let discountAmount = 0
+    let discountRate = 0
+    
+    if (data.discountType === 'percentage') {
+      discountRate = parseFloat(data.discount) || 0
+      discountAmount = (subtotal * discountRate) / 100
+    } else {
+      discountAmount = parseFloat(data.discount) || 0
+      discountRate = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0
+    }
+    
     const subtotalAfterDiscount = subtotal - discountAmount
-    const vatAmount = (subtotalAfterDiscount * (parseFloat(data.vatRate) || 0)) / 100
+    
+    // Calculate VAT
+    let vatAmount = 0
+    let vatPercentage = 0
+    
+    if (data.vatType === 'percentage') {
+      vatPercentage = parseFloat(data.vatRate) || 0
+      vatAmount = (subtotalAfterDiscount * vatPercentage) / 100
+    } else {
+      vatAmount = parseFloat(data.vatRate) || 0
+      vatPercentage = subtotalAfterDiscount > 0 ? (vatAmount / subtotalAfterDiscount) * 100 : 0
+    }
+    
     const total = subtotalAfterDiscount + vatAmount
     
     return {
       ...data,
       subtotal,
-      vatAmount,
+      discount: data.discountType === 'percentage' ? discountRate : discountAmount,
+      discountAmount, // Always save the actual discount amount
+      discountRate,
+      vatRate: data.vatType === 'percentage' ? vatPercentage : vatAmount,
+      vatAmount, // Always save the actual VAT amount
+      vatPercentage,
       total
     }
   }
@@ -347,9 +406,28 @@ const Invoices = () => {
         const currentQty = parseFloat(inventoryItem.quantity) || 0
         const addQty = parseFloat(item.quantity) || 0
         const newQuantity = currentQty + addQty
+        
+        // Calculate new cost price (no discount on items now)
+        const newCostPrice = parseFloat(item.unitPrice) || 0
+        
+        // Calculate weighted average price if there's existing inventory
+        let finalPrice = newCostPrice
+        if (currentQty > 0) {
+          const currentPrice = parseFloat(inventoryItem.price || inventoryItem.unitPrice) || 0
+          const currentValue = currentQty * currentPrice
+          const newValue = addQty * newCostPrice
+          const totalValue = currentValue + newValue
+          const totalQuantity = currentQty + addQty
+          finalPrice = totalQuantity > 0 ? totalValue / totalQuantity : newCostPrice
+        }
+        
         updateInventoryItem(inventoryItem.id, {
           ...inventoryItem,
-          quantity: newQuantity
+          quantity: newQuantity,
+          price: finalPrice,
+          unitPrice: finalPrice, // Ensure both fields are updated
+          lastPurchasePrice: newCostPrice,
+          lastUpdated: new Date().toISOString()
         })
       }
     })
@@ -415,7 +493,29 @@ const Invoices = () => {
       } else if (oldInvoice.type === 'purchase') {
         // Add to inventory for purchases (regardless of payment status)  
         const updatedQty = invQty + newQty
-        updateInventoryItem(inv.id, { ...inv, quantity: updatedQty })
+        
+        // Calculate new cost price (no discount on items now)
+        const newCostPrice = parseFloat(newItem.unitPrice) || 0
+        
+        // Calculate weighted average price if there's existing inventory
+        let finalPrice = newCostPrice
+        if (invQty > 0) {
+          const currentPrice = parseFloat(inv.price || inv.unitPrice) || 0
+          const currentValue = invQty * currentPrice
+          const newValue = newQty * newCostPrice
+          const totalValue = currentValue + newValue
+          const totalQuantity = invQty + newQty
+          finalPrice = totalQuantity > 0 ? totalValue / totalQuantity : newCostPrice
+        }
+        
+        updateInventoryItem(inv.id, { 
+          ...inv, 
+          quantity: updatedQty,
+          price: finalPrice,
+          unitPrice: finalPrice,
+          lastPurchasePrice: newCostPrice,
+          lastUpdated: new Date().toISOString()
+        })
       }
     })
   }
@@ -425,12 +525,12 @@ const Invoices = () => {
     
     // Validation
     if (!formData.clientId) {
-      showNotification('يرجى اختيار العميل/المورد', 'error')
+      showNotification(t('selectClientSupplier'), 'error')
       return
     }
 
     if (!formData.description) {
-      showNotification('يرجى إدخال وصف الفاتورة', 'error')
+      showNotification(t('enterInvoiceDescription'), 'error')
       return
     }
 
@@ -440,7 +540,7 @@ const Invoices = () => {
     )
 
     if (validItems.length === 0) {
-      showNotification('يجب إضافة عنصر واحد على الأقل', 'error')
+      showNotification(t('addAtLeastOneItem'), 'error')
       return
     }
 
@@ -491,7 +591,7 @@ const Invoices = () => {
 
       if (result.success) {
         showNotification(
-          editingInvoice ? 'تم تحديث الفاتورة بنجاح' : 'تم إنشاء الفاتورة بنجاح'
+          editingInvoice ? t('invoiceUpdatedSuccess') : t('invoiceCreatedSuccess')
         )
         refreshAllData() // Force refresh of all related data
         closeModal()
@@ -499,7 +599,7 @@ const Invoices = () => {
         showNotification(result.error, 'error')
       }
     } catch (err) {
-      showNotification('حدث خطأ غير متوقع', 'error')
+      showNotification(t('unexpectedError'), 'error')
     }
   }
 
@@ -532,14 +632,14 @@ const Invoices = () => {
   }
 
   const handleDelete = async (invoice) => {
-    if (window.confirm(`هل أنت متأكد من حذف الفاتورة رقم "${invoice.invoiceNumber}"؟`)) {
+    if (window.confirm(`${t('confirmDelete')} "${invoice.invoiceNumber}"؟`)) {
       // First reverse the inventory effects before deleting
       reverseInventoryEffectsOnDelete(invoice)
       
       // Then delete the invoice
       const result = deleteInvoice(invoice.id)
       if (result.success) {
-        showNotification('تم حذف الفاتورة بنجاح')
+        showNotification(t('invoiceDeletedSuccess'))
         // Force refresh of all data to update reports
         refreshAllData()
       } else {
@@ -552,7 +652,16 @@ const Invoices = () => {
   const filteredAndSortedInvoices = () => {
     let filtered = invoices.filter(invoice => {
       // Tab filter
-      const matchesTab = activeTab === 'all' || invoice.type === activeTab
+      let matchesTab = false
+      if (activeTab === 'all') {
+        matchesTab = true
+      } else if (activeTab === 'sales' || activeTab === 'purchase') {
+        matchesTab = invoice.type === activeTab
+      } else if (activeTab === 'withDiscount') {
+        matchesTab = hasDiscount(invoice)
+      } else if (activeTab === 'withVAT') {
+        matchesTab = hasVAT(invoice)
+      }
       
       // Search filter
       const matchesSearch = searchTerm === '' || 
@@ -607,9 +716,9 @@ const Invoices = () => {
   return (
     <div className="invoices">
       <div className="page-header">
-        <h1>إدارة الفواتير</h1>
+        <h1>{t('invoicesManagement')}</h1>
         <button className="btn btn-primary" onClick={() => openModal()}>
-          إنشاء فاتورة جديدة
+          {t('createNewInvoice')}
         </button>
       </div>
 
@@ -625,19 +734,31 @@ const Invoices = () => {
           className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
           onClick={() => setActiveTab('all')}
         >
-          جميع الفواتير ({invoices.length})
+          {t('allInvoices')} ({invoices.length})
         </button>
         <button 
           className={`tab-btn ${activeTab === 'sales' ? 'active' : ''}`}
           onClick={() => setActiveTab('sales')}
         >
-          فواتير المبيعات ({invoices.filter(i => i.type === 'sales').length})
+          {t('salesInvoices')} ({invoices.filter(i => i.type === 'sales').length})
         </button>
         <button 
           className={`tab-btn ${activeTab === 'purchase' ? 'active' : ''}`}
           onClick={() => setActiveTab('purchase')}
         >
-          فواتير المشتريات ({invoices.filter(i => i.type === 'purchase').length})
+          {t('purchaseInvoices')} ({invoices.filter(i => i.type === 'purchase').length})
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'withDiscount' ? 'active' : ''}`}
+          onClick={() => setActiveTab('withDiscount')}
+        >
+          📊 {t('withDiscount')} ({invoices.filter(i => hasDiscount(i)).length})
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'withVAT' ? 'active' : ''}`}
+          onClick={() => setActiveTab('withVAT')}
+        >
+          💰 {t('withVAT')} ({invoices.filter(i => hasVAT(i)).length})
         </button>
       </div>
 
@@ -721,13 +842,13 @@ const Invoices = () => {
           <table>
             <thead>
               <tr>
-                <th>رقم الفاتورة</th>
-                <th>النوع</th>
-                <th>العميل/المورد</th>
-                <th>التاريخ</th>
-                <th>المبلغ الإجمالي</th>
-                <th>الحالة</th>
-                <th>الإجراءات</th>
+                <th>{t('invoiceNum')}</th>
+                <th>{t('type')}</th>
+                <th>{t('clientSupplier')}</th>
+                <th>{t('date')}</th>
+                <th>{t('totalAmount')}</th>
+                <th>{t('status')}</th>
+                <th>{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -736,7 +857,9 @@ const Invoices = () => {
                   <td>{invoice.invoiceNumber}</td>
                   <td>
                     <span className={`invoice-type ${invoice.type}`}>
-                      {invoice.type === 'sales' ? 'مبيعات' : 'مشتريات'}
+                      {invoice.type === 'sales' ? t('sales') : t('purchase')}
+                      {hasDiscount(invoice) && <span className="discount-indicator" title={t('hasDiscount')}> 📊</span>}
+                      {hasVAT(invoice) && <span className="vat-indicator" title={t('hasVAT')}> 💰</span>}
                     </span>
                   </td>
                   <td>{invoice.clientName}</td>
@@ -744,10 +867,10 @@ const Invoices = () => {
                   <td>{parseFloat(invoice.total).toFixed(3)} {t('kwd')}</td>
                   <td>
                     <span className={`payment-status ${invoice.paymentStatus || 'paid'}`}>
-                      {invoice.paymentStatus === 'paid' && 'مدفوعة'}
-                      {invoice.paymentStatus === 'pending' && 'معلقة'}
-                      {invoice.paymentStatus === 'overdue' && 'متأخرة'}
-                      {!invoice.paymentStatus && 'مدفوعة'}
+                      {invoice.paymentStatus === 'paid' && t('paid')}
+                      {invoice.paymentStatus === 'pending' && t('pending')}
+                      {invoice.paymentStatus === 'overdue' && t('overdue')}
+                      {!invoice.paymentStatus && t('paid')}
                     </span>
                   </td>
                   <td>
@@ -755,13 +878,13 @@ const Invoices = () => {
                       className="btn btn-secondary btn-sm"
                       onClick={() => openModal(invoice)}
                     >
-                      عرض/تعديل
+                      {t('viewEdit')}
                     </button>
                     <button 
                       className="btn btn-danger btn-sm"
                       onClick={() => handleDelete(invoice)}
                     >
-                      حذف
+                      {t('delete')}
                     </button>
                   </td>
                 </tr>
@@ -771,7 +894,7 @@ const Invoices = () => {
         ) : (
           <div className="empty-state">
             {invoices.length === 0 ? (
-              <p>لا توجد فواتير متاحة</p>
+              <p>{t('noInvoicesAvailable')}</p>
             ) : (
               <p>{t('noSearchResults')}</p>
             )}
@@ -784,7 +907,7 @@ const Invoices = () => {
         <div className="modal-overlay">
           <div className="modal-content invoice-modal">
             <div className="modal-header">
-              <h2>{editingInvoice ? `تعديل الفاتورة ${editingInvoice.invoiceNumber}` : 'إنشاء فاتورة جديدة'}</h2>
+              <h2>{editingInvoice ? `${t('editInvoice')} ${editingInvoice.invoiceNumber}` : t('createNewInvoice')}</h2>
               <button className="close-btn" onClick={closeModal}>&times;</button>
             </div>
             
@@ -792,25 +915,25 @@ const Invoices = () => {
               {/* Invoice Header */}
               <div className="invoice-header">
                 <div className="form-group">
-                  <label>نوع الفاتورة *</label>
+                  <label>{t('invoiceType')} *</label>
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value, clientId: '', clientName: '' }))}
                     disabled={editingInvoice}
                   >
-                    <option value="sales">فاتورة مبيعات</option>
-                    <option value="purchase">فاتورة مشتريات</option>
+                    <option value="sales">{t('salesInvoice')}</option>
+                    <option value="purchase">{t('purchaseInvoice')}</option>
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label>{formData.type === 'sales' ? 'العميل *' : 'المورد *'}</label>
+                  <label>{formData.type === 'sales' ? t('client') : t('supplier')} *</label>
                   <select
                     value={formData.clientId}
                     onChange={(e) => handleClientChange(e.target.value)}
                     required
                   >
-                    <option value="">اختر {formData.type === 'sales' ? 'العميل' : 'المورد'}</option>
+                    <option value="">{formData.type === 'sales' ? t('selectClient') : t('selectSupplier')}</option>
                     {(formData.type === 'sales' ? customers : suppliers).map(client => (
                       <option key={client.id} value={client.id}>
                         {client.name}
@@ -820,7 +943,7 @@ const Invoices = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>تاريخ الفاتورة *</label>
+                  <label>{t('invoiceDate')} *</label>
                   <input
                     type="date"
                     value={formData.date}
@@ -830,7 +953,7 @@ const Invoices = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>تاريخ الاستحقاق</label>
+                  <label>{t('dueDate')}</label>
                   <input
                     type="date"
                     value={formData.dueDate}
@@ -839,25 +962,25 @@ const Invoices = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>حالة الدفع *</label>
+                  <label>{t('paymentStatus')} *</label>
                   <select
                     value={formData.paymentStatus}
                     onChange={(e) => setFormData(prev => ({ ...prev, paymentStatus: e.target.value }))}
                     required
                   >
-                    <option value="paid">مدفوعة</option>
-                    <option value="pending">معلقة</option>
-                    <option value="overdue">متأخرة</option>
+                    <option value="paid">{t('paid')}</option>
+                    <option value="pending">{t('pending')}</option>
+                    <option value="overdue">{t('overdue')}</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-group">
-                <label>وصف الفاتورة *</label>
+                <label>{t('invoiceDescription')} *</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="وصف مختصر للفاتورة"
+                  placeholder={t('invoiceDescriptionPlaceholder')}
                   rows="2"
                   required
                 />
@@ -866,9 +989,9 @@ const Invoices = () => {
               {/* Invoice Items */}
               <div className="invoice-items">
                 <div className="items-header">
-                  <h3>عناصر الفاتورة</h3>
+                  <h3>{t('invoiceItems')}</h3>
                   <button type="button" className="btn btn-secondary" onClick={addItem}>
-                    إضافة عنصر
+                    {t('addItem')}
                   </button>
                 </div>
 
@@ -879,7 +1002,6 @@ const Invoices = () => {
                         <th>{t('products')}</th>
                         <th>{t('quantity')}</th>
                         <th>{t('unitPrice')}</th>
-                        <th>{t('discount')} %</th>
                         <th>{t('total')}</th>
                         <th>{t('actions')}</th>
                       </tr>
@@ -899,7 +1021,7 @@ const Invoices = () => {
                                   type="text"
                                   value={item.itemName}
                                   onChange={(e) => handleProductSearch(index, e.target.value)}
-                                  placeholder="ابحث عن المنتج..."
+                                  placeholder={t('searchProduct')}
                                   className="product-search-input"
                                   required
                                 />
@@ -929,9 +1051,9 @@ const Invoices = () => {
                                             </span>
                                             {product.quantity !== undefined && (
                                               product.quantity > 0 ? (
-                                                <span className="stock-available"> • متوفر: {product.quantity}</span>
+                                                <span className="stock-available"> • {t('available')}: {product.quantity}</span>
                                               ) : (
-                                                <span className="stock-out"> • غير متوفر</span>
+                                                <span className="stock-out"> • {t('notAvailable')}</span>
                                               )
                                             )}
                                           </div>
@@ -948,7 +1070,7 @@ const Invoices = () => {
                                     ))
                                   ) : (
                                     <div className="product-dropdown-empty">
-                                      🔍 لا توجد منتجات مطابقة للبحث
+                                      🔍 {t('noProductsFound')}
                                     </div>
                                   )}
                                 </div>
@@ -961,7 +1083,7 @@ const Invoices = () => {
                               value={item.quantity}
                               onChange={(e) => updateItem(index, 'quantity', e.target.value)}
                               min="1"
-                              step="0.01"
+                              step="1"
                               required
                             />
                           </td>
@@ -969,22 +1091,11 @@ const Invoices = () => {
                             <input
                               type="number"
                               value={item.unitPrice}
-                              onChange={(e) => updateItem(index, 'unitPrice', e.target.value)}
                               min="0"
-                              step="0.01"
-                              placeholder="0.000"
-                              required
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="number"
-                              value={item.discount}
-                              onChange={(e) => updateItem(index, 'discount', e.target.value)}
-                              min="0"
-                              max="100"
-                              step="0.01"
+                              step="1"
                               placeholder="0"
+                              readOnly
+                              className="readonly-input"
                             />
                           </td>
                           <td>
@@ -1016,34 +1127,73 @@ const Invoices = () => {
                     </div>
                     
                     <div className="total-line discount-line">
-                      <label>{t('discount')} %:</label>
-                      <input
-                        type="number"
-                        value={formData.discount}
-                        onChange={(e) => updateInvoiceField('discount', e.target.value)}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        placeholder="0"
-                      />
+                      <label>{t('discount')}:</label>
+                      <div className="input-group">
+                        <select
+                          className="type-selector"
+                          value={formData.discountType}
+                          onChange={(e) => updateInvoiceField('discountType', e.target.value)}
+                        >
+                          <option value="amount">{t('amount')}</option>
+                          <option value="percentage">{t('percentage')}</option>
+                        </select>
+                        <input
+                          type="number"
+                          value={formData.discount}
+                          onChange={(e) => updateInvoiceField('discount', e.target.value)}
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                        />
+                        <span className="currency">
+                          {formData.discountType === 'amount' ? t('kwd') : '%'}
+                        </span>
+                        {formData.discountType === 'amount' && (
+                          <span className="discount-rate">
+                            ({formData.discountRate.toFixed(2)}%)
+                          </span>
+                        )}
+                        {formData.discountType === 'percentage' && formData.discount > 0 && (
+                          <span className="discount-amount">
+                            ({((formData.subtotal * formData.discount) / 100).toFixed(3)} {t('kwd')})
+                          </span>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="total-line vat-line">
-                      <label>{t('vatRate')} %:</label>
-                      <input
-                        type="number"
-                        value={formData.vatRate}
-                        onChange={(e) => updateInvoiceField('vatRate', e.target.value)}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        placeholder="0"
-                      />
-                    </div>
-                    
-                    <div className="total-line">
-                      <label>{t('vatAmount')}:</label>
-                      <span>{formData.vatAmount.toFixed(3)} {t('kwd')}</span>
+                      <label>{t('vatRate')}:</label>
+                      <div className="input-group">
+                        <select
+                          className="type-selector"
+                          value={formData.vatType}
+                          onChange={(e) => updateInvoiceField('vatType', e.target.value)}
+                        >
+                          <option value="amount">{t('amount')}</option>
+                          <option value="percentage">{t('percentage')}</option>
+                        </select>
+                        <input
+                          type="number"
+                          value={formData.vatRate}
+                          onChange={(e) => updateInvoiceField('vatRate', e.target.value)}
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                        />
+                        <span className="currency">
+                          {formData.vatType === 'amount' ? t('kwd') : '%'}
+                        </span>
+                        {formData.vatType === 'amount' && (
+                          <span className="vat-percentage">
+                            ({formData.vatPercentage.toFixed(2)}%)
+                          </span>
+                        )}
+                        {formData.vatType === 'percentage' && formData.vatRate > 0 && (
+                          <span className="vat-amount">
+                            ({formData.vatAmount.toFixed(3)} {t('kwd')})
+                          </span>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="total-line final-total">
@@ -1062,17 +1212,17 @@ const Invoices = () => {
                       checked={formData.createJournalEntry}
                       onChange={(e) => setFormData(prev => ({ ...prev, createJournalEntry: e.target.checked }))}
                     />
-                    إنشاء قيد محاسبي تلقائي
+                    {t('createJournalEntry')}
                   </label>
                 </div>
               )}
               
               <div className="modal-actions">
                 <button type="submit" className="btn btn-primary">
-                  {editingInvoice ? 'حفظ التغييرات' : 'إنشاء الفاتورة'}
+                  {editingInvoice ? t('saveChanges') : t('createInvoiceBtn')}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                  إلغاء
+                  {t('cancel')}
                 </button>
               </div>
             </form>
