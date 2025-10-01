@@ -44,9 +44,6 @@ const translations = {
     invoices: 'الفواتير',
     invoicesManagement: 'إدارة الفواتير',
     customersSuppliers: 'العملاء والموردين',
-    enhancedCustomers: 'نظام العملاء المحسن',
-    paintCalculator: 'حاسبة الدهان',
-    pricingTiers: 'الأسعار المتدرجة',
     inventory: 'إدارة المخزون',
     reports: 'التقارير',
     
@@ -149,52 +146,6 @@ const translations = {
     searchCustomersSuppliers: 'البحث في العملاء والموردين...',
     unexpectedError: 'حدث خطأ غير متوقع',
     
-    // Enhanced Customer System - نظام العملاء المحسن
-    customerTypes: 'أنواع العملاء',
-    customerType: 'نوع العميل',
-    individual: 'أفراد',
-    contractor: 'مقاولين',
-    company: 'شركات',
-    retailer: 'تجار تجزئة',
-    
-    // Pricing System - نظام الأسعار
-    pricingTiers: 'الأسعار المتدرجة',
-    discountRate: 'معدل الخصم',
-    volumeDiscount: 'خصم الكمية',
-    customerDiscount: 'خصم العميل',
-    
-    // Projects - المشاريع
-    projects: 'المشاريع',
-    projectName: 'اسم المشروع',
-    projectStatus: 'حالة المشروع',
-    projectLocation: 'موقع المشروع',
-    projectStartDate: 'تاريخ بداية المشروع',
-    projectEndDate: 'تاريخ انتهاء المشروع',
-    projectValue: 'قيمة المشروع',
-    active: 'نشط',
-    completed: 'مكتمل',
-    onHold: 'معلق',
-    cancelled: 'ملغي',
-    
-    // Paint Calculator - حاسبة الدهان
-    paintCalculator: 'حاسبة متطلبات الدهان',
-    surfaceArea: 'مساحة السطح',
-    surfaceType: 'نوع السطح',
-    coatsNeeded: 'عدد الطبقات',
-    paintRequired: 'كمية الدهان المطلوبة',
-    coverage: 'التغطية',
-    smooth: 'أملس',
-    textured: 'خشن',
-    rough: 'خشن جداً',
-    
-    // Customer Details - تفاصيل العميل
-    customerDetails: 'تفاصيل العميل',
-    registrationNumber: 'رقم التسجيل',
-    taxNumber: 'الرقم الضريبي',
-    creditLimit: 'حد الائتمان',
-    paymentTerms: 'شروط الدفع',
-    preferredPayment: 'طريقة الدفع المفضلة',
-    
     // Journal Entries
     journalEntriesAdd: 'إضافة قيد جديد',
     entryNumber: 'رقم القيد',
@@ -215,8 +166,6 @@ const translations = {
     purchaseInvoice: 'فاتورة مشتريات',
     client: 'العميل',
     supplier: 'المورد',
-    project: 'المشروع',
-    selectProject: 'اختر المشروع',
     selectProduct: 'اختر المنتج',
     selectClient: 'اختر العميل',
     selectSupplier: 'اختر المورد',
@@ -509,7 +458,21 @@ const translations = {
     language: 'اللغة',
     settings: 'الإعدادات',
     arabic: 'العربية',
-    english: 'English'
+    english: 'English',
+    
+    // Settings Page
+    generalSettings: 'الإعدادات العامة',
+    languageSettings: 'إعدادات اللغة',
+    dataManagement: 'إدارة البيانات',
+    settingsDescription: 'إدارة إعدادات التطبيق والبيانات',
+    theme: 'المظهر',
+    themeDescription: 'اختر مظهر التطبيق',
+    lightTheme: 'فاتح',
+    darkTheme: 'داكن',
+    notifications: 'الإشعارات',
+    notificationsDescription: 'تمكين الإشعارات',
+    autoSave: 'الحفظ التلقائي',
+    autoSaveDescription: 'حفظ البيانات تلقائياً'
   },
   
   en: {
@@ -545,9 +508,6 @@ const translations = {
     invoices: 'Invoices',
     invoicesManagement: 'Invoice Management',
     customersSuppliers: 'Customers & Suppliers',
-    enhancedCustomers: 'Enhanced Customer System',
-    paintCalculator: 'Paint Calculator',
-    pricingTiers: 'Pricing Tiers',
     inventory: 'Inventory Management',
     reports: 'Reports',
     
@@ -650,52 +610,6 @@ const translations = {
     searchCustomersSuppliers: 'Search customers & suppliers...',
     unexpectedError: 'An unexpected error occurred',
     
-    // Enhanced Customer System
-    customerTypes: 'Customer Types',
-    customerType: 'Customer Type',
-    individual: 'Individual',
-    contractor: 'Contractor',
-    company: 'Company',
-    retailer: 'Retailer',
-    
-    // Pricing System
-    pricingTiers: 'Pricing Tiers',
-    discountRate: 'Discount Rate',
-    volumeDiscount: 'Volume Discount',
-    customerDiscount: 'Customer Discount',
-    
-    // Projects
-    projects: 'Projects',
-    projectName: 'Project Name',
-    projectStatus: 'Project Status',
-    projectLocation: 'Project Location',
-    projectStartDate: 'Project Start Date',
-    projectEndDate: 'Project End Date',
-    projectValue: 'Project Value',
-    active: 'Active',
-    completed: 'Completed',
-    onHold: 'On Hold',
-    cancelled: 'Cancelled',
-    
-    // Paint Calculator
-    paintCalculator: 'Paint Requirements Calculator',
-    surfaceArea: 'Surface Area',
-    surfaceType: 'Surface Type',
-    coatsNeeded: 'Coats Needed',
-    paintRequired: 'Paint Required',
-    coverage: 'Coverage',
-    smooth: 'Smooth',
-    textured: 'Textured',
-    rough: 'Rough',
-    
-    // Customer Details
-    customerDetails: 'Customer Details',
-    registrationNumber: 'Registration Number',
-    taxNumber: 'Tax Number',
-    creditLimit: 'Credit Limit',
-    paymentTerms: 'Payment Terms',
-    preferredPayment: 'Preferred Payment Method',
-    
     // Journal Entries
     journalEntriesAdd: 'Add New Entry',
     entryNumber: 'Entry Number',
@@ -716,8 +630,6 @@ const translations = {
     purchaseInvoice: 'Purchase Invoice',
     client: 'Customer',
     supplier: 'Supplier',
-    project: 'Project',
-    selectProject: 'Select Project',
     selectProduct: 'Select Product',
     selectClient: 'Select Customer',
     selectSupplier: 'Select Supplier',
@@ -1008,7 +920,21 @@ const translations = {
     language: 'Language',
     settings: 'Settings',
     arabic: 'العربية',
-    english: 'English'
+    english: 'English',
+    
+    // Settings Page
+    generalSettings: 'General Settings',
+    languageSettings: 'Language Settings',
+    dataManagement: 'Data Management',
+    settingsDescription: 'Manage application settings and data',
+    theme: 'Theme',
+    themeDescription: 'Choose application theme',
+    lightTheme: 'Light',
+    darkTheme: 'Dark',
+    notifications: 'Notifications',
+    notificationsDescription: 'Enable notifications',
+    autoSave: 'Auto Save',
+    autoSaveDescription: 'Save data automatically'
   }
 }
 
@@ -1022,6 +948,12 @@ export const LanguageProvider = ({ children }) => {
     return language === 'ar' ? 'rtl' : 'ltr'
   })
 
+  // Add notifications settings
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    const saved = localStorage.getItem('app_notifications')
+    return saved !== null ? JSON.parse(saved) : true
+  })
+
   useEffect(() => {
     localStorage.setItem('app_language', language)
     setDirection(language === 'ar' ? 'rtl' : 'ltr')
@@ -1030,6 +962,10 @@ export const LanguageProvider = ({ children }) => {
     document.documentElement.dir = direction
     document.documentElement.lang = language
   }, [language, direction])
+
+  useEffect(() => {
+    localStorage.setItem('app_notifications', JSON.stringify(notificationsEnabled))
+  }, [notificationsEnabled])
 
   const toggleLanguage = () => {
     setLanguage(prev => prev === 'ar' ? 'en' : 'ar')
@@ -1042,6 +978,8 @@ export const LanguageProvider = ({ children }) => {
   const value = {
     language,
     direction,
+    notificationsEnabled,
+    setNotificationsEnabled,
     toggleLanguage,
     setLanguage,
     t

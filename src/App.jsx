@@ -12,6 +12,7 @@ import CustomersSuppliers from './components/CustomersSuppliers'
 import Inventory from './components/Inventory'
 import Reports from './components/Reports'
 import DataManagement from './components/DataManagement'
+import Settings from './components/Settings'
 
 const AppContent = () => {
   const [currentView, setCurrentView] = useState('dashboard')
@@ -38,6 +39,8 @@ const AppContent = () => {
         return <Reports />
       case 'dataManagement':
         return <DataManagement />
+      case 'settings':
+        return <Settings />
       default:
         return <Dashboard onNavigate={setCurrentView} />
     }

@@ -17,7 +17,7 @@ const Invoices = () => {
     getInventoryItems,
     updateInventoryItem
   } = useAccounting()
-  const { t, language } = useLanguage()
+  const { t, language, notificationsEnabled } = useLanguage()
 
   const [showModal, setShowModal] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState(null)
@@ -1092,11 +1092,13 @@ const Invoices = () => {
         </div>
       )}
 
-      {/* Invoice Notifications */}
-      <InvoiceNotifications 
-        invoices={invoices}
-        onInvoiceClick={(invoice) => openModal(invoice)}
-      />
+      {/* Invoice Notifications - Only show if notifications are enabled */}
+      {notificationsEnabled && (
+        <InvoiceNotifications 
+          invoices={invoices}
+          onInvoiceClick={(invoice) => openModal(invoice)}
+        />
+      )}
 
       {/* Tabs */}
       <div className="invoice-tabs">
@@ -1649,73 +1651,55 @@ const Invoices = () => {
                       <span>{formData.subtotal.toFixed(3)} {t('kwd')}</span>
                     </div>
                     
-                    <div className="total-line discount-line">
+                    <div className="total-line discount-line compact">
                       <label>{t('discount')}:</label>
-                      <div className="input-group">
-                        <select
-                          className="type-selector"
-                          value={formData.discountType}
-                          onChange={(e) => updateInvoiceField('discountType', e.target.value)}
-                        >
-                          <option value="amount">{t('amount')}</option>
-                          <option value="percentage">{t('percentage')}</option>
-                        </select>
+                      <div className="compact-input-group">
                         <input
                           type="number"
                           value={formData.discount}
                           onChange={(e) => updateInvoiceField('discount', e.target.value)}
                           min="0"
-                          step="1"
+                          step="0.1"
                           placeholder="0"
+                          className="compact-input"
                         />
-                        <span className="currency">
-                          {formData.discountType === 'amount' ? t('kwd') : '%'}
+                        <select
+                          className="compact-select"
+                          value={formData.discountType}
+                          onChange={(e) => updateInvoiceField('discountType', e.target.value)}
+                        >
+                          <option value="amount">{t('kwd')}</option>
+                          <option value="percentage">%</option>
+                        </select>
+                        <span className="calculated-value">
+                          ({formData.discountAmount.toFixed(3)} {t('kwd')})
                         </span>
-                        {formData.discountType === 'amount' && (
-                          <span className="discount-rate">
-                            ({formData.discountRate.toFixed(2)}%)
-                          </span>
-                        )}
-                        {formData.discountType === 'percentage' && formData.discount > 0 && (
-                          <span className="discount-amount">
-                            ({((formData.subtotal * formData.discount) / 100).toFixed(3)} {t('kwd')})
-                          </span>
-                        )}
                       </div>
                     </div>
                     
-                    <div className="total-line vat-line">
+                    <div className="total-line vat-line compact">
                       <label>{t('vatRate')}:</label>
-                      <div className="input-group">
-                        <select
-                          className="type-selector"
-                          value={formData.vatType}
-                          onChange={(e) => updateInvoiceField('vatType', e.target.value)}
-                        >
-                          <option value="amount">{t('amount')}</option>
-                          <option value="percentage">{t('percentage')}</option>
-                        </select>
+                      <div className="compact-input-group">
                         <input
                           type="number"
                           value={formData.vatRate}
                           onChange={(e) => updateInvoiceField('vatRate', e.target.value)}
                           min="0"
-                          step="1"
+                          step="0.1"
                           placeholder="0"
+                          className="compact-input"
                         />
-                        <span className="currency">
-                          {formData.vatType === 'amount' ? t('kwd') : '%'}
+                        <select
+                          className="compact-select"
+                          value={formData.vatType}
+                          onChange={(e) => updateInvoiceField('vatType', e.target.value)}
+                        >
+                          <option value="amount">{t('kwd')}</option>
+                          <option value="percentage">%</option>
+                        </select>
+                        <span className="calculated-value">
+                          ({formData.vatAmount.toFixed(3)} {t('kwd')})
                         </span>
-                        {formData.vatType === 'amount' && (
-                          <span className="vat-percentage">
-                            ({formData.vatPercentage.toFixed(2)}%)
-                          </span>
-                        )}
-                        {formData.vatType === 'percentage' && formData.vatRate > 0 && (
-                          <span className="vat-amount">
-                            ({formData.vatAmount.toFixed(3)} {t('kwd')})
-                          </span>
-                        )}
                       </div>
                     </div>
                     

@@ -15,7 +15,7 @@ const Dashboard = ({ onNavigate }) => {
     loading 
   } = useAccounting()
 
-  const { t, language } = useLanguage()
+  const { t, language, notificationsEnabled } = useLanguage()
 
   if (loading) {
     return <div className="loading">{t('loading')}</div>
@@ -62,6 +62,10 @@ const Dashboard = ({ onNavigate }) => {
     if (onNavigate) onNavigate('reports')
   }
 
+  const handleOpenSettings = () => {
+    if (onNavigate) onNavigate('settings')
+  }
+
   return (
     <div className="dashboard">
       <div className="dashboard-header">
@@ -69,17 +73,19 @@ const Dashboard = ({ onNavigate }) => {
         <p>{t('dashboardSubtitle')}</p>
       </div>
 
-      {/* Invoice Notifications */}
-      <InvoiceNotifications 
-        invoices={invoices}
-        onInvoiceClick={() => onNavigate && onNavigate('invoices')}
-      />
+      {/* Invoice Notifications - Only show if notifications are enabled */}
+      {notificationsEnabled && (
+        <InvoiceNotifications 
+          invoices={invoices}
+          onInvoiceClick={() => onNavigate && onNavigate('invoices')}
+        />
+      )}
 
-      {/* Expiry Alerts */}
-      <ExpiryAlerts />
+      {/* Expiry Alerts - Only show if notifications are enabled */}
+      {notificationsEnabled && <ExpiryAlerts />}
 
-      {/* Stock Alerts */}
-      <StockAlerts />
+      {/* Stock Alerts - Only show if notifications are enabled */}
+      {notificationsEnabled && <StockAlerts />}
 
       {/* Main Statistics */}
       <div className="dashboard-stats">
@@ -252,6 +258,11 @@ const Dashboard = ({ onNavigate }) => {
               <div className="action-icon">📈</div>
               <h4>{t('viewReports')}</h4>
               <p>{t('viewReportsDesc')}</p>
+            </div>
+            <div className="action-card" onClick={handleOpenSettings} style={{cursor: 'pointer'}}>
+              <div className="action-icon">⚙️</div>
+              <h4>{t('settings')}</h4>
+              <p>{t('settingsDescription')}</p>
             </div>
           </div>
         </div>

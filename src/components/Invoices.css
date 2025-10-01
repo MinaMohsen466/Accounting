@@ -289,6 +289,82 @@
   margin: 0;
 }
 
+/* Compact Invoice Totals Styles */
+.total-line.compact {
+  padding: 8px 0;
+}
+
+.compact-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.compact-input {
+  width: 70px;
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  background: white;
+  color: #000000;
+}
+
+.compact-select {
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: white;
+  color: #000000;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 60px;
+  cursor: pointer;
+}
+
+.compact-select option {
+  color: #000000 !important;
+  background: white !important;
+  font-weight: 600;
+}
+
+/* تأكيد إضافي لضمان وضوح النص */
+.compact-select:focus {
+  outline: 2px solid #007bff;
+  border-color: #007bff;
+  color: #000000;
+}
+
+.compact-input:focus {
+  outline: 2px solid #007bff;
+  border-color: #007bff;
+  color: #000000;
+}
+
+.calculated-value {
+  font-size: 13px;
+  color: #6c757d;
+  font-weight: 500;
+  margin-left: 5px;
+  white-space: nowrap;
+}
+
+/* Compact layout for discount and vat lines */
+.discount-line.compact,
+.vat-line.compact {
+  align-items: center;
+  min-height: 40px;
+}
+
+.discount-line.compact label,
+.vat-line.compact label {
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .invoice-modal {
