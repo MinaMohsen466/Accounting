@@ -12,6 +12,9 @@ const Inventory = () => {
   } = useAccounting()
   const { t } = useLanguage()
 
+  // Get unique categories from existing items only
+  const existingCategories = [...new Set(inventoryItems?.map(item => item.category).filter(Boolean))].sort()
+
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [notification, setNotification] = useState(null)
@@ -25,6 +28,7 @@ const Inventory = () => {
     category: '',
     quantity: 0,
     price: 0,
+    purchasePrice: 0,
     description: ''
   })
 
@@ -42,6 +46,7 @@ const Inventory = () => {
         category: item.category,
         quantity: item.quantity,
         price: item.price || item.unitPrice || 0,
+        purchasePrice: item.purchasePrice || 0,
         description: item.description || ''
       })
     } else {
@@ -51,6 +56,7 @@ const Inventory = () => {
         category: '',
         quantity: 0,
         price: 0,
+        purchasePrice: 0,
         description: ''
       })
     }
@@ -65,7 +71,8 @@ const Inventory = () => {
       sku: '',
       category: '',
       quantity: 0,
-      unitPrice: 0,
+      price: 0,
+      purchasePrice: 0,
       description: ''
     })
   }
@@ -73,7 +80,7 @@ const Inventory = () => {
   const handleSubmit = (e) => {
     e.preventDefault()
     
-    if (!formData.name || !formData.sku || formData.quantity < 0 || formData.price < 0) {
+    if (!formData.name || !formData.sku || formData.quantity < 0 || formData.price < 0 || formData.purchasePrice < 0) {
       showNotification(t('fillRequiredFields'), 'error')
       return
     }
@@ -257,6 +264,7 @@ const Inventory = () => {
                 <th>{t('productName')}</th>
                 <th>{t('category')}</th>
                 <th>{t('quantity')}</th>
+                <th>{t('purchasePrice')}</th>
                 <th>{t('unitPrice')}</th>
                 <th>{t('totalValue')}</th>
                 <th>{t('actions')}</th>
@@ -268,9 +276,14 @@ const Inventory = () => {
                   <td>{item.sku}</td>
                   <td>{item.name}</td>
                   <td>{item.category}</td>
-                  <td>{item.quantity}</td>
-                  <td>{(item.price || item.unitPrice || 0).toFixed(3)}</td>
-                  <td>{(item.quantity * (item.price || item.unitPrice || 0)).toFixed(3)}</td>
+                  <td>
+                    <span className={`quantity-badge ${item.quantity < 10 ? 'low-stock' : 'normal-stock'}`}>
+                      {item.quantity}
+                    </span>
+                  </td>
+                  <td className="purchase-price">{(item.purchasePrice || 0).toFixed(3)} {t('kwd')}</td>
+                  <td className="selling-price">{(item.price || item.unitPrice || 0).toFixed(3)} {t('kwd')}</td>
+                  <td className="total-value">{(item.quantity * (item.price || item.unitPrice || 0)).toFixed(3)} {t('kwd')}</td>
                   <td>
                     <button 
                       className="btn btn-secondary btn-sm"
@@ -334,12 +347,22 @@ const Inventory = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>{t('category')}</label>
-                    <input
-                      type="text"
-                      value={formData.category}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                    />
+                    <label>{t('category')} 📂</label>
+                    <div className="category-input-container">
+                      <input
+                        type="text"
+                        list="categories-list"
+                        value={formData.category}
+                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                        placeholder={t('selectOrTypeCategory')}
+                        className="category-input"
+                      />
+                      <datalist id="categories-list">
+                        {existingCategories.map((category, index) => (
+                          <option key={index} value={category} />
+                        ))}
+                      </datalist>
+                    </div>
                   </div>
                   <div className="form-group">
                     <label>{t('quantity')} *</label>
@@ -353,16 +376,43 @@ const Inventory = () => {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label>{t('unitPrice')} *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.001"
-                    value={formData.price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                    required
-                  />
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('purchasePrice')} *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={formData.purchasePrice}
+                      onChange={(e) => setFormData(prev => ({ ...prev, purchasePrice: parseFloat(e.target.value) || 0 }))}
+                      required
+                      placeholder="0.000"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('unitPrice')} *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={formData.price}
+                      onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                      required
+                      placeholder="0.000"
+                    />
+                  </div>
+                </div>
+
+                <div className="profit-indicator">
+                  <span className="profit-label">{t('expectedProfit')}: </span>
+                  <span className={`profit-value ${(formData.price - formData.purchasePrice) >= 0 ? 'positive' : 'negative'}`}>
+                    {(formData.price - formData.purchasePrice).toFixed(3)} {t('kwd')}
+                  </span>
+                  {formData.purchasePrice > 0 && (
+                    <span className="profit-percentage">
+                      ({(((formData.price - formData.purchasePrice) / formData.purchasePrice) * 100).toFixed(1)}%)
+                    </span>
+                  )}
                 </div>
 
                 <div className="form-group">

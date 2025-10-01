@@ -2,37 +2,42 @@
 .dashboard {
   max-width: 1400px;
   margin: 0 auto;
+  padding: 20px;
+  min-height: 100vh;
 }
 
 .dashboard-header {
   text-align: center;
   margin-bottom: 40px;
+  padding: 0 10px;
 }
 
 .dashboard-header h1 {
   color: #2c3e50;
   margin-bottom: 10px;
-  font-size: 2.5rem;
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .dashboard-header p {
   color: #7f8c8d;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
   margin: 0;
+  line-height: 1.4;
 }
 
 /* Enhanced Statistics Cards */
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 25px;
   margin-bottom: 40px;
 }
 
 .stat-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: var(--primary-color);
+  color: white;
   border-radius: 15px;
   padding: 30px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
@@ -40,11 +45,29 @@
   display: flex;
   align-items: center;
   gap: 20px;
+  position: relative;
+  overflow: hidden;
 }
 
 .stat-card:hover {
   transform: translateY(-8px);
   box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255,255,255,0.1);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-card:hover::before {
+  opacity: 1;
 }
 
 .stat-card:nth-child(2) {
@@ -60,32 +83,43 @@
 }
 
 .stat-icon {
-  font-size: 3rem;
+  font-size: clamp(2rem, 5vw, 3rem);
   opacity: 0.9;
+  z-index: 1;
+  position: relative;
+}
+
+.stat-info {
+  z-index: 1;
+  position: relative;
+  flex: 1;
 }
 
 .stat-info h3 {
   margin: 0 0 10px 0;
-  font-size: 1.1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
   font-weight: 600;
   opacity: 0.9;
+  line-height: 1.3;
 }
 
 .stat-info p {
   margin: 0 0 5px 0;
-  font-size: 2.5rem;
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
   font-weight: bold;
+  line-height: 1;
 }
 
 .stat-info span {
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
   opacity: 0.8;
+  line-height: 1.2;
 }
 
 /* Overview Section */
 .overview-section {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(350px, 100%), 1fr));
   gap: 25px;
   margin-bottom: 40px;
 }
@@ -95,8 +129,65 @@
   border-radius: 15px;
   padding: 30px;
   box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   min-height: 200px;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.overview-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
+
+.overview-card h3 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.overview-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.overview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f8f9fa;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.overview-item:last-child {
+  border-bottom: none;
+}
+
+.overview-item label {
+  color: #7f8c8d;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
+  font-weight: 500;
+  flex: 1;
+  min-width: 120px;
+}
+
+.overview-item span {
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: clamp(1rem, 2.5vw, 1.1rem);
+  text-align: right;
+}
+
+.overview-item .amount {
+  color: #27ae60;
+  font-weight: 700;
+  font-size: clamp(1.1rem, 3vw, 1.2rem);
 }
 
 .overview-card:hover {
@@ -163,7 +254,7 @@
 /* Recent Activities */
 .recent-activities {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr));
   gap: 25px;
   margin-bottom: 40px;
 }
@@ -174,15 +265,25 @@
   padding: 30px;
   box-shadow: 0 5px 20px rgba(0,0,0,0.08);
   min-height: 300px;
+  border: 1px solid rgba(0,0,0,0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.activity-section:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
 }
 
 .activity-section h3 {
   color: #2c3e50;
   margin-bottom: 20px;
-  font-size: 1.3rem;
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
   font-weight: 600;
   border-bottom: 2px solid #f1f2f6;
   padding-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .activity-list {
@@ -191,6 +292,26 @@
   gap: 15px;
   height: calc(100% - 60px);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.activity-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.activity-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.activity-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.activity-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .activity-item {
@@ -202,15 +323,17 @@
   border-radius: 10px;
   transition: all 0.3s ease;
   min-height: 80px;
+  border-left: 3px solid transparent;
 }
 
 .activity-item:hover {
   background: #e9ecef;
   transform: translateX(5px);
+  border-left-color: #3498db;
 }
 
 .activity-icon {
-  font-size: 1.5rem;
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
   padding: 10px;
   background: rgba(52, 152, 219, 0.1);
   border-radius: 50%;
@@ -239,13 +362,13 @@
   font-weight: 600;
   color: #2c3e50;
   margin-bottom: 4px;
-  font-size: 0.95rem;
+  font-size: clamp(0.9rem, 2.5vw, 0.95rem);
   line-height: 1.3;
 }
 
 .activity-desc {
   color: #7f8c8d;
-  font-size: 0.85rem;
+  font-size: clamp(0.8rem, 2vw, 0.85rem);
   margin-bottom: 2px;
   line-height: 1.3;
   word-wrap: break-word;
@@ -253,8 +376,24 @@
 
 .activity-date {
   color: #95a5a6;
-  font-size: 0.75rem;
+  font-size: clamp(0.7rem, 1.8vw, 0.75rem);
   font-weight: 500;
+}
+
+.activity-amount {
+  color: #27ae60;
+  font-weight: 700;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.empty-activity {
+  text-align: center;
+  color: #95a5a6;
+  font-style: italic;
+  padding: 40px 20px;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
 }
 
 .activity-amount {
@@ -290,40 +429,21 @@
 .quick-actions h3 {
   color: #2c3e50;
   margin-bottom: 25px;
-  font-size: 1.4rem;
+  font-size: clamp(1.2rem, 3.5vw, 1.4rem);
   font-weight: 600;
   text-align: center;
+  border-bottom: 2px solid #f1f2f6;
+  padding-bottom: 15px;
 }
 
 .actions-container {
   position: relative;
-}
-
-.actions-container::before,
-.actions-container::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 20px;
-  pointer-events: none;
-  z-index: 2;
-  opacity: 0.8;
-}
-
-.actions-container::before {
-  left: 0;
-  background: linear-gradient(to right, rgba(255,255,255,1), rgba(255,255,255,0));
-}
-
-.actions-container::after {
-  right: 0;
-  background: linear-gradient(to left, rgba(255,255,255,1), rgba(255,255,255,0));
+  overflow: hidden;
 }
 
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 20px;
   justify-content: center;
   max-width: 1000px;
@@ -339,47 +459,68 @@
   transition: all 0.3s ease;
   cursor: pointer;
   min-height: 160px;
-  min-width: 220px;
-  flex: 0 0 220px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.action-card:hover::before {
+  left: 100%;
 }
 
 .action-card:hover {
   border-color: #3498db;
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(52, 152, 219, 0.15);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(52, 152, 219, 0.15);
 }
 
 .action-card:active {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .action-card .action-icon {
-  font-size: 2.5rem;
+  font-size: clamp(2rem, 5vw, 2.5rem);
   margin-bottom: 15px;
   display: block;
   transition: transform 0.3s ease;
+  z-index: 1;
+  position: relative;
 }
 
 .action-card:hover .action-icon {
-  transform: scale(1.1);
+  transform: scale(1.1) rotate(5deg);
 }
 
 .action-card h4 {
   color: #2c3e50;
   margin-bottom: 10px;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 3vw, 1.2rem);
   font-weight: 600;
+  z-index: 1;
+  position: relative;
 }
 
 .action-card p {
   color: #7f8c8d;
-  font-size: 0.9rem;
+  font-size: clamp(0.85rem, 2.5vw, 0.9rem);
   margin: 0;
   line-height: 1.5;
+  z-index: 1;
+  position: relative;
 }
 
 /* Loading state */
@@ -390,53 +531,99 @@
   color: #3498db;
 }
 
-/* Responsive Design */
-@media (max-width: 1200px) {
+/* Enhanced Responsive Design */
+
+/* Extra Large screens (1400px and up) */
+@media (min-width: 1400px) {
   .dashboard {
-    max-width: 100%;
-    padding: 0 15px;
+    padding: 30px;
   }
   
   .dashboard-stats {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 30px;
+  }
+  
+  .overview-section,
+  .recent-activities {
+    gap: 30px;
+  }
+  
+  .actions-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 25px;
   }
 }
 
-@media (max-width: 1024px) {
+/* Large screens (1200px to 1399px) */
+@media (max-width: 1399px) and (min-width: 1200px) {
+  .dashboard {
+    padding: 25px;
+  }
+  
+  .dashboard-stats {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+  
+  .actions-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+}
+
+/* Medium-Large screens (992px to 1199px) */
+@media (max-width: 1199px) and (min-width: 992px) {
+  .dashboard {
+    padding: 20px;
+  }
+  
+  .dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  
   .overview-section,
   .recent-activities {
     grid-template-columns: 1fr;
     gap: 20px;
   }
   
-  .dashboard-stats {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 18px;
-  }
-  
   .actions-grid {
-    gap: 15px;
-    padding: 8px 0;
-  }
-  
-  .action-card {
-    min-width: 200px;
-    flex: 0 0 200px;
-    padding: 20px;
-    min-height: 140px;
-  }
-}
-
-/* Tablet-specific optimizations */
-@media (max-width: 900px) and (min-width: 769px) {
-  .dashboard-stats {
     grid-template-columns: repeat(2, 1fr);
     gap: 20px;
   }
   
+  .action-card {
+    min-height: 140px;
+    padding: 20px;
+  }
+}
+
+/* Tablets (768px to 991px) */
+@media (max-width: 991px) and (min-width: 768px) {
+  .dashboard {
+    padding: 15px;
+  }
+  
+  .dashboard-header {
+    margin-bottom: 30px;
+  }
+  
+  .dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    margin-bottom: 35px;
+  }
+  
   .stat-card {
     padding: 25px;
+    gap: 15px;
+  }
+  
+  .overview-section,
+  .recent-activities {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 35px;
   }
   
   .overview-card,
@@ -452,240 +639,215 @@
   
   .action-card {
     padding: 20px;
-    min-height: 140px;
+    min-height: 130px;
   }
 }
 
-@media (max-width: 768px) {
+/* Small tablets and large phones (576px to 767px) */
+@media (max-width: 767px) and (min-width: 576px) {
   .dashboard {
-    padding: 0 10px;
+    padding: 12px;
   }
-
+  
   .dashboard-header {
-    margin-bottom: 30px;
+    margin-bottom: 25px;
   }
-
-  .dashboard-header h1 {
-    font-size: 2rem;
-    margin-bottom: 8px;
-  }
-
-  .dashboard-header p {
-    font-size: 1rem;
-  }
-
+  
   .dashboard-stats {
     grid-template-columns: 1fr;
     gap: 15px;
     margin-bottom: 30px;
   }
-
+  
   .stat-card {
     padding: 20px;
-    gap: 15px;
-    min-height: auto;
-  }
-
-  .stat-icon {
-    font-size: 2.2rem;
-  }
-
-  .stat-info p {
-    font-size: 1.8rem;
-  }
-
-  .stat-info h3 {
-    font-size: 1rem;
-  }
-
-  .overview-card,
-  .activity-section,
-  .quick-actions {
-    padding: 20px;
-  }
-
-  .actions-grid {
-    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-    justify-content: center;
+    flex-direction: row;
+    text-align: left;
   }
-
-  .action-card {
-    padding: 18px;
-    min-height: 130px;
-  }
-
-  .action-card h4 {
-    font-size: 1.1rem;
-  }
-
-  .action-card .action-icon {
-    font-size: 2rem;
-    margin-bottom: 12px;
-  }
-}
-
-@media (max-width: 640px) {
-  .dashboard {
-    padding: 0 8px;
-  }
-
-  .dashboard-header {
-    margin-bottom: 25px;
-  }
-
-  .dashboard-header h1 {
-    font-size: 1.75rem;
-  }
-
-  .dashboard-stats {
-    gap: 12px;
-    margin-bottom: 25px;
-  }
-
-  .stat-card {
-    padding: 16px;
-    gap: 12px;
-    border-radius: 12px;
-  }
-
-  .stat-icon {
-    font-size: 2rem;
-  }
-
-  .stat-info p {
-    font-size: 1.6rem;
-  }
-
-  .stat-info h3 {
-    font-size: 0.95rem;
-  }
-
-  .overview-card,
-  .activity-section,
-  .quick-actions {
-    padding: 16px;
-    border-radius: 12px;
-  }
-
+  
   .overview-section,
   .recent-activities {
-    gap: 15px;
-    margin-bottom: 25px;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    margin-bottom: 30px;
   }
-
+  
+  .overview-card,
+  .activity-section,
+  .quick-actions {
+    padding: 20px;
+  }
+  
   .actions-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    justify-content: center;
+    gap: 12px;
   }
-
+  
   .action-card {
-    padding: 16px;
+    padding: 18px;
     min-height: 120px;
+  }
+  
+  .activity-item {
+    padding: 12px;
+    gap: 12px;
+  }
+  
+  .activity-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.3rem;
   }
 }
 
-@media (max-width: 480px) {
+/* Mobile phones (up to 575px) */
+@media (max-width: 575px) {
   .dashboard {
+    padding: 8px;
+  }
+  
+  .dashboard-header {
+    margin-bottom: 20px;
     padding: 0 5px;
   }
-
-  .dashboard-header h1 {
-    font-size: 1.5rem;
+  
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 25px;
   }
-
-  .dashboard-header p {
-    font-size: 0.9rem;
-  }
-
+  
   .stat-card {
-    flex-direction: column;
-    text-align: center;
+    padding: 16px;
     gap: 10px;
-    padding: 14px;
-  }
-
-  .stat-icon {
-    font-size: 1.8rem;
-  }
-
-  .stat-info p {
-    font-size: 1.4rem;
-  }
-
-  .stat-info h3 {
-    font-size: 0.9rem;
-    margin-bottom: 5px;
-  }
-
-  .stat-info span {
-    font-size: 0.8rem;
-  }
-
-  .activity-item {
     flex-direction: column;
     text-align: center;
-    gap: 8px;
-    padding: 12px;
+    border-radius: 12px;
   }
-
+  
+  .overview-section,
+  .recent-activities {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+  
+  .overview-card,
+  .activity-section,
+  .quick-actions {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .activity-item {
+    padding: 12px;
+    gap: 10px;
+    flex-direction: column;
+    text-align: center;
+  }
+  
   .activity-icon {
     width: 35px;
     height: 35px;
     font-size: 1.2rem;
+    align-self: center;
   }
-
+  
   .activity-details {
     text-align: center;
   }
-
+  
   .activity-amount {
-    font-size: 1rem;
+    text-align: center;
+    margin-top: 5px;
   }
-
+  
   .overview-item {
     flex-direction: column;
     gap: 6px;
     align-items: center;
-    padding: 8px 0;
+    text-align: center;
+    padding: 10px 0;
   }
-
+  
   .overview-item label {
     text-align: center;
-    font-size: 0.9rem;
+    min-width: auto;
   }
-
+  
   .overview-item span {
-    font-size: 0.95rem;
+    text-align: center;
   }
-
-  .overview-item .amount {
-    font-size: 1rem;
-  }
-
-  .action-card .action-icon {
-    font-size: 1.8rem;
-    margin-bottom: 10px;
-  }
-
+  
   .actions-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    justify-content: center;
+    gap: 10px;
   }
-
+  
   .action-card {
     padding: 14px;
     min-height: 110px;
   }
+}
 
-  .action-card h4 {
-    font-size: 1rem;
+/* Extra small phones (up to 380px) */
+@media (max-width: 380px) {
+  .dashboard {
+    padding: 5px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 1.4rem;
+  }
+  
+  .dashboard-header p {
+    font-size: 0.85rem;
+  }
+  
+  .stat-card {
+    padding: 12px;
+  }
+  
+  .stat-icon {
+    font-size: 1.5rem;
+  }
+  
+  .stat-info p {
+    font-size: 1.3rem;
+  }
+  
+  .stat-info h3 {
+    font-size: 0.85rem;
+  }
+  
+  .overview-card,
+  .activity-section,
+  .quick-actions {
+    padding: 12px;
+  }
+  
+  .actions-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .action-card {
+    padding: 12px;
+    min-height: 100px;
+  }
+  
+  .action-card .action-icon {
+    font-size: 1.5rem;
     margin-bottom: 8px;
   }
-
+  
+  .action-card h4 {
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+  
   .action-card p {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 }

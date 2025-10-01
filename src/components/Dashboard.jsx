@@ -1,5 +1,6 @@
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import InvoiceNotifications from './InvoiceNotifications'
 import './Dashboard.css'
 
 const Dashboard = ({ onNavigate }) => {
@@ -65,6 +66,12 @@ const Dashboard = ({ onNavigate }) => {
         <h1>{t('dashboardTitle')}</h1>
         <p>{t('dashboardSubtitle')}</p>
       </div>
+
+      {/* Invoice Notifications */}
+      <InvoiceNotifications 
+        invoices={invoices}
+        onInvoiceClick={() => onNavigate && onNavigate('invoices')}
+      />
 
       {/* Main Statistics */}
       <div className="dashboard-stats">

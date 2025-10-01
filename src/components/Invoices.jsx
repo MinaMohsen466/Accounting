@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import { updateInvoicesStatus, getInvoiceNotifications, getDaysInfo } from '../utils/invoiceUtils'
+import InvoiceNotifications from './InvoiceNotifications'
 import './Invoices.css'
 
 const Invoices = () => {
@@ -73,7 +75,17 @@ const Invoices = () => {
     paymentStatus: 'paid', // paid, pending, overdue
     description: '',
     items: [
-      { itemId: '', itemName: '', quantity: 1, unitPrice: 0, total: 0 }
+      { 
+        itemId: '', 
+        itemName: '', 
+        quantity: 1, 
+        unitPrice: 0, 
+        total: 0,
+        discount: 0,
+        discountAmount: 0,
+        discountType: 'amount',
+        discountRate: 0
+      }
     ],
     subtotal: 0,
     discount: 0, // discount amount (not percentage)
@@ -92,6 +104,39 @@ const Invoices = () => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3000)
   }
+
+  // Auto-update invoice statuses based on due dates
+  useEffect(() => {
+    if (invoices.length > 0) {
+      const updatedInvoices = updateInvoicesStatus(invoices)
+      
+      // Check if any invoices were updated
+      const hasUpdates = updatedInvoices.some((invoice, index) => 
+        invoice.paymentStatus !== invoices[index].paymentStatus
+      )
+      
+      if (hasUpdates) {
+        // Update invoices in bulk
+        updatedInvoices.forEach((invoice, index) => {
+          if (invoice.paymentStatus !== invoices[index].paymentStatus) {
+            updateInvoice(invoice.id, { paymentStatus: invoice.paymentStatus })
+          }
+        })
+        
+        // Show notification about auto updates
+        const updatedCount = updatedInvoices.filter((invoice, index) => 
+          invoice.paymentStatus !== invoices[index].paymentStatus
+        ).length
+        
+        if (updatedCount > 0) {
+          showNotification(
+            `${t('autoStatusUpdate')}: ${updatedCount} ${t('invoiceStatusUpdated')}`, 
+            'info'
+          )
+        }
+      }
+    }
+  }, [invoices.length]) // Only run when invoices array length changes to avoid infinite loops
 
   // Helper functions to check for discount and VAT
   const hasDiscount = (invoice) => {
@@ -113,7 +158,17 @@ const Invoices = () => {
       paymentStatus: 'paid',
       description: '',
       items: [
-        { itemId: '', itemName: '', quantity: 1, unitPrice: 0, total: 0 }
+        { 
+          itemId: '', 
+          itemName: '', 
+          quantity: 1, 
+          unitPrice: 0, 
+          total: 0,
+          discount: 0,
+          discountAmount: 0,
+          discountType: 'amount',
+          discountRate: 0
+        }
       ],
       subtotal: 0,
       discount: 0,
@@ -138,7 +193,11 @@ const Invoices = () => {
         itemName: it.itemName || it.name || '',
         quantity: parseFloat(it.quantity) || 0,
         unitPrice: parseFloat(it.unitPrice ?? it.price ?? 0) || 0,
-        total: parseFloat(it.total) || 0
+        total: parseFloat(it.total) || 0,
+        discount: parseFloat(it.discount) || 0,
+        discountAmount: parseFloat(it.discountAmount) || 0,
+        discountType: it.discountType || 'amount',
+        discountRate: parseFloat(it.discountRate) || 0
       }))
 
       const populated = {
@@ -149,7 +208,17 @@ const Invoices = () => {
         dueDate: invoice.dueDate || '',
         description: invoice.description || '',
         paymentStatus: invoice.paymentStatus || 'paid',
-        items: normalizedItems.length ? normalizedItems : [{ itemId: '', itemName: '', quantity: 1, unitPrice: 0, total: 0 }],
+        items: normalizedItems.length ? normalizedItems : [{ 
+          itemId: '', 
+          itemName: '', 
+          quantity: 1, 
+          unitPrice: 0, 
+          total: 0,
+          discount: 0,
+          discountAmount: 0,
+          discountType: 'amount',
+          discountRate: 0
+        }],
         subtotal: parseFloat(invoice.subtotal) || 0,
         discount: parseFloat(invoice.discount) || 0,
         discountAmount: parseFloat(invoice.discountAmount) || 0,
@@ -190,7 +259,17 @@ const Invoices = () => {
   const addItem = () => {
     setFormData(prev => calculateTotals({
       ...prev,
-      items: [...prev.items, { itemId: '', itemName: '', quantity: 1, unitPrice: 0, total: 0 }]
+      items: [...prev.items, { 
+        itemId: '', 
+        itemName: '', 
+        quantity: 1, 
+        unitPrice: 0, 
+        total: 0,
+        discount: 0,
+        discountAmount: 0,
+        discountType: 'amount',
+        discountRate: 0
+      }]
     }))
   }
 
@@ -307,10 +386,27 @@ const Invoices = () => {
             }
           }
           
-          // Recalculate total for this item (without discount)
+          // Calculate total for this item with discount
           const quantity = parseFloat(updatedItem.quantity) || 0
           const unitPrice = parseFloat(updatedItem.unitPrice) || 0
-          updatedItem.total = quantity * unitPrice
+          const discount = parseFloat(updatedItem.discount) || 0
+          const discountType = updatedItem.discountType || 'amount'
+          
+          let subtotalBeforeDiscount = quantity * unitPrice
+          let discountAmount = 0
+          
+          if (discountType === 'percentage') {
+            discountAmount = (subtotalBeforeDiscount * discount) / 100
+          } else {
+            discountAmount = discount
+          }
+          
+          // Calculate discountAmount and discountRate for this item
+          updatedItem.discountAmount = discountAmount
+          updatedItem.discountRate = subtotalBeforeDiscount > 0 ? (discountAmount / subtotalBeforeDiscount) * 100 : 0
+          
+          // Final total after discount
+          updatedItem.total = Math.max(0, subtotalBeforeDiscount - discountAmount)
           
           return updatedItem
         }
@@ -728,6 +824,12 @@ const Invoices = () => {
         </div>
       )}
 
+      {/* Invoice Notifications */}
+      <InvoiceNotifications 
+        invoices={invoices}
+        onInvoiceClick={(invoice) => openModal(invoice)}
+      />
+
       {/* Tabs */}
       <div className="invoice-tabs">
         <button 
@@ -846,6 +948,7 @@ const Invoices = () => {
                 <th>{t('type')}</th>
                 <th>{t('clientSupplier')}</th>
                 <th>{t('date')}</th>
+                <th>{t('dueDate')}</th>
                 <th>{t('totalAmount')}</th>
                 <th>{t('status')}</th>
                 <th>{t('actions')}</th>
@@ -864,6 +967,31 @@ const Invoices = () => {
                   </td>
                   <td>{invoice.clientName}</td>
                   <td>{new Date(invoice.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
+                  <td>
+                    {invoice.dueDate ? (
+                      <div className="due-date-cell">
+                        <div>{new Date(invoice.dueDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</div>
+                        {(() => {
+                          const daysInfo = getDaysInfo(invoice.dueDate)
+                          return (
+                            <div className={`days-info ${daysInfo.status}`}>
+                              {daysInfo.status === 'overdue' && (
+                                <small className="overdue-text">⚠️ {daysInfo.days} {t('daysOverdue')}</small>
+                              )}
+                              {daysInfo.status === 'due-today' && (
+                                <small className="due-today-text">🔔 {t('dueToday')}</small>
+                              )}
+                              {daysInfo.status === 'due-future' && daysInfo.days <= 7 && (
+                                <small className="due-soon-text">⏰ {daysInfo.days} {t('daysDue')}</small>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    ) : (
+                      <small className="no-due-date">{t('noDueDate')}</small>
+                    )}
+                  </td>
                   <td>{parseFloat(invoice.total).toFixed(3)} {t('kwd')}</td>
                   <td>
                     <span className={`payment-status ${invoice.paymentStatus || 'paid'}`}>
@@ -1002,6 +1130,7 @@ const Invoices = () => {
                         <th>{t('products')}</th>
                         <th>{t('quantity')}</th>
                         <th>{t('unitPrice')}</th>
+                        <th>{t('itemDiscount')}</th>
                         <th>{t('total')}</th>
                         <th>{t('actions')}</th>
                       </tr>
@@ -1098,7 +1227,35 @@ const Invoices = () => {
                             />
                           </td>
                           <td>
-                            <span className="item-total">{item.total.toFixed(3)} {t('kwd')}</span>
+                            <div className="discount-input-group">
+                              <input
+                                type="number"
+                                value={item.discount || 0}
+                                onChange={(e) => updateItem(index, 'discount', e.target.value)}
+                                min="0"
+                                step="1"
+                                placeholder="0"
+                                className="discount-input"
+                              />
+                              <select
+                                value={item.discountType || 'amount'}
+                                onChange={(e) => updateItem(index, 'discountType', e.target.value)}
+                                className="discount-type-select"
+                              >
+                                <option value="amount">د.ك</option>
+                                <option value="percentage">%</option>
+                              </select>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="item-total-container">
+                              <span className="item-total">{item.total.toFixed(3)} {t('kwd')}</span>
+                              {item.discountAmount > 0 && (
+                                <div className="item-discount-indicator has-discount">
+                                  -{item.discountAmount.toFixed(3)} {t('kwd')}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td>
                             {formData.items.length > 1 && (

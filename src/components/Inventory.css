@@ -444,3 +444,198 @@
     gap: 0.5rem;
   }
 }
+
+/* Enhanced Table Styling */
+.quantity-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  min-width: 40px;
+  display: inline-block;
+}
+
+.quantity-badge.low-stock {
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  color: #dc2626;
+  border: 1px solid #f87171;
+}
+
+.quantity-badge.normal-stock {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  color: #16a34a;
+  border: 1px solid #4ade80;
+}
+
+.purchase-price {
+  color: #e11d48;
+  font-weight: 600;
+}
+
+.selling-price {
+  color: #059669;
+  font-weight: 600;
+}
+
+.total-value {
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Profit Indicator Styling */
+.profit-indicator {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 15px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profit-label {
+  color: #475569;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.profit-value {
+  font-weight: 700;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.profit-value.positive {
+  color: #059669;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+}
+
+.profit-value.negative {
+  color: #dc2626;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+}
+
+.profit-percentage {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Enhanced Modal Styling */
+.modal-body .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.modal-body .form-group input[type="number"] {
+  transition: all 0.3s ease;
+}
+
+.modal-body .form-group input[type="number"]:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+/* Responsive adjustments for profit indicator */
+@media (max-width: 768px) {
+  .profit-indicator {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+  
+  .modal-body .form-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .profit-indicator {
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  
+  .profit-value {
+    font-size: 14px;
+  }
+  
+  .profit-label {
+    font-size: 13px;
+  }
+}
+
+/* Category Input Container Styling */
+.category-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.category-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #2c3e50;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.category-input:focus {
+  outline: none;
+  border-color: #3498db;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1), 0 2px 6px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+
+.category-input::placeholder {
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Category suggestions styling */
+option {
+  padding: 8px 12px;
+  color: #2c3e50;
+  background: white;
+  font-size: 14px;
+}
+
+option:hover {
+  background: #e3f2fd;
+}
+
+/* Category label with icon */
+.form-group label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+/* Responsive category input */
+@media (max-width: 768px) {
+  .category-input {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .category-input {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+}

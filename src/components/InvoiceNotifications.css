@@ -1,0 +1,322 @@
+/* Invoice Notifications Styles */
+.invoice-notifications {
+  margin-bottom: 15px;
+}
+
+.notifications-header {
+  margin-bottom: 8px;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notifications-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.collapse-btn {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #6c757d;
+  transition: all 0.2s ease;
+}
+
+.collapse-btn:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.notifications-summary {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.summary-item {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.summary-item.overdue {
+  background-color: #fee;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+}
+
+.summary-item.due-today {
+  background-color: #fffbeb;
+  color: #d69e2e;
+  border: 1px solid #fbd38d;
+}
+
+.summary-item.due-soon {
+  background-color: #eff6ff;
+  color: #3182ce;
+  border: 1px solid #a3d5ff;
+}
+
+.notifications-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px;
+}
+
+.notification-card {
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  border-left: 3px solid;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+
+.notification-card.overdue {
+  border-left-color: #e74c3c;
+  background: linear-gradient(135deg, #fff 0%, #fefafa 100%);
+}
+
+.notification-card.due-today {
+  border-left-color: #f39c12;
+  background: linear-gradient(135deg, #fff 0%, #fffef9 100%);
+}
+
+.notification-card.due-soon {
+  border-left-color: #3498db;
+  background: linear-gradient(135deg, #fff 0%, #fbfcff 100%);
+}
+
+.notification-icon {
+  font-size: 1.2rem;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.notification-content {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.notification-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 6px;
+}
+
+.notification-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.notification-stats .count {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.notification-stats .amount {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #7f8c8d;
+}
+
+.notification-label {
+  font-size: 0.7rem;
+  color: #95a5a6;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.notification-actions {
+  border-top: 1px solid #ecf0f1;
+  padding-top: 8px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.invoice-quick-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  margin-bottom: 3px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 0.75rem;
+}
+
+.invoice-quick-item:hover {
+  background: rgba(52, 152, 219, 0.1);
+}
+
+.invoice-quick-item .invoice-number {
+  font-weight: 600;
+  color: #2c3e50;
+  min-width: 50px;
+}
+
+.invoice-quick-item .client-name {
+  flex: 1;
+  text-align: center;
+  color: #7f8c8d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.invoice-quick-item .amount {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.7rem;
+}
+
+.more-items {
+  text-align: center;
+  color: #95a5a6;
+  font-size: 0.7rem;
+  font-style: italic;
+  margin-top: 4px;
+  padding: 3px;
+}
+
+/* Color variations for different notification types */
+.notification-card.overdue .notification-stats .count {
+  color: #e74c3c;
+}
+
+.notification-card.due-today .notification-stats .count {
+  color: #f39c12;
+}
+
+.notification-card.due-soon .notification-stats .count {
+  color: #3498db;
+}
+
+/* Due date cell styles for invoices table */
+.due-date-cell {
+  min-width: 120px;
+}
+
+.days-info {
+  margin-top: 4px;
+}
+
+.days-info small {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.overdue-text {
+  background-color: #fee;
+  color: #c53030;
+}
+
+.due-today-text {
+  background-color: #fffbeb;
+  color: #d69e2e;
+}
+
+.due-soon-text {
+  background-color: #eff6ff;
+  color: #3182ce;
+}
+
+.no-due-date {
+  color: #a0aec0;
+  font-style: italic;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .notifications-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .notification-card {
+    padding: 10px;
+  }
+  
+  .notification-stats {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  
+  .notification-stats .count {
+    font-size: 1rem;
+  }
+  
+  .notification-stats .amount {
+    font-size: 0.75rem;
+  }
+  
+  .invoice-quick-item {
+    flex-direction: row;
+    text-align: left;
+    gap: 5px;
+    padding: 3px 6px;
+  }
+  
+  .invoice-quick-item .client-name {
+    max-width: 80px;
+    text-align: center;
+  }
+  
+  .due-date-cell {
+    min-width: auto;
+  }
+  
+  .notification-actions {
+    max-height: 60px;
+  }
+  
+  .notifications-header h3 {
+    font-size: 0.9rem;
+  }
+}
+
+/* Animation for new notifications */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notification-card {
+  animation: slideIn 0.3s ease-out;
+}
