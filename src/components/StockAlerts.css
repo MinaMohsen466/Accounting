@@ -1,0 +1,545 @@
+/* StockAlerts.css */
+
+.stock-alerts {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  overflow: hidden;
+  border-left: 5px solid #17a2b8;
+}
+
+/* Header */
+.alerts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.alerts-header:hover {
+  background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+}
+
+.alerts-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.alerts-icon {
+  font-size: 1.5rem;
+}
+
+.alerts-title h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.alerts-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.collapse-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Summary Stats */
+.alerts-summary {
+  padding: 1rem 1.5rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.summary-stats {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  min-width: 80px;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-item.active {
+  border-color: #17a2b8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+}
+
+.stat-item.out-of-stock {
+  background: #dc3545;
+  color: white;
+}
+
+.stat-item.critical-low {
+  background: #fd7e14;
+  color: white;
+}
+
+.stat-item.reorder-needed {
+  background: #ffc107;
+  color: #212529;
+}
+
+.stat-item.all {
+  background: #17a2b8;
+  color: white;
+}
+
+.stat-item.disabled {
+  opacity: 0.4;
+  transform: scale(0.95);
+  cursor: not-allowed;
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Alerts List */
+.alerts-list {
+  padding: 1rem 1.5rem;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.alert-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.alert-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.alert-item.out_of_stock {
+  background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+  border-color: #dc3545;
+}
+
+.alert-item.critical_low {
+  background: linear-gradient(135deg, #fff8f0 0%, #fed4a4 100%);
+  border-color: #fd7e14;
+}
+
+.alert-item.reorder_needed {
+  background: linear-gradient(135deg, #fffbf0 0%, #fef2c7 100%);
+  border-color: #ffc107;
+}
+
+/* Product Information */
+.alert-product {
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.product-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.product-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.category-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+.product-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.product-details span {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.sku {
+  font-weight: 500;
+  color: #495057;
+}
+
+/* Stock Information */
+.stock-info {
+  flex: 1;
+  margin: 0 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.stock-levels {
+  margin-bottom: 0.75rem;
+}
+
+.level-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.level-item:last-child {
+  border-bottom: none;
+}
+
+.level-label {
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.level-value {
+  font-weight: 600;
+  color: #495057;
+}
+
+.level-item.current .level-value {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+.level-item.minimum .level-value {
+  color: #fd7e14;
+}
+
+.level-item.reorder .level-value {
+  color: #ffc107;
+}
+
+.shortage-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(220, 53, 69, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+.shortage-label {
+  font-size: 0.85rem;
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.shortage-value {
+  font-weight: 700;
+  color: #dc3545;
+  font-size: 0.9rem;
+}
+
+/* Alert Information */
+.alert-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 1rem;
+}
+
+.status-badge-container {
+  text-align: center;
+}
+
+.status-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.status-badge.out_of_stock {
+  background: #dc3545;
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+.status-badge.critical_low {
+  background: #fd7e14;
+  color: white;
+}
+
+.status-badge.reorder_needed {
+  background: #ffc107;
+  color: #212529;
+}
+
+.priority-indicator {
+  text-align: center;
+}
+
+.priority-badge {
+  padding: 0.3rem 0.6rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.priority-badge.critical {
+  background: #dc3545;
+  color: white;
+}
+
+.priority-badge.high {
+  background: #fd7e14;
+  color: white;
+}
+
+.priority-badge.medium {
+  background: #ffc107;
+  color: #212529;
+}
+
+.priority-badge.low {
+  background: #6c757d;
+  color: white;
+}
+
+.price-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.price-label {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.price-value {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.85rem;
+}
+
+/* Alert Actions */
+.alert-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.estimated-cost {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(23, 162, 184, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(23, 162, 184, 0.2);
+  text-align: center;
+}
+
+.cost-label {
+  font-size: 0.75rem;
+  color: #17a2b8;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.cost-value {
+  font-weight: 700;
+  color: #17a2b8;
+  font-size: 0.9rem;
+}
+
+.supplier-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.supplier-label {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-bottom: 0.25rem;
+}
+
+.supplier-name {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.85rem;
+}
+
+/* No Alerts */
+.no-alerts {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+.no-alerts p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Animations */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .alert-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .alert-product,
+  .stock-info,
+  .alert-info,
+  .alert-actions {
+    margin: 0;
+  }
+
+  .summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .stat-item {
+    flex-direction: row;
+    justify-content: space-between;
+    min-width: unset;
+  }
+
+  .stock-levels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .alerts-list {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .alerts-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .alerts-title h3 {
+    font-size: 1rem;
+  }
+
+  .product-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .summary-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-levels {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* RTL Support */
+.rtl .alert-product {
+  margin-right: 0;
+  margin-left: 1rem;
+}
+
+.rtl .stock-info {
+  margin: 0 1rem 0 0;
+}
+
+.rtl .alert-info {
+  margin: 0 1rem 0 0;
+}
+
+.rtl .product-header {
+  direction: rtl;
+}
+
+.rtl .level-item {
+  direction: rtl;
+}
+
+.rtl .shortage-info {
+  direction: rtl;
+}
+
+.rtl .alerts-title {
+  direction: rtl;
+}

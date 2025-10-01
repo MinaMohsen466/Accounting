@@ -1,6 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import { 
+  PRODUCT_CATEGORIES, 
+  MEASUREMENT_UNITS, 
+  CATEGORY_DETAILS, 
+  UNIT_DETAILS,
+  PaintProductService 
+} from '../services/PaintProductService'
+import ColorManager from './ColorManager'
+import UnitConverter from './UnitConverter'
 import './Inventory.css'
 
 const Inventory = () => {
@@ -10,7 +19,7 @@ const Inventory = () => {
     updateInventoryItem,
     deleteInventoryItem
   } = useAccounting()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   // Get unique categories from existing items only
   const existingCategories = [...new Set(inventoryItems?.map(item => item.category).filter(Boolean))].sort()
@@ -22,14 +31,33 @@ const Inventory = () => {
   const [filterCategory, setFilterCategory] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [sortOrder, setSortOrder] = useState('asc')
+  const [showColorManager, setShowColorManager] = useState(false)
+  const [selectedColor, setSelectedColor] = useState(null)
+  const [showUnitConverter, setShowUnitConverter] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
     category: '',
+    productType: '',
+    unit: 'piece',
+    customUnitName: '',
     quantity: 0,
     price: 0,
     purchasePrice: 0,
-    description: ''
+    minStockLevel: 10,
+    expiryDate: '',
+    
+    // Color properties
+    colorCode: '',
+    colorName: '',
+    colorSystem: '',
+    colorFormula: '',
+    
+    // Additional properties
+    manufacturer: '',
+    batchNumber: '',
+    description: '',
+    properties: {}
   })
 
   const showNotification = (message, type = 'success') => {
@@ -41,23 +69,55 @@ const Inventory = () => {
     setEditingItem(item)
     if (item) {
       setFormData({
-        name: item.name,
-        sku: item.sku,
-        category: item.category,
-        quantity: item.quantity,
+        name: item.name || '',
+        sku: item.sku || '',
+        category: item.category || '',
+        productType: item.productType || item.category || '',
+        unit: item.unit || 'piece',
+        customUnitName: item.customUnitName || '',
+        quantity: item.quantity || 0,
         price: item.price || item.unitPrice || 0,
         purchasePrice: item.purchasePrice || 0,
-        description: item.description || ''
+        minStockLevel: item.minStockLevel || 10,
+        expiryDate: item.expiryDate || '',
+        
+        // Color properties
+        colorCode: item.colorCode || '',
+        colorName: item.colorName || '',
+        colorSystem: item.colorSystem || '',
+        colorFormula: item.colorFormula || '',
+        
+        // Additional properties
+        manufacturer: item.manufacturer || '',
+        batchNumber: item.batchNumber || '',
+        description: item.description || '',
+        properties: item.properties || {}
       })
     } else {
       setFormData({
         name: '',
         sku: '',
         category: '',
+        productType: '',
+        unit: 'piece',
+        customUnitName: '',
         quantity: 0,
         price: 0,
         purchasePrice: 0,
-        description: ''
+        minStockLevel: 10,
+        expiryDate: '',
+        
+        // Color properties
+        colorCode: '',
+        colorName: '',
+        colorSystem: '',
+        colorFormula: '',
+        
+        // Additional properties
+        manufacturer: '',
+        batchNumber: '',
+        description: '',
+        properties: {}
       })
     }
     setShowModal(true)
@@ -66,15 +126,52 @@ const Inventory = () => {
   const closeModal = () => {
     setShowModal(false)
     setEditingItem(null)
+    setSelectedColor(null)
     setFormData({
       name: '',
       sku: '',
       category: '',
+      productType: '',
+      unit: 'piece',
+      customUnitName: '',
       quantity: 0,
       price: 0,
       purchasePrice: 0,
-      description: ''
+      minStockLevel: 10,
+      expiryDate: '',
+      
+      // Color properties
+      colorCode: '',
+      colorName: '',
+      colorSystem: '',
+      colorFormula: '',
+      
+      // Additional properties
+      manufacturer: '',
+      batchNumber: '',
+      description: '',
+      properties: {}
     })
+  }
+
+  // Clear custom unit name when unit changes from custom
+  useEffect(() => {
+    if (formData.unit !== 'custom') {
+      setFormData(prev => ({ ...prev, customUnitName: '' }))
+    }
+  }, [formData.unit])
+
+  // Handle color selection
+  const handleColorSelect = (color) => {
+    setSelectedColor(color)
+    setFormData(prev => ({
+      ...prev,
+      colorCode: color.code,
+      colorName: color.name,
+      colorSystem: color.system,
+      colorFormula: color.formula || ''
+    }))
+    setShowColorManager(false)
   }
 
   const handleSubmit = (e) => {
@@ -169,9 +266,18 @@ const Inventory = () => {
     <div className="inventory">
       <div className="page-header">
         <h1>{t('inventoryManagement')}</h1>
-        <button className="btn btn-primary" onClick={() => openModal()}>
-          {t('addProduct')}
-        </button>
+        <div className="header-actions">
+          <button 
+            className="btn btn-info" 
+            onClick={() => setShowUnitConverter(true)}
+            title={t('unitConverter')}
+          >
+            🔄 {t('unitConverter')}
+          </button>
+          <button className="btn btn-primary" onClick={() => openModal()}>
+            {t('addProduct')}
+          </button>
+        </div>
       </div>
 
       {notification && (
@@ -212,7 +318,12 @@ const Inventory = () => {
               className="filter-select"
             >
               <option value="all">{t('allCategories')}</option>
-              {categories.map(category => (
+              {Object.entries(CATEGORY_DETAILS).map(([key, details]) => (
+                <option key={key} value={key}>
+                  {details.icon} {details.nameAr}
+                </option>
+              ))}
+              {categories.filter(cat => !Object.keys(CATEGORY_DETAILS).includes(cat)).map(category => (
                 <option key={category} value={category}>{category}</option>
               ))}
             </select>
@@ -263,6 +374,7 @@ const Inventory = () => {
                 <th>{t('sku')}</th>
                 <th>{t('productName')}</th>
                 <th>{t('category')}</th>
+                <th>{t('unit')}</th>
                 <th>{t('quantity')}</th>
                 <th>{t('purchasePrice')}</th>
                 <th>{t('unitPrice')}</th>
@@ -271,15 +383,71 @@ const Inventory = () => {
               </tr>
             </thead>
             <tbody>
-              {displayedItems.map(item => (
+              {displayedItems.map(item => {
+                const categoryDetails = CATEGORY_DETAILS[item.category] || CATEGORY_DETAILS[item.productType]
+                const stockStatus = PaintProductService.checkStockLevel(item.quantity, item.minStockLevel, item.category)
+                const expiryStatus = PaintProductService.checkExpiryStatus(item.expiryDate)
+                const unitDetails = UNIT_DETAILS[item.unit]
+                
+                return (
                 <tr key={item.id}>
                   <td>{item.sku}</td>
-                  <td>{item.name}</td>
-                  <td>{item.category}</td>
                   <td>
-                    <span className={`quantity-badge ${item.quantity < 10 ? 'low-stock' : 'normal-stock'}`}>
-                      {item.quantity}
-                    </span>
+                    <div className="product-info">
+                      <span className="product-name">{item.name}</span>
+                      {item.colorCode && (
+                        <span className="color-info">
+                          <span className="color-badge">{item.colorCode}</span>
+                          {item.colorName && <small>{item.colorName}</small>}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="category-display">
+                      {categoryDetails ? (
+                        <span className="category-badge" style={{backgroundColor: categoryDetails.color}}>
+                          {categoryDetails.icon} {categoryDetails.nameAr}
+                        </span>
+                      ) : (
+                        <span className="category-badge-old">{item.category}</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    {item.unit === 'custom' && item.customUnitName ? (
+                      <span className="unit-display">{item.customUnitName}</span>
+                    ) : unitDetails ? (
+                      <span className="unit-display">{unitDetails.nameAr} ({unitDetails.symbol})</span>
+                    ) : (
+                      <span>{item.unit || 'قطعة'}</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="quantity-display">
+                      <span className={`quantity-badge ${stockStatus.level}`}>
+                        {item.quantity} {item.unit === 'custom' && item.customUnitName ? item.customUnitName : (unitDetails?.symbol || item.unit)}
+                      </span>
+                      
+                      {/* Quick conversion for volume units */}
+                      {item.unit === 'liter' && item.quantity > 0 && (
+                        <small className="conversion-hint">
+                          ≈ {PaintProductService.convertUnit(item.quantity, 'liter', 'gallon').toFixed(2)} Gal
+                        </small>
+                      )}
+                      {item.unit === 'gallon' && item.quantity > 0 && (
+                        <small className="conversion-hint">
+                          ≈ {PaintProductService.convertUnit(item.quantity, 'gallon', 'liter').toFixed(2)} L
+                        </small>
+                      )}
+                      
+                      {expiryStatus.status === 'expired' && (
+                        <span className="expiry-warning expired">منتهي الصلاحية</span>
+                      )}
+                      {expiryStatus.status === 'expiring_soon' && (
+                        <span className="expiry-warning soon">ينتهي قريباً</span>
+                      )}
+                    </div>
                   </td>
                   <td className="purchase-price">{(item.purchasePrice || 0).toFixed(3)} {t('kwd')}</td>
                   <td className="selling-price">{(item.price || item.unitPrice || 0).toFixed(3)} {t('kwd')}</td>
@@ -299,7 +467,8 @@ const Inventory = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         ) : (
@@ -347,23 +516,59 @@ const Inventory = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>{t('category')} 📂</label>
-                    <div className="category-input-container">
+                    <label>{t('category')} *</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value, productType: e.target.value }))}
+                      required
+                    >
+                      <option value="">{t('selectCategory')}</option>
+                      {Object.entries(CATEGORY_DETAILS).map(([key, details]) => (
+                        <option key={key} value={key}>
+                          {details.icon} {details.nameAr}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>{t('unit')} *</label>
+                    <select
+                      value={formData.unit}
+                      onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
+                      required
+                    >
+                      <option value="">{t('selectUnit')}</option>
+                      {formData.category && CATEGORY_DETAILS[formData.category] ? 
+                        CATEGORY_DETAILS[formData.category].allowedUnits.map(unit => (
+                          <option key={unit} value={unit}>
+                            {UNIT_DETAILS[unit]?.nameAr || t(unit)} ({UNIT_DETAILS[unit]?.symbol})
+                          </option>
+                        )) :
+                        Object.entries(UNIT_DETAILS).map(([key, details]) => (
+                          <option key={key} value={key}>
+                            {details.nameAr} ({details.symbol})
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                  
+                  {/* Custom Unit Name Field */}
+                  {formData.unit === 'custom' && (
+                    <div className="form-group">
+                      <label>{language === 'ar' ? 'اسم الوحدة المخصصة' : 'Custom Unit Name'} *</label>
                       <input
                         type="text"
-                        list="categories-list"
-                        value={formData.category}
-                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                        placeholder={t('selectOrTypeCategory')}
-                        className="category-input"
+                        value={formData.customUnitName || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, customUnitName: e.target.value }))}
+                        placeholder={language === 'ar' ? 'مثل: صندوق، كرتون، إلخ' : 'e.g: Box, Carton, etc'}
+                        required
                       />
-                      <datalist id="categories-list">
-                        {existingCategories.map((category, index) => (
-                          <option key={index} value={category} />
-                        ))}
-                      </datalist>
                     </div>
-                  </div>
+                  )}
+                </div>
+
+                <div className="form-row">
                   <div className="form-group">
                     <label>{t('quantity')} *</label>
                     <input
@@ -403,6 +608,119 @@ const Inventory = () => {
                   </div>
                 </div>
 
+                {/* حقول متخصصة لمنتجات الأصباغ */}
+                {formData.category && CATEGORY_DETAILS[formData.category] && (
+                  <>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>{t('minStockLevel')}</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formData.minStockLevel}
+                          onChange={(e) => setFormData(prev => ({ ...prev, minStockLevel: parseInt(e.target.value) || 10 }))}
+                          placeholder="10"
+                        />
+                      </div>
+                      {CATEGORY_DETAILS[formData.category].hasExpiryDate && (
+                        <div className="form-group">
+                          <label>{t('expiryDate')}</label>
+                          <input
+                            type="date"
+                            value={formData.expiryDate}
+                            onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* حقول الألوان للدهانات */}
+                    {CATEGORY_DETAILS[formData.category].hasColorCode && (
+                      <>
+                        <div className="color-selection-section">
+                          <div className="color-header">
+                            <h4>{t('colorInformation')}</h4>
+                            <button 
+                              type="button"
+                              className="btn btn-info btn-sm"
+                              onClick={() => setShowColorManager(true)}
+                            >
+                              🎨 {t('chooseColor')}
+                            </button>
+                          </div>
+                          
+                          {selectedColor && (
+                            <div className="selected-color-preview">
+                              <div 
+                                className="color-swatch"
+                                style={{ backgroundColor: selectedColor.hexValue }}
+                              ></div>
+                              <div className="color-details">
+                                <span className="color-name">{selectedColor.name}</span>
+                                <span className="color-code">{selectedColor.code}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>{t('colorCode')}</label>
+                            <input
+                              type="text"
+                              value={formData.colorCode}
+                              onChange={(e) => setFormData(prev => ({ ...prev, colorCode: e.target.value }))}
+                              placeholder="RAL 9010"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>{t('colorName')}</label>
+                            <input
+                              type="text"
+                              value={formData.colorName}
+                              onChange={(e) => setFormData(prev => ({ ...prev, colorName: e.target.value }))}
+                              placeholder={t('colorName')}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>{t('colorFormula')}</label>
+                            <textarea
+                              value={formData.colorFormula}
+                              onChange={(e) => setFormData(prev => ({ ...prev, colorFormula: e.target.value }))}
+                              placeholder={t('colorFormulaPlaceholder')}
+                              rows="2"
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>{t('manufacturer')}</label>
+                        <input
+                          type="text"
+                          value={formData.manufacturer}
+                          onChange={(e) => setFormData(prev => ({ ...prev, manufacturer: e.target.value }))}
+                          placeholder={t('manufacturer')}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>{t('batchNumber')}</label>
+                        <input
+                          type="text"
+                          value={formData.batchNumber}
+                          onChange={(e) => setFormData(prev => ({ ...prev, batchNumber: e.target.value }))}
+                          placeholder={t('batchNumber')}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <div className="profit-indicator">
                   <span className="profit-label">{t('expectedProfit')}: </span>
                   <span className={`profit-value ${(formData.price - formData.purchasePrice) >= 0 ? 'positive' : 'negative'}`}>
@@ -437,6 +755,20 @@ const Inventory = () => {
           </div>
         </div>
       )}
+
+      {/* Color Manager Modal */}
+      <ColorManager
+        showModal={showColorManager}
+        onClose={() => setShowColorManager(false)}
+        onColorSelect={handleColorSelect}
+        selectedColor={selectedColor}
+      />
+
+      {/* Unit Converter Modal */}
+      <UnitConverter
+        showModal={showUnitConverter}
+        onClose={() => setShowUnitConverter(false)}
+      />
     </div>
   )
 }

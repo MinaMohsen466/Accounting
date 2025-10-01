@@ -639,3 +639,242 @@ option:hover {
     padding: 10px 12px;
   }
 }
+
+/* Paint Store Specific Styles */
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.header-actions .btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Unit Conversion Hints */
+.conversion-hint {
+  display: block;
+  color: #6c757d;
+  font-size: 0.7rem;
+  margin-top: 0.2rem;
+  font-style: italic;
+}
+
+/* Color Selection Section */
+.color-selection-section {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 1rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  border: 2px solid #dee2e6;
+}
+
+.color-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.color-header h4 {
+  color: #495057;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.selected-color-preview {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.color-swatch {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.color-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.color-details .color-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.color-details .color-code {
+  color: #007bff;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+/* Color Information Label */
+.form-group label:has(+ input[placeholder*="RAL"]),
+.form-group label:has(+ input[placeholder*="colorName"]) {
+  color: #007bff;
+  font-weight: 600;
+}
+
+/* Category Badges */
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #333;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+.category-badge-old {
+  background-color: #f0f0f0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+/* Unit Display */
+.unit-display {
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 500;
+}
+
+/* Product Info Display */
+.product-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.product-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.color-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.color-badge {
+  background-color: #007bff;
+  color: white;
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.color-info small {
+  color: #000000;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Stock Level Indicators */
+.quantity-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.quantity-badge.critical {
+  background-color: #dc3545;
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+.quantity-badge.warning {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.quantity-badge.normal {
+  background-color: #28a745;
+  color: white;
+}
+
+.quantity-badge.good {
+  background-color: #17a2b8;
+  color: white;
+}
+
+/* Expiry Warnings */
+.expiry-warning {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.expiry-warning.expired {
+  background-color: #dc3545;
+  color: white;
+}
+
+.expiry-warning.soon {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+/* Form Enhancements for Paint Products */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-row .form-group {
+  margin-bottom: 0;
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Category Display */
+.category-display {
+  display: flex;
+  justify-content: center;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .product-info {
+    text-align: left;
+  }
+  
+  .category-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+  }
+}

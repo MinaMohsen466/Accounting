@@ -84,7 +84,16 @@ const Invoices = () => {
         discount: 0,
         discountAmount: 0,
         discountType: 'amount',
-        discountRate: 0
+        discountRate: 0,
+        // حقول اللون الجديدة
+        color: '',
+        colorCode: '',
+        colorPrice: 0,
+        requiresColor: false,
+        productType: '',
+        // حقول اللون المخصص
+        customColorName: '',
+        customColorCode: ''
       }
     ],
     subtotal: 0,
@@ -167,7 +176,16 @@ const Invoices = () => {
           discount: 0,
           discountAmount: 0,
           discountType: 'amount',
-          discountRate: 0
+          discountRate: 0,
+          // حقول اللون الجديدة
+          color: '',
+          colorCode: '',
+          colorPrice: 0,
+          requiresColor: false,
+          productType: '',
+          // حقول اللون المخصص
+          customColorName: '',
+          customColorCode: ''
         }
       ],
       subtotal: 0,
@@ -197,7 +215,16 @@ const Invoices = () => {
         discount: parseFloat(it.discount) || 0,
         discountAmount: parseFloat(it.discountAmount) || 0,
         discountType: it.discountType || 'amount',
-        discountRate: parseFloat(it.discountRate) || 0
+        discountRate: parseFloat(it.discountRate) || 0,
+        // حقول اللون
+        color: it.color || '',
+        colorCode: it.colorCode || '',
+        colorPrice: parseFloat(it.colorPrice) || 0,
+        requiresColor: it.requiresColor || false,
+        productType: it.productType || '',
+        // حقول اللون المخصص
+        customColorName: it.customColorName || '',
+        customColorCode: it.customColorCode || ''
       }))
 
       const populated = {
@@ -217,7 +244,16 @@ const Invoices = () => {
           discount: 0,
           discountAmount: 0,
           discountType: 'amount',
-          discountRate: 0
+          discountRate: 0,
+          // حقول اللون الجديدة
+          color: '',
+          colorCode: '',
+          colorPrice: 0,
+          requiresColor: false,
+          productType: '',
+          // حقول اللون المخصص
+          customColorName: '',
+          customColorCode: ''
         }],
         subtotal: parseFloat(invoice.subtotal) || 0,
         discount: parseFloat(invoice.discount) || 0,
@@ -268,7 +304,16 @@ const Invoices = () => {
         discount: 0,
         discountAmount: 0,
         discountType: 'amount',
-        discountRate: 0
+        discountRate: 0,
+        // إضافة حقول جديدة للون والسعر الإضافي
+        color: '',
+        colorCode: '',
+        colorPrice: 0,
+        requiresColor: false,
+        productType: '',
+        // حقول اللون المخصص
+        customColorName: '',
+        customColorCode: ''
       }]
     }))
   }
@@ -350,6 +395,9 @@ const Invoices = () => {
     const quantity = parseFloat(newItems[itemIndex].quantity) || 1
     const discount = parseFloat(newItems[itemIndex].discount) || 0
     
+    // التحقق من نوع المنتج والحاجة للون
+    const requiresColor = ['interior_paint', 'exterior_paint', 'primer', 'varnish'].includes(product.category || product.productType)
+    
     // Calculate total for this item
     const lineTotal = quantity * unitPrice
     const discountAmount = (lineTotal * discount) / 100
@@ -360,7 +408,16 @@ const Invoices = () => {
       itemId: product.id,
       itemName: product.name,
       unitPrice: unitPrice,
-      total: total
+      total: total,
+      // إضافة خصائص اللون
+      requiresColor: requiresColor,
+      productType: product.category || product.productType || '',
+      color: '',
+      colorCode: '',
+      colorPrice: 0,
+      // مسح الألوان المخصصة عند تغيير المنتج
+      customColorName: '',
+      customColorCode: ''
     }
     
     setFormData(prev => calculateTotals({ ...prev, items: newItems }))
@@ -385,14 +442,35 @@ const Invoices = () => {
               updatedItem.unitPrice = selectedInventoryItem.price || 0
             }
           }
+
+          // إذا تم تحديث اللون، حساب السعر الإضافي
+          if (field === 'color' || field === 'colorCode') {
+            const colors = JSON.parse(localStorage.getItem('paintColors') || '[]')
+            const selectedColor = colors.find(color => 
+              color.name === value || color.code === value
+            )
+            if (selectedColor && selectedColor.additionalCost) {
+              updatedItem.colorPrice = parseFloat(selectedColor.additionalCost) || 0
+            } else if (value !== 'custom') {
+              updatedItem.colorPrice = 0
+            }
+            // إذا كان اللون مخصص، لا نغير السعر الإضافي إلا إذا تم تحديده يدوياً
+          }
+
+          // إذا تم تحديث السعر الإضافي مباشرة (للألوان المخصصة)
+          if (field === 'colorPrice') {
+            updatedItem.colorPrice = parseFloat(value) || 0
+          }
           
-          // Calculate total for this item with discount
+          // Calculate total for this item with discount and color price
           const quantity = parseFloat(updatedItem.quantity) || 0
-          const unitPrice = parseFloat(updatedItem.unitPrice) || 0
+          const baseUnitPrice = parseFloat(updatedItem.unitPrice) || 0
+          const colorPrice = parseFloat(updatedItem.colorPrice) || 0
+          const effectiveUnitPrice = baseUnitPrice + colorPrice // السعر النهائي مع إضافة اللون
           const discount = parseFloat(updatedItem.discount) || 0
           const discountType = updatedItem.discountType || 'amount'
           
-          let subtotalBeforeDiscount = quantity * unitPrice
+          let subtotalBeforeDiscount = quantity * effectiveUnitPrice
           let discountAmount = 0
           
           if (discountType === 'percentage') {
@@ -732,6 +810,7 @@ const Invoices = () => {
           <thead>
             <tr>
               <th>${t('item')}</th>
+              <th>${language === 'ar' ? 'اللون' : 'Color'}</th>
               <th>${t('quantity')}</th>
               <th>${t('unitPrice')}</th>
               <th>${t('discount')}</th>
@@ -742,11 +821,30 @@ const Invoices = () => {
             ${invoice.items?.map(item => {
               const discountAmount = item.discountAmount || 0;
               const discountDisplay = discountAmount > 0 ? discountAmount.toFixed(2) : '-';
+              
+              // عرض اللون - إما من القائمة أو مخصص - مختصر
+              let colorDisplay = '-';
+              if (item.color === 'custom' && item.customColorName) {
+                colorDisplay = item.customColorName;
+                if (item.colorPrice > 0) colorDisplay += ` (+${item.colorPrice})`;
+              } else if (item.color && item.color !== 'custom') {
+                colorDisplay = item.color;
+                if (item.colorPrice > 0) colorDisplay += ` (+${item.colorPrice})`;
+              }
+              
+              const colorPrice = item.colorPrice || 0;
+              const basePrice = item.unitPrice || 0;
+              const totalPrice = basePrice + colorPrice;
+              const priceDisplay = colorPrice > 0 ? 
+                `${basePrice.toFixed(2)} + ${colorPrice.toFixed(2)} = ${totalPrice.toFixed(2)}` : 
+                basePrice.toFixed(2);
+              
               return `
                 <tr>
                   <td>${item.itemName}</td>
+                  <td style="color: #666; font-size: 0.9em;">${colorDisplay}</td>
                   <td>${item.quantity}</td>
-                  <td>${item.unitPrice?.toFixed(2)}</td>
+                  <td>${priceDisplay}</td>
                   <td>${discountDisplay}</td>
                   <td>${item.total?.toFixed(2)}</td>
                 </tr>
@@ -1306,6 +1404,7 @@ const Invoices = () => {
                     <thead>
                       <tr>
                         <th>{t('products')}</th>
+                        <th>{language === 'ar' ? 'اللون' : 'Color'}</th>
                         <th>{t('quantity')}</th>
                         <th>{t('unitPrice')}</th>
                         <th>{t('itemDiscount')}</th>
@@ -1383,6 +1482,81 @@ const Invoices = () => {
                               )}
                             </div>
                           </td>
+                          {/* Color Selection Column */}
+                          <td>
+                            {item.requiresColor ? (
+                              <div className="color-select-container">
+                                <select
+                                  value={item.color === 'custom' ? 'custom' : item.color}
+                                  onChange={(e) => {
+                                    const selectedColorName = e.target.value
+                                    if (selectedColorName === 'custom') {
+                                      updateItem(index, 'color', 'custom')
+                                      updateItem(index, 'colorCode', '')
+                                      updateItem(index, 'colorPrice', 0)
+                                    } else if (selectedColorName) {
+                                      const colors = JSON.parse(localStorage.getItem('paintColors') || '[]')
+                                      const selectedColor = colors.find(color => color.name === selectedColorName)
+                                      
+                                      updateItem(index, 'color', selectedColorName)
+                                      if (selectedColor) {
+                                        updateItem(index, 'colorCode', selectedColor.code)
+                                        updateItem(index, 'colorPrice', selectedColor.additionalCost || 0)
+                                      }
+                                    } else {
+                                      // مسح جميع بيانات اللون عند اختيار "بدون لون"
+                                      updateItem(index, 'color', '')
+                                      updateItem(index, 'colorCode', '')
+                                      updateItem(index, 'colorPrice', 0)
+                                      updateItem(index, 'customColorName', '')
+                                      updateItem(index, 'customColorCode', '')
+                                    }
+                                  }}
+                                  className="color-select compact"
+                                >
+                                  <option value="">{language === 'ar' ? 'بدون لون' : 'No Color'}</option>
+                                  {JSON.parse(localStorage.getItem('paintColors') || '[]').map(color => (
+                                    <option key={color.id} value={color.name}>
+                                      {color.name} {color.additionalCost > 0 && `+${color.additionalCost}`}
+                                    </option>
+                                  ))}
+                                  <option value="custom">{language === 'ar' ? 'مخصص' : 'Custom'}</option>
+                                </select>
+                                
+                                {/* Compact Custom Color Input - Single Line */}
+                                {item.color === 'custom' && (
+                                  <div className="custom-color-compact">
+                                    <input
+                                      type="text"
+                                      value={item.customColorName || ''}
+                                      onChange={(e) => updateItem(index, 'customColorName', e.target.value)}
+                                      placeholder={language === 'ar' ? 'اسم اللون' : 'Color name'}
+                                      className="custom-input-compact"
+                                    />
+                                    <input
+                                      type="number"
+                                      value={item.colorPrice || 0}
+                                      onChange={(e) => updateItem(index, 'colorPrice', parseFloat(e.target.value) || 0)}
+                                      placeholder={language === 'ar' ? 'سعر إضافي' : 'Extra cost'}
+                                      min="0"
+                                      step="0.25"
+                                      className="custom-price-compact"
+                                      title={language === 'ar' ? 'سعر إضافي للون' : 'Additional color cost'}
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Compact Color Display */}
+                                {((item.color && item.color !== 'custom') || (item.color === 'custom' && item.customColorName)) && item.colorPrice > 0 && (
+                                  <div className="color-price-compact">
+                                    +{item.colorPrice} {t('currency')}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="no-color-compact">-</span>
+                            )}
+                          </td>
                           <td>
                             <input
                               type="number"
@@ -1394,15 +1568,30 @@ const Invoices = () => {
                             />
                           </td>
                           <td>
-                            <input
-                              type="number"
-                              value={item.unitPrice}
-                              min="0"
-                              step="1"
-                              placeholder="0"
-                              readOnly
-                              className="readonly-input"
-                            />
+                            <div className="price-display">
+                              <input
+                                type="number"
+                                value={(parseFloat(item.unitPrice) || 0) + (parseFloat(item.colorPrice) || 0)}
+                                min="0"
+                                step="0.001"
+                                placeholder="0"
+                                readOnly
+                                className="readonly-input price-input-main"
+                              />
+                              {item.colorPrice > 0 && (
+                                <div className="price-breakdown">
+                                  <small className="base-price">
+                                    {language === 'ar' ? 'الأساسي:' : 'Base:'} {parseFloat(item.unitPrice).toFixed(3)} {t('currency')}
+                                  </small>
+                                  <small className="color-price">
+                                    {language === 'ar' ? 'اللون:' : 'Color:'} +{parseFloat(item.colorPrice).toFixed(3)} {t('currency')}
+                                  </small>
+                                  <small className="total-price">
+                                    {language === 'ar' ? 'الإجمالي:' : 'Total:'} {(parseFloat(item.unitPrice) + parseFloat(item.colorPrice)).toFixed(3)} {t('currency')}
+                                  </small>
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td>
                             <div className="discount-input-group">

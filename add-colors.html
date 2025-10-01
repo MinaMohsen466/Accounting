@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إضافة ألوان العينة</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        h3 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .color-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .color-preview {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .color-info h4 {
+            margin: 0 0 5px 0;
+            font-size: 1rem;
+            color: #2c3e50;
+        }
+        .color-info p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #000000;
+            font-weight: 600;
+        }
+        .success-msg {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #c3e6cb;
+            text-align: center;
+            font-weight: bold;
+        }
+        .instructions {
+            background: #e7f3ff;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #b6d4fe;
+            margin-top: 20px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3>🎨 إضافة ألوان العينة للاختبار</h3>
+        
+        <div id="status"></div>
+        
+        <div class="color-grid" id="colorGrid"></div>
+        
+        <div class="instructions">
+            <h4>📋 تعليمات الاستخدام:</h4>
+            <ol>
+                <li>انقر على زر "إضافة الألوان" أدناه</li>
+                <li>اذهب إلى التطبيق الرئيسي</li>
+                <li>أنشئ فاتورة جديدة واختر منتج دهان</li>
+                <li>ستجد قائمة الألوان مع خيار "لون مخصص"</li>
+                <li>يمكنك اختيار لون من القائمة أو كتابة لون مخصص بسعر إضافي</li>
+            </ol>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="addColors()">🎨 إضافة الألوان</button>
+            <button onclick="clearColors()">🗑️ مسح الألوان</button>
+            <button onclick="showColors()">👁️ عرض الألوان المحفوظة</button>
+        </div>
+    </div>
+
+    <script>
+        const colors = [
+            { id: 1, name: 'أبيض ناصع', code: 'RAL 9010', hex: '#ffffff', system: 'ral', additionalCost: 0 },
+            { id: 2, name: 'أحمر كلاسيكي', code: 'RAL 3020', hex: '#c1121c', system: 'ral', additionalCost: 5.50 },
+            { id: 3, name: 'أزرق سماوي', code: 'RAL 5015', hex: '#2a6fa7', system: 'ral', additionalCost: 3.25 },
+            { id: 4, name: 'أخضر طبيعي', code: 'RAL 6029', hex: '#20603d', system: 'ral', additionalCost: 4.75 },
+            { id: 5, name: 'أصفر ذهبي', code: 'PANTONE 116C', hex: '#ffd100', system: 'pantone', additionalCost: 8.00 },
+            { id: 6, name: 'برتقالي محروق', code: 'RAL 2004', hex: '#f44611', system: 'ral', additionalCost: 6.25 },
+            { id: 7, name: 'بنفسجي ملكي', code: 'PANTONE 2665C', hex: '#663399', system: 'pantone', additionalCost: 9.50 },
+            { id: 8, name: 'رمادي معدني', code: 'RAL 9007', hex: '#8f8f8f', system: 'ral', additionalCost: 2.75 },
+            { id: 9, name: 'أسود مطفي', code: 'RAL 9005', hex: '#0a0a0a', system: 'ral', additionalCost: 3.00 },
+            { id: 10, name: 'وردي فاتح', code: 'PANTONE 182C', hex: '#ff69b4', system: 'pantone', additionalCost: 7.25 }
+        ];
+        
+        function addColors() {
+            try {
+                localStorage.setItem('paintColors', JSON.stringify(colors));
+                document.getElementById('status').innerHTML = 
+                    '<div class="success-msg">✅ تم إضافة ' + colors.length + ' لون بنجاح مع الأسعار الإضافية!</div>';
+                showColors();
+            } catch (error) {
+                document.getElementById('status').innerHTML = 
+                    '<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px;">❌ حدث خطأ: ' + error.message + '</div>';
+            }
+        }
+        
+        function clearColors() {
+            localStorage.removeItem('paintColors');
+            document.getElementById('status').innerHTML = 
+                '<div style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px;">🗑️ تم مسح جميع الألوان</div>';
+            document.getElementById('colorGrid').innerHTML = '';
+        }
+        
+        function showColors() {
+            const savedColors = JSON.parse(localStorage.getItem('paintColors') || '[]');
+            const colorGrid = document.getElementById('colorGrid');
+            
+            if (savedColors.length === 0) {
+                colorGrid.innerHTML = '<p style="text-align: center; color: #666;">لا توجد ألوان محفوظة</p>';
+                return;
+            }
+            
+            colorGrid.innerHTML = savedColors.map(color => `
+                <div class="color-card">
+                    <div class="color-preview" style="background-color: ${color.hex}"></div>
+                    <div class="color-info">
+                        <h4>${color.name}</h4>
+                        <p>${color.code} (${color.system.toUpperCase()})</p>
+                        <p><strong>سعر إضافي: ${color.additionalCost} د.ك</strong></p>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // عرض الألوان عند تحميل الصفحة
+        showColors();
+    </script>
+</body>
+</html>

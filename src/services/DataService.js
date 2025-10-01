@@ -269,6 +269,29 @@ class DataService {
       id: this.generateId(),
       quantity: item.quantity || 0,
       price: item.unitPrice || item.price || 0, // Support both unitPrice and price
+      
+      // إضافة الخصائص الجديدة لمنتجات الأصباغ
+      category: item.category || 'general',
+      productType: item.productType || item.category || 'general',
+      unit: item.unit || 'piece',
+      minStockLevel: item.minStockLevel || 10,
+      expiryDate: item.expiryDate || null,
+      
+      // نظام الألوان والرموز
+      colorCode: item.colorCode || null,
+      colorName: item.colorName || null,
+      colorSystem: item.colorSystem || null,
+      colorFormula: item.colorFormula || null,
+      
+      // خصائص إضافية
+      properties: item.properties || {},
+      manufacturer: item.manufacturer || '',
+      batchNumber: item.batchNumber || '',
+      
+      // تواريخ
+      lastPurchaseDate: item.lastPurchaseDate || null,
+      lastPurchasePrice: item.lastPurchasePrice || null,
+      
       createdAt: new Date().toISOString()
     }
     items.push(newItem)
@@ -347,7 +370,132 @@ class DataService {
     const existingItems = this.getInventoryItems()
     
     if (existingItems.length === 0) {
-      const defaultItems = []
+      const defaultItems = [
+        {
+          name: 'دهان داخلي أبيض ناصع',
+          sku: 'INT-WHT-001',
+          category: 'interior_paint',
+          productType: 'interior_paint',
+          unit: 'liter',
+          quantity: 3,
+          price: 15.500,
+          purchasePrice: 12.000,
+          minStockLevel: 10,
+          reorderLevel: 15,
+          expiryDate: '2025-02-15',
+          colorCode: 'RAL 9010',
+          colorName: 'أبيض ناصع',
+          colorSystem: 'ral',
+          manufacturer: 'شركة الدهانات المتقدمة',
+          batchNumber: 'INT2024001',
+          supplier: 'مورد الدهانات الأساسي'
+        },
+        {
+          name: 'دهان خارجي مقاوم للطقس - أزرق',
+          sku: 'EXT-BLU-002',
+          category: 'exterior_paint',
+          productType: 'exterior_paint',
+          unit: 'gallon',
+          quantity: 0,
+          price: 45.750,
+          purchasePrice: 35.000,
+          minStockLevel: 5,
+          reorderLevel: 8,
+          expiryDate: '2027-06-30',
+          colorCode: 'RAL 5015',
+          colorName: 'أزرق سماوي',
+          colorSystem: 'ral',
+          manufacturer: 'دهانات الخليج',
+          batchNumber: 'EXT2024002',
+          supplier: 'شركة الخليج للدهانات'
+        },
+        {
+          name: 'برايمر أساسي للأسطح المعدنية',
+          sku: 'PRI-MET-003',
+          category: 'primer',
+          productType: 'primer',
+          unit: 'liter',
+          quantity: 4,
+          price: 18.250,
+          purchasePrice: 14.500,
+          minStockLevel: 8,
+          reorderLevel: 12,
+          expiryDate: '2024-12-30',
+          manufacturer: 'مصنع البرايمر المتخصص',
+          batchNumber: 'PRI2024003',
+          supplier: 'مورد المواد الكيميائية'
+        },
+        {
+          name: 'ورنيش شفاف لامع',
+          sku: 'VAR-CLR-004',
+          category: 'varnish',
+          productType: 'varnish',
+          unit: 'liter',
+          quantity: 2,
+          price: 22.000,
+          purchasePrice: 17.500,
+          minStockLevel: 6,
+          reorderLevel: 10,
+          expiryDate: '2026-10-20',
+          manufacturer: 'ورنيش الكويت',
+          batchNumber: 'VAR2024004',
+          supplier: 'شركة الورنيش المتخصصة'
+        },
+        {
+          name: 'فرشاة دهان 4 بوصة - شعر طبيعي',
+          sku: 'BRU-4IN-005',
+          category: 'brushes',
+          productType: 'brushes',
+          unit: 'piece',
+          quantity: 3,
+          price: 8.500,
+          purchasePrice: 6.000,
+          minStockLevel: 12,
+          reorderLevel: 20,
+          manufacturer: 'مصنع الفرش الذهبية',
+          supplier: 'موزع أدوات الدهان',
+          properties: {
+            brushSize: '4 بوصة',
+            hairType: 'شعر طبيعي',
+            handleMaterial: 'خشب'
+          }
+        },
+        {
+          name: 'رولة دهان متوسطة + مقبض',
+          sku: 'TOO-ROL-006',
+          category: 'tools',
+          productType: 'tools',
+          unit: 'set',
+          quantity: 5,
+          price: 12.750,
+          purchasePrice: 9.500,
+          minStockLevel: 10,
+          reorderLevel: 15,
+          manufacturer: 'أدوات البناء المتطورة',
+          supplier: 'موزع أدوات البناء',
+          properties: {
+            size: 'متوسط 9 بوصة',
+            material: 'ألياف صناعية',
+            usageType: 'دهانات مائية'
+          }
+        },
+        {
+          name: 'شريط لاصق للحماية',
+          sku: 'ACC-TAP-007',
+          category: 'accessories',
+          productType: 'accessories',
+          unit: 'piece',
+          quantity: 50,
+          price: 3.250,
+          purchasePrice: 2.000,
+          minStockLevel: 25,
+          manufacturer: 'مستلزمات الدهان',
+          properties: {
+            size: '50 متر × 2 سم',
+            material: 'ورق مقاوم'
+          }
+        }
+      ]
       
       defaultItems.forEach(item => {
         this.addInventoryItem(item)

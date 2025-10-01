@@ -35,7 +35,7 @@ const translations = {
     
     // App Title
     appTitle: 'AccounTech Pro - نظام المحاسبة',
-    welcome: 'مرحباً بك في AccounTech Pro - نظام إدارة الحسابات المتطور',
+    welcome: 'مرحباً بك في AccounTech - نظام إدارة الحسابات',
     
     // Sidebar
     dashboard: 'الرئيسية',
@@ -44,11 +44,14 @@ const translations = {
     invoices: 'الفواتير',
     invoicesManagement: 'إدارة الفواتير',
     customersSuppliers: 'العملاء والموردين',
+    enhancedCustomers: 'نظام العملاء المحسن',
+    paintCalculator: 'حاسبة الدهان',
+    pricingTiers: 'الأسعار المتدرجة',
     inventory: 'إدارة المخزون',
     reports: 'التقارير',
     
     // Dashboard
-    dashboardTitle: 'نظام المحاسبة البسيط',
+    dashboardTitle: 'نظام المحاسبة ',
     dashboardSubtitle: 'مرحباً بك في نظام إدارة الحسابات',
     accountsCount: 'دليل الحسابات',
     entriesCount: 'القيود اليومية',
@@ -146,6 +149,52 @@ const translations = {
     searchCustomersSuppliers: 'البحث في العملاء والموردين...',
     unexpectedError: 'حدث خطأ غير متوقع',
     
+    // Enhanced Customer System - نظام العملاء المحسن
+    customerTypes: 'أنواع العملاء',
+    customerType: 'نوع العميل',
+    individual: 'أفراد',
+    contractor: 'مقاولين',
+    company: 'شركات',
+    retailer: 'تجار تجزئة',
+    
+    // Pricing System - نظام الأسعار
+    pricingTiers: 'الأسعار المتدرجة',
+    discountRate: 'معدل الخصم',
+    volumeDiscount: 'خصم الكمية',
+    customerDiscount: 'خصم العميل',
+    
+    // Projects - المشاريع
+    projects: 'المشاريع',
+    projectName: 'اسم المشروع',
+    projectStatus: 'حالة المشروع',
+    projectLocation: 'موقع المشروع',
+    projectStartDate: 'تاريخ بداية المشروع',
+    projectEndDate: 'تاريخ انتهاء المشروع',
+    projectValue: 'قيمة المشروع',
+    active: 'نشط',
+    completed: 'مكتمل',
+    onHold: 'معلق',
+    cancelled: 'ملغي',
+    
+    // Paint Calculator - حاسبة الدهان
+    paintCalculator: 'حاسبة متطلبات الدهان',
+    surfaceArea: 'مساحة السطح',
+    surfaceType: 'نوع السطح',
+    coatsNeeded: 'عدد الطبقات',
+    paintRequired: 'كمية الدهان المطلوبة',
+    coverage: 'التغطية',
+    smooth: 'أملس',
+    textured: 'خشن',
+    rough: 'خشن جداً',
+    
+    // Customer Details - تفاصيل العميل
+    customerDetails: 'تفاصيل العميل',
+    registrationNumber: 'رقم التسجيل',
+    taxNumber: 'الرقم الضريبي',
+    creditLimit: 'حد الائتمان',
+    paymentTerms: 'شروط الدفع',
+    preferredPayment: 'طريقة الدفع المفضلة',
+    
     // Journal Entries
     journalEntriesAdd: 'إضافة قيد جديد',
     entryNumber: 'رقم القيد',
@@ -166,6 +215,8 @@ const translations = {
     purchaseInvoice: 'فاتورة مشتريات',
     client: 'العميل',
     supplier: 'المورد',
+    project: 'المشروع',
+    selectProject: 'اختر المشروع',
     selectProduct: 'اختر المنتج',
     selectClient: 'اختر العميل',
     selectSupplier: 'اختر المورد',
@@ -275,6 +326,107 @@ const translations = {
     totalProducts: 'إجمالي المنتجات',
     noProducts: 'لا توجد منتجات',
     fillRequiredFields: 'يرجى ملء الحقول المطلوبة',
+    
+    // Paint Store Specific Categories
+    interiorPaint: 'دهانات داخلية',
+    exteriorPaint: 'دهانات خارجية', 
+    primer: 'برايمر',
+    varnish: 'ورنيش',
+    brushes: 'فرش',
+    tools: 'أدوات',
+    accessories: 'مستلزمات',
+    
+    // Measurement Units
+    unit: 'الوحدة',
+    selectUnit: 'اختر الوحدة',
+    liter: 'لتر',
+    gallon: 'جالون',
+    kilogram: 'كيلوجرام',
+    piece: 'قطعة',
+    meter: 'متر',
+    set: 'طقم',
+    
+    // Color Management
+    colorCode: 'رمز اللون',
+    colorName: 'اسم اللون',
+    colorSystem: 'نظام الألوان',
+    colorFormula: 'تركيبة اللون',
+    ralSystem: 'نظام RAL',
+    pantoneSystem: 'نظام PANTONE',
+    ncsSystem: 'نظام NCS',
+    customColor: 'لون مخصص',
+    
+    // Expiry and Stock Management
+    expiryDate: 'تاريخ انتهاء الصلاحية',
+    minStockLevel: 'مستوى الإنذار',
+    manufacturer: 'الشركة المصنعة',
+    batchNumber: 'رقم الدفعة',
+    lastPurchaseDate: 'تاريخ آخر شراء',
+    lastPurchasePrice: 'سعر آخر شراء',
+    
+    // Stock Status
+    outOfStock: 'نفد المخزون',
+    criticalLow: 'مستوى حرج',
+    lowStock: 'مخزون منخفض',
+    adequateStock: 'مخزون كافي',
+    wellStocked: 'مخزون جيد',
+    
+    // Expiry Status
+    expired: 'منتهي الصلاحية',
+    expiringSoon: 'ينتهي قريباً',
+    expiringWithin3Months: 'ينتهي خلال 3 أشهر',
+    validProduct: 'صالح',
+    noExpiryDate: 'لا يوجد تاريخ انتهاء',
+    
+    // Properties
+    properties: 'الخصائص',
+    finishType: 'نوع اللمسة النهائية',
+    coverage: 'التغطية',
+    dryingTime: 'وقت الجفاف',
+    washability: 'قابلية الغسيل',
+    weatherResistance: 'مقاومة الطقس',
+    uvProtection: 'الحماية من الأشعة فوق البنفسجية',
+    surfaceType: 'نوع السطح',
+    durability: 'المتانة',
+    brushSize: 'حجم الفرشاة',
+    hairType: 'نوع الشعر',
+    handleMaterial: 'مادة المقبض',
+    material: 'المادة',
+    size: 'الحجم',
+    usageType: 'نوع الاستخدام',
+    
+    // Color Management System
+    colorManagement: 'إدارة الألوان',
+    searchColors: 'البحث في الألوان...',
+    allSystems: 'جميع الأنظمة',
+    addNewColor: 'إضافة لون جديد',
+    addColor: 'إضافة اللون',
+    hexColor: 'اللون السادس عشري',
+    colorFormulaPlaceholder: 'مثال: White Base + Titanium Dioxide',
+    notesPlaceholder: 'ملاحظات إضافية...',
+    noColorsFound: 'لم يتم العثور على ألوان',
+    select: 'اختيار',
+    formula: 'التركيبة',
+    notes: 'ملاحظات',
+    chooseColor: 'اختر اللون',
+    colorPalette: 'لوحة الألوان',
+    colorInformation: 'معلومات اللون',
+    
+    // Unit Converter
+    unitConverter: 'محول الوحدات',
+    unitConversion: 'تحويل الوحدات',
+    from: 'من',
+    to: 'إلى',
+    conversionExamples: 'أمثلة التحويل',
+    volumeConversions: 'تحويلات الحجم',
+    commonPaintQuantities: 'كميات الدهان الشائعة',
+    coverageInfo: 'معلومات التغطية',
+    quickConversionTable: 'جدول التحويل السريع',
+    coverage: 'التغطية',
+    smallRoom: 'غرفة صغيرة',
+    mediumRoom: 'غرفة متوسطة',
+    largeRoom: 'غرفة كبيرة',
+    exteriorHouse: 'منزل خارجي',
     
     // Search and Filter
     searchInventory: 'البحث في المخزون...',
@@ -393,6 +545,9 @@ const translations = {
     invoices: 'Invoices',
     invoicesManagement: 'Invoice Management',
     customersSuppliers: 'Customers & Suppliers',
+    enhancedCustomers: 'Enhanced Customer System',
+    paintCalculator: 'Paint Calculator',
+    pricingTiers: 'Pricing Tiers',
     inventory: 'Inventory Management',
     reports: 'Reports',
     
@@ -495,6 +650,52 @@ const translations = {
     searchCustomersSuppliers: 'Search customers & suppliers...',
     unexpectedError: 'An unexpected error occurred',
     
+    // Enhanced Customer System
+    customerTypes: 'Customer Types',
+    customerType: 'Customer Type',
+    individual: 'Individual',
+    contractor: 'Contractor',
+    company: 'Company',
+    retailer: 'Retailer',
+    
+    // Pricing System
+    pricingTiers: 'Pricing Tiers',
+    discountRate: 'Discount Rate',
+    volumeDiscount: 'Volume Discount',
+    customerDiscount: 'Customer Discount',
+    
+    // Projects
+    projects: 'Projects',
+    projectName: 'Project Name',
+    projectStatus: 'Project Status',
+    projectLocation: 'Project Location',
+    projectStartDate: 'Project Start Date',
+    projectEndDate: 'Project End Date',
+    projectValue: 'Project Value',
+    active: 'Active',
+    completed: 'Completed',
+    onHold: 'On Hold',
+    cancelled: 'Cancelled',
+    
+    // Paint Calculator
+    paintCalculator: 'Paint Requirements Calculator',
+    surfaceArea: 'Surface Area',
+    surfaceType: 'Surface Type',
+    coatsNeeded: 'Coats Needed',
+    paintRequired: 'Paint Required',
+    coverage: 'Coverage',
+    smooth: 'Smooth',
+    textured: 'Textured',
+    rough: 'Rough',
+    
+    // Customer Details
+    customerDetails: 'Customer Details',
+    registrationNumber: 'Registration Number',
+    taxNumber: 'Tax Number',
+    creditLimit: 'Credit Limit',
+    paymentTerms: 'Payment Terms',
+    preferredPayment: 'Preferred Payment Method',
+    
     // Journal Entries
     journalEntriesAdd: 'Add New Entry',
     entryNumber: 'Entry Number',
@@ -515,6 +716,8 @@ const translations = {
     purchaseInvoice: 'Purchase Invoice',
     client: 'Customer',
     supplier: 'Supplier',
+    project: 'Project',
+    selectProject: 'Select Project',
     selectProduct: 'Select Product',
     selectClient: 'Select Customer',
     selectSupplier: 'Select Supplier',
@@ -624,6 +827,107 @@ const translations = {
     totalProducts: 'Total Products',
     noProducts: 'No products found',
     fillRequiredFields: 'Please fill required fields',
+    
+    // Paint Store Specific Categories
+    interiorPaint: 'Interior Paint',
+    exteriorPaint: 'Exterior Paint',
+    primer: 'Primer',
+    varnish: 'Varnish',
+    brushes: 'Brushes',
+    tools: 'Tools',
+    accessories: 'Accessories',
+    
+    // Measurement Units
+    unit: 'Unit',
+    selectUnit: 'Select Unit',
+    liter: 'Liter',
+    gallon: 'Gallon',
+    kilogram: 'Kilogram',
+    piece: 'Piece',
+    meter: 'Meter',
+    set: 'Set',
+    
+    // Color Management
+    colorCode: 'Color Code',
+    colorName: 'Color Name',
+    colorSystem: 'Color System',
+    colorFormula: 'Color Formula',
+    ralSystem: 'RAL System',
+    pantoneSystem: 'PANTONE System',
+    ncsSystem: 'NCS System',
+    customColor: 'Custom Color',
+    
+    // Expiry and Stock Management
+    expiryDate: 'Expiry Date',
+    minStockLevel: 'Minimum Stock Level',
+    manufacturer: 'Manufacturer',
+    batchNumber: 'Batch Number',
+    lastPurchaseDate: 'Last Purchase Date',
+    lastPurchasePrice: 'Last Purchase Price',
+    
+    // Stock Status
+    outOfStock: 'Out of Stock',
+    criticalLow: 'Critical Low',
+    lowStock: 'Low Stock',
+    adequateStock: 'Adequate Stock',
+    wellStocked: 'Well Stocked',
+    
+    // Expiry Status
+    expired: 'Expired',
+    expiringSoon: 'Expiring Soon',
+    expiringWithin3Months: 'Expiring Within 3 Months',
+    validProduct: 'Valid',
+    noExpiryDate: 'No Expiry Date',
+    
+    // Properties
+    properties: 'Properties',
+    finishType: 'Finish Type',
+    coverage: 'Coverage',
+    dryingTime: 'Drying Time',
+    washability: 'Washability',
+    weatherResistance: 'Weather Resistance',
+    uvProtection: 'UV Protection',
+    surfaceType: 'Surface Type',
+    durability: 'Durability',
+    brushSize: 'Brush Size',
+    hairType: 'Hair Type',
+    handleMaterial: 'Handle Material',
+    material: 'Material',
+    size: 'Size',
+    usageType: 'Usage Type',
+    
+    // Color Management System
+    colorManagement: 'Color Management',
+    searchColors: 'Search colors...',
+    allSystems: 'All Systems',
+    addNewColor: 'Add New Color',
+    addColor: 'Add Color',
+    hexColor: 'Hex Color',
+    colorFormulaPlaceholder: 'Example: White Base + Titanium Dioxide',
+    notesPlaceholder: 'Additional notes...',
+    noColorsFound: 'No colors found',
+    select: 'Select',
+    formula: 'Formula',
+    notes: 'Notes',
+    chooseColor: 'Choose Color',
+    colorPalette: 'Color Palette',
+    colorInformation: 'Color Information',
+    
+    // Unit Converter
+    unitConverter: 'Unit Converter',
+    unitConversion: 'Unit Conversion',
+    from: 'From',
+    to: 'To',
+    conversionExamples: 'Conversion Examples',
+    volumeConversions: 'Volume Conversions',
+    commonPaintQuantities: 'Common Paint Quantities',
+    coverageInfo: 'Coverage Information',
+    quickConversionTable: 'Quick Conversion Table',
+    coverage: 'Coverage',
+    smallRoom: 'Small Room',
+    mediumRoom: 'Medium Room',
+    largeRoom: 'Large Room',
+    exteriorHouse: 'Exterior House',
     
     // Search and Filter
     searchInventory: 'Search inventory...',

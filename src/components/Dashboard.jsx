@@ -1,6 +1,8 @@
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
 import InvoiceNotifications from './InvoiceNotifications'
+import ExpiryAlerts from './ExpiryAlerts'
+import StockAlerts from './StockAlerts'
 import './Dashboard.css'
 
 const Dashboard = ({ onNavigate }) => {
@@ -72,6 +74,12 @@ const Dashboard = ({ onNavigate }) => {
         invoices={invoices}
         onInvoiceClick={() => onNavigate && onNavigate('invoices')}
       />
+
+      {/* Expiry Alerts */}
+      <ExpiryAlerts />
+
+      {/* Stock Alerts */}
+      <StockAlerts />
 
       {/* Main Statistics */}
       <div className="dashboard-stats">
