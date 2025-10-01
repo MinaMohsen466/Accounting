@@ -616,6 +616,176 @@ const Invoices = () => {
     })
   }
 
+  // Print invoice function
+  const printInvoice = (invoice) => {
+    const printWindow = window.open('', '_blank', 'width=800,height=600')
+    
+    // Get client name
+    const client = invoice.type === 'sales' 
+      ? customers.find(c => c.id === invoice.clientId)
+      : suppliers.find(s => s.id === invoice.clientId)
+    const clientName = client ? client.name : invoice.clientName
+
+    // Calculate totals
+    const subtotal = invoice.items?.reduce((sum, item) => sum + item.total, 0) || 0
+    const discountAmount = invoice.discountAmount || 0
+    const vatAmount = invoice.vatAmount || 0
+    const total = subtotal - discountAmount + vatAmount
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html dir="${language === 'ar' ? 'rtl' : 'ltr'}" lang="${language}">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${t('printInvoice')}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+            direction: ${language === 'ar' ? 'rtl' : 'ltr'};
+          }
+          .invoice-header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .invoice-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+          }
+          .invoice-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+          }
+          .info-section {
+            flex: 1;
+          }
+          .info-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          .items-table th,
+          .items-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: ${language === 'ar' ? 'right' : 'left'};
+          }
+          .items-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+          }
+          .totals-section {
+            margin-${language === 'ar' ? 'right' : 'left'}: auto;
+            width: 300px;
+            border: 1px solid #ddd;
+            padding: 15px;
+          }
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+          }
+          .final-total {
+            border-top: 2px solid #333;
+            padding-top: 8px;
+            font-weight: bold;
+            font-size: 18px;
+          }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-header">
+          <div class="invoice-title">${invoice.type === 'sales' ? t('salesInvoice') : t('purchaseInvoice')}</div>
+          <div>${t('invoiceNumber')}: ${invoice.number || invoice.id}</div>
+        </div>
+        
+        <div class="invoice-info">
+          <div class="info-section">
+            <div class="info-label">${invoice.type === 'sales' ? t('customer') : t('supplier')}:</div>
+            <div>${clientName}</div>
+          </div>
+          <div class="info-section">
+            <div class="info-label">${t('date')}:</div>
+            <div>${new Date(invoice.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</div>
+            ${invoice.dueDate ? `
+              <div class="info-label" style="margin-top: 10px;">${t('dueDate')}:</div>
+              <div>${new Date(invoice.dueDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</div>
+            ` : ''}
+          </div>
+        </div>
+        
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>${t('item')}</th>
+              <th>${t('quantity')}</th>
+              <th>${t('unitPrice')}</th>
+              <th>${t('discount')}</th>
+              <th>${t('total')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${invoice.items?.map(item => {
+              const discountAmount = item.discountAmount || 0;
+              const discountDisplay = discountAmount > 0 ? discountAmount.toFixed(2) : '-';
+              return `
+                <tr>
+                  <td>${item.itemName}</td>
+                  <td>${item.quantity}</td>
+                  <td>${item.unitPrice?.toFixed(2)}</td>
+                  <td>${discountDisplay}</td>
+                  <td>${item.total?.toFixed(2)}</td>
+                </tr>
+              `;
+            }).join('') || ''}
+          </tbody>
+        </table>
+        
+        <div class="totals-section">
+          <div class="total-row">
+            <span>${t('subtotal')}:</span>
+            <span>${subtotal.toFixed(2)}</span>
+          </div>
+          ${discountAmount > 0 ? `
+            <div class="total-row">
+              <span>${t('discount')}:</span>
+              <span>-${discountAmount.toFixed(2)}</span>
+            </div>
+          ` : ''}
+          ${vatAmount > 0 ? `
+            <div class="total-row">
+              <span>${t('vat')}:</span>
+              <span>${vatAmount.toFixed(2)}</span>
+            </div>
+          ` : ''}
+          <div class="total-row final-total">
+            <span>${t('total')}:</span>
+            <span>${total.toFixed(2)}</span>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+    
+    printWindow.document.write(printContent)
+    printWindow.document.close()
+    printWindow.print()
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     
@@ -1002,18 +1172,26 @@ const Invoices = () => {
                     </span>
                   </td>
                   <td>
-                    <button 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => openModal(invoice)}
-                    >
-                      {t('viewEdit')}
-                    </button>
-                    <button 
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(invoice)}
-                    >
-                      {t('delete')}
-                    </button>
+                    <div className="action-buttons">
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => openModal(invoice)}
+                      >
+                        {t('viewEdit')}
+                      </button>
+                      <button 
+                        className="btn btn-info btn-sm"
+                        onClick={() => printInvoice(invoice)}
+                      >
+                        {t('print')}
+                      </button>
+                      <button 
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete(invoice)}
+                      >
+                        {t('delete')}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1377,6 +1555,15 @@ const Invoices = () => {
                 <button type="submit" className="btn btn-primary">
                   {editingInvoice ? t('saveChanges') : t('createInvoiceBtn')}
                 </button>
+                {editingInvoice && (
+                  <button 
+                    type="button" 
+                    className="btn btn-info"
+                    onClick={() => printInvoice(editingInvoice)}
+                  >
+                    {t('printInvoice')}
+                  </button>
+                )}
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
                   {t('cancel')}
                 </button>

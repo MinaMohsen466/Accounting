@@ -226,6 +226,8 @@ const translations = {
     
     // Button texts
     viewEdit: 'عرض/تعديل',
+    print: 'طباعة',
+    printInvoice: 'طباعة الفاتورة',
     
     // Table headers
     invoiceNum: 'رقم الفاتورة',
@@ -573,6 +575,8 @@ const translations = {
     
     // Button texts
     viewEdit: 'View/Edit',
+    print: 'Print',
+    printInvoice: 'Print Invoice',
     
     // Table headers
     invoiceNum: 'Invoice Number',

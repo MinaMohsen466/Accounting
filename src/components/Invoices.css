@@ -1062,3 +1062,49 @@
   font-weight: 600;
   color: #2c3e50;
 }
+
+/* Action buttons styling */
+.action-buttons {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+  min-width: 70px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.action-buttons .btn-info {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+  color: white;
+}
+
+.action-buttons .btn-info:hover {
+  background-color: #138496;
+  border-color: #117a8b;
+}
+
+/* Print specific styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .print-content, .print-content * {
+    visibility: visible;
+  }
+  
+  .print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
