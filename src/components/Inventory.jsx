@@ -41,6 +41,7 @@ const Inventory = () => {
     productType: '',
     unit: 'piece',
     customUnitName: '',
+    customCategoryName: '',
     quantity: 0,
     price: 0,
     purchasePrice: 0,
@@ -75,6 +76,7 @@ const Inventory = () => {
         productType: item.productType || item.category || '',
         unit: item.unit || 'piece',
         customUnitName: item.customUnitName || '',
+        customCategoryName: item.customCategoryName || '',
         quantity: item.quantity || 0,
         price: item.price || item.unitPrice || 0,
         purchasePrice: item.purchasePrice || 0,
@@ -101,6 +103,7 @@ const Inventory = () => {
         productType: '',
         unit: 'piece',
         customUnitName: '',
+        customCategoryName: '',
         quantity: 0,
         price: 0,
         purchasePrice: 0,
@@ -134,6 +137,7 @@ const Inventory = () => {
       productType: '',
       unit: 'piece',
       customUnitName: '',
+      customCategoryName: '',
       quantity: 0,
       price: 0,
       purchasePrice: 0,
@@ -161,6 +165,13 @@ const Inventory = () => {
     }
   }, [formData.unit])
 
+  // Clear custom category name when category changes from custom
+  useEffect(() => {
+    if (formData.category !== 'custom') {
+      setFormData(prev => ({ ...prev, customCategoryName: '' }))
+    }
+  }, [formData.category])
+
   // Handle color selection
   const handleColorSelect = (color) => {
     setSelectedColor(color)
@@ -182,12 +193,19 @@ const Inventory = () => {
       return
     }
 
+    // Handle custom category
+    const finalFormData = { ...formData }
+    if (formData.category === 'custom' && formData.customCategoryName) {
+      finalFormData.category = formData.customCategoryName
+      finalFormData.productType = formData.customCategoryName
+    }
+
     try {
       let result
       if (editingItem) {
-        result = updateInventoryItem(editingItem.id, formData)
+        result = updateInventoryItem(editingItem.id, finalFormData)
       } else {
-        result = addInventoryItem(formData)
+        result = addInventoryItem(finalFormData)
       }
 
       if (result.success) {
@@ -528,8 +546,24 @@ const Inventory = () => {
                           {details.icon} {details.nameAr}
                         </option>
                       ))}
+                      <option value="custom">➕ {language === 'ar' ? 'إضافة تصنيف جديد' : 'Add New Category'}</option>
                     </select>
                   </div>
+                  
+                  {/* Custom Category Name Field */}
+                  {formData.category === 'custom' && (
+                    <div className="form-group">
+                      <label>{language === 'ar' ? 'اسم التصنيف الجديد' : 'New Category Name'} *</label>
+                      <input
+                        type="text"
+                        value={formData.customCategoryName || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, customCategoryName: e.target.value }))}
+                        placeholder={language === 'ar' ? 'مثل: أدوات التنظيف، مواد البناء، إلخ' : 'e.g: Cleaning Tools, Construction Materials, etc'}
+                        required
+                      />
+                    </div>
+                  )}
+                  
                   <div className="form-group">
                     <label>{t('unit')} *</label>
                     <select
@@ -552,9 +586,11 @@ const Inventory = () => {
                       }
                     </select>
                   </div>
-                  
-                  {/* Custom Unit Name Field */}
-                  {formData.unit === 'custom' && (
+                </div>
+                
+                {/* Custom Unit Name Field */}
+                {formData.unit === 'custom' && (
+                  <div className="form-row">
                     <div className="form-group">
                       <label>{language === 'ar' ? 'اسم الوحدة المخصصة' : 'Custom Unit Name'} *</label>
                       <input
@@ -565,8 +601,8 @@ const Inventory = () => {
                         required
                       />
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="form-row">
                   <div className="form-group">
