@@ -13,7 +13,29 @@ const DEFAULT_BRAND_SETTINGS = {
   tagline: 'نظام محاسبة متكامل',
   taglineEn: 'Complete Accounting System',
   primaryColor: '#1e40af',
-  secondaryColor: '#3b82f6'
+  secondaryColor: '#3b82f6',
+  // إعدادات الفواتير
+  invoiceSettings: {
+    companyName: 'AccouTech Pro',
+    companyAddress: '',
+    companyPhone: '',
+    companyEmail: '',
+    companyWebsite: '',
+    receiverSignatureLabel: 'توقيع المستلم',
+    showReceiverSignature: true,
+    policies: [
+      'جميع المبيعات نهائية',
+      'يرجى فحص البضاعة قبل الاستلام',
+      'المرتجعات خلال 7 أيام فقط'
+    ],
+    showPolicies: true,
+    policiesTitle: 'سياسات وشروط المحل',
+    footerText: 'شكراً لتعاملكم معنا',
+    showLogo: true,
+    logoSize: 'medium', // small, medium, large
+    headerText: '',
+    showCompanyInfo: true
+  }
 }
 
 export const BrandProvider = ({ children }) => {

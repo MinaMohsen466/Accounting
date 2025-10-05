@@ -445,3 +445,192 @@
   color: #f87171;
   border-color: rgba(239, 68, 68, 0.3);
 }
+
+/* Invoice Settings Styles */
+.invoice-subsection {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: var(--section-bg, #f8f9fa);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e9ecef);
+}
+
+.invoice-subsection h5 {
+  color: var(--text-primary, #2c3e50);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 15px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color, #e9ecef);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: var(--text-primary, #2c3e50);
+  font-size: 0.9rem;
+}
+
+.checkbox-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #e9ecef);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--input-bg, #ffffff);
+  color: var(--text-primary, #2c3e50);
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color, #007bff);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.form-group input:disabled,
+.form-group textarea:disabled,
+.form-group select:disabled {
+  background-color: var(--disabled-bg, #f8f9fa);
+  color: var(--text-secondary, #6c757d);
+  cursor: not-allowed;
+}
+
+/* Policies List */
+.policies-list {
+  margin-top: 10px;
+}
+
+.policy-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.policy-item input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #e9ecef);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.remove-policy-btn {
+  background: var(--error-color, #dc3545);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.remove-policy-btn:hover {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+.add-policy-btn {
+  background: var(--success-color, #28a745);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 10px;
+}
+
+.add-policy-btn:hover {
+  background: #218838;
+}
+
+/* Responsive Design for Invoice Settings */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .invoice-subsection {
+    padding: 15px;
+  }
+  
+  .policy-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .remove-policy-btn {
+    align-self: flex-end;
+    margin-top: -8px;
+  }
+}
+
+/* Dark Theme for Invoice Settings */
+[data-theme="dark"] .invoice-subsection {
+  background: rgba(44, 62, 80, 0.3);
+  border-color: #495057;
+}
+
+[data-theme="dark"] .invoice-subsection h5 {
+  color: #e9ecef;
+  border-color: #495057;
+}
+
+[data-theme="dark"] .form-group label {
+  color: #e9ecef;
+}
+
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group textarea,
+[data-theme="dark"] .form-group select {
+  background: #2c3e50;
+  border-color: #495057;
+  color: #e9ecef;
+}
+
+[data-theme="dark"] .form-group input:disabled,
+[data-theme="dark"] .form-group textarea:disabled,
+[data-theme="dark"] .form-group select:disabled {
+  background: #1e2d3d;
+  color: #6c757d;
+}

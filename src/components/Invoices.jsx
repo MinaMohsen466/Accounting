@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useBrand } from '../contexts/BrandContext'
 import { updateInvoicesStatus, getInvoiceNotifications, getDaysInfo } from '../utils/invoiceUtils'
 import InvoiceNotifications from './InvoiceNotifications'
 import PermissionDenied from './PermissionDenied'
@@ -21,6 +22,7 @@ const Invoices = () => {
   } = useAccounting()
   const { t, language, notificationsEnabled } = useLanguage()
   const { hasPermission } = useAuth()
+  const { brandSettings } = useBrand()
 
   // Check if user has permission to view invoices
   if (!hasPermission('view_invoices')) {
@@ -705,15 +707,81 @@ const Invoices = () => {
     })
   }
 
-  // Print invoice function
+  // Function to display simple invoice number
+  const getDisplayInvoiceNumber = (invoice) => {
+    if (invoice.number && invoice.number !== invoice.id && !invoice.number.startsWith('INV-')) {
+      return invoice.number
+    }
+    
+    // If no custom number, show temporary ID until printed
+    return `#${invoice.id.slice(-6)}` // Show last 6 characters of ID
+  }
+
+  // Function to format invoice number with explanation
+  const formatInvoiceNumberWithHint = (invoiceNumber) => {
+    if (invoiceNumber.includes('-') && invoiceNumber.match(/^\d+-\d{4}$/)) {
+      const [num, dateCode] = invoiceNumber.split('-')
+      const month = dateCode.substring(0, 2)
+      const day = dateCode.substring(2, 4)
+      return `${invoiceNumber} (${num} - ${month}/${day})`
+    }
+    return invoiceNumber
+  }
+
+  // Enhanced Print invoice function with full customization
   const printInvoice = (invoice) => {
     const printWindow = window.open('', '_blank', 'width=800,height=600')
     
-    // Get client name
+    // Get client name with better fallback
     const client = invoice.type === 'sales' 
       ? customers.find(c => c.id === invoice.clientId)
       : suppliers.find(s => s.id === invoice.clientId)
-    const clientName = client ? client.name : invoice.clientName
+    const clientName = client?.name || invoice.clientName || (invoice.type === 'sales' ? 'عميل غير محدد' : 'مورد غير محدد')
+
+    // Generate simple daily invoice number
+    const generateInvoiceNumber = () => {
+      if (invoice.number && invoice.number !== invoice.id && !invoice.number.startsWith('INV-')) {
+        return invoice.number
+      }
+      
+      const now = new Date()
+      const month = now.getMonth() + 1 // الشهر (1-12)
+      const day = now.getDate() // اليوم (1-31)
+      
+      // Format: MMDD (مثل 0510 للـ 5/10)
+      const dateCode = `${month.toString().padStart(2, '0')}${day.toString().padStart(2, '0')}`
+      
+      // Get today's date in YYYYMMDD format for comparison
+      const today = `${now.getFullYear()}${month.toString().padStart(2, '0')}${day.toString().padStart(2, '0')}`
+      
+      // Get all invoices from localStorage to count today's invoices
+      const allInvoices = JSON.parse(localStorage.getItem('app_invoices') || '[]')
+      
+      // Count how many invoices were created today
+      const todayInvoices = allInvoices.filter(inv => {
+        const invDate = new Date(inv.date)
+        const invDateStr = `${invDate.getFullYear()}${(invDate.getMonth() + 1).toString().padStart(2, '0')}${invDate.getDate().toString().padStart(2, '0')}`
+        return invDateStr === today
+      })
+      
+      // Daily invoice number (starts from 1)
+      const dailyNumber = todayInvoices.length + 1
+      
+      // Simple format: N-MMDD (مثل: 1-0510)
+      return `${dailyNumber}-${dateCode}`
+    }
+    
+    const invoiceNumber = generateInvoiceNumber()
+    
+    // Update invoice with new number if it doesn't have one
+    if (!invoice.number || invoice.number === invoice.id || invoice.number.startsWith('INV-')) {
+      const updatedInvoice = { ...invoice, number: invoiceNumber }
+      const allInvoices = JSON.parse(localStorage.getItem('app_invoices') || '[]')
+      const updatedInvoices = allInvoices.map(inv => 
+        inv.id === invoice.id ? updatedInvoice : inv
+      )
+      localStorage.setItem('app_invoices', JSON.stringify(updatedInvoices))
+    }
 
     // Calculate totals
     const subtotal = invoice.items?.reduce((sum, item) => sum + item.total, 0) || 0
@@ -721,169 +789,629 @@ const Invoices = () => {
     const vatAmount = invoice.vatAmount || 0
     const total = subtotal - discountAmount + vatAmount
 
+    // Get invoice settings
+    const invoiceSettings = brandSettings?.invoiceSettings || {}
+    
+    // Logo size styles
+    const logoSizes = {
+      small: { width: '60px', height: '60px' },
+      medium: { width: '80px', height: '80px' },
+      large: { width: '100px', height: '100px' }
+    }
+    
+    const logoStyle = logoSizes[invoiceSettings.logoSize] || logoSizes.medium
+
     const printContent = `
       <!DOCTYPE html>
       <html dir="${language === 'ar' ? 'rtl' : 'ltr'}" lang="${language}">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${t('printInvoice')}</title>
+        <title>${t('printInvoice')} - ${invoice.number || invoice.id}</title>
         <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
           body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+            font-family: 'Arial', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 10px;
             color: #333;
             direction: ${language === 'ar' ? 'rtl' : 'ltr'};
+            line-height: 1.4;
+            background: white;
+            font-size: 12px;
           }
+          
+          .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border: 2px solid #666;
+            overflow: hidden;
+          }
+          
+          /* Compact Header Section */
           .invoice-header {
-            text-align: center;
-            border-bottom: 2px solid #333;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            border-bottom: 2px solid #666;
+            padding: 15px 20px;
           }
-          .invoice-title {
-            font-size: 28px;
+          
+          .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+          }
+          
+          .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          
+          .company-logo {
+            width: ${logoStyle.width === '100px' ? '60px' : logoStyle.width === '80px' ? '50px' : '40px'};
+            height: ${logoStyle.height === '100px' ? '60px' : logoStyle.height === '80px' ? '50px' : '40px'};
+            object-fit: contain;
+            border: 1px solid #666;
+          }
+          
+          .company-info h1 {
+            font-size: 1.3rem;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 3px;
+            color: #000;
           }
+          
+          .company-info .header-text {
+            font-size: 0.8rem;
+            color: #666;
+          }
+          
+          .invoice-details {
+            text-align: ${language === 'ar' ? 'left' : 'right'};
+            border: 1px solid #666;
+            padding: 8px;
+            background: #f5f5f5;
+          }
+          
+          .invoice-number {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 3px;
+            color: #000;
+          }
+          
+          .invoice-type {
+            font-size: 0.8rem;
+            color: #666;
+          }
+          
+          /* Compact Invoice Info Section */
           .invoice-info {
+            padding: 15px 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            border-bottom: 1px solid #ccc;
+            background: #fafafa;
+          }
+          
+          .info-section h3 {
+            color: #333;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            padding-bottom: 2px;
+            border-bottom: 1px solid #666;
+            font-weight: bold;
+            line-height: 1.3;
+          }
+          
+          .info-item {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 30px;
+            margin-bottom: 4px;
+            padding: 2px 0;
+            font-size: 0.75rem;
+            line-height: 1.2;
           }
-          .info-section {
-            flex: 1;
-          }
+          
           .info-label {
             font-weight: bold;
-            margin-bottom: 5px;
+            color: #333;
           }
+          
+          .info-value {
+            color: #000;
+          }
+          
+          /* Expanded Items Table - Main Focus */
+          .items-section {
+            padding: 10px 20px;
+            flex-grow: 1;
+          }
+          
           .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            margin: 10px 0;
+            font-size: 0.75rem;
           }
-          .items-table th,
-          .items-table td {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: ${language === 'ar' ? 'right' : 'left'};
-          }
+          
           .items-table th {
-            background-color: #f5f5f5;
+            background: #555;
+            color: white;
+            padding: 8px 6px;
+            text-align: ${language === 'ar' ? 'right' : 'left'};
             font-weight: bold;
+            border: 1px solid #555;
+            font-size: 0.7rem;
+            line-height: 1.2;
           }
+          
+          .items-table td {
+            padding: 6px 6px;
+            border: 1px solid #ccc;
+            text-align: ${language === 'ar' ? 'right' : 'left'};
+            font-size: 0.7rem;
+            vertical-align: top;
+          }
+          
+          .items-table tbody tr:nth-child(even) {
+            background: #f9f9f9;
+          }
+          
+          .color-cell {
+            color: #666;
+            font-size: 0.65rem;
+            font-style: italic;
+          }
+          
+          .item-name {
+            font-weight: bold;
+            max-width: 120px;
+            word-wrap: break-word;
+          }
+          
+          /* Compact Totals Section */
           .totals-section {
-            margin-${language === 'ar' ? 'right' : 'left'}: auto;
-            width: 300px;
-            border: 1px solid #ddd;
-            padding: 15px;
+            padding: 15px 20px;
+            background: #f5f5f5;
           }
+          
+          .totals-container {
+            max-width: 300px;
+            margin-${language === 'ar' ? 'right' : 'left'}: auto;
+            background: white;
+            border: 2px solid #666;
+          }
+          
           .total-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
+            padding: 6px 12px;
+            border-bottom: 1px solid #ccc;
+            font-size: 0.75rem;
+            line-height: 1.2;
           }
+          
+          .total-row:last-child {
+            border-bottom: none;
+          }
+          
           .final-total {
-            border-top: 2px solid #333;
-            padding-top: 8px;
+            background: #666;
+            color: white;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 0.9rem;
           }
+          
+          /* Compact Signature Section */
+          .signature-section {
+            padding: 10px 20px;
+            border-top: 1px solid #ccc;
+            background: #fafafa;
+          }
+          
+          .signature-box {
+            border: 1px solid #666;
+            padding: 15px 8px 8px;
+            text-align: center;
+            background: white;
+            margin: 8px auto;
+            max-width: 180px;
+            position: relative;
+            border-radius: 3px;
+          }
+          
+          .signature-label {
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 0 4px;
+            font-weight: bold;
+            color: #333;
+            font-size: 0.65rem;
+          }
+          
+          /* Compact Policies Section */
+          .policies-section {
+            padding: 10px 20px;
+            background: #f8f8f8;
+            border-top: 1px solid #ccc;
+          }
+          
+          .policies-title {
+            color: #333;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 6px;
+            text-align: center;
+            padding: 4px 8px;
+            background: white;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+          }
+          
+          .policies-list {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+          }
+          
+          .policies-list li {
+            background: white;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 2px;
+            font-size: 0.65rem;
+            border-${language === 'ar' ? 'right' : 'left'}: 2px solid #666;
+          }
+          
+          .policies-list li:before {
+            content: "• ";
+            color: #666;
+            font-weight: bold;
+            margin-${language === 'ar' ? 'left' : 'right'}: 3px;
+          }
+          
+          /* Light Gray Footer */
+          .invoice-footer {
+            background: #f5f5f5;
+            color: #333;
+            padding: 10px 20px;
+            text-align: center;
+            border-top: 1px solid #666;
+          }
+          
+          .footer-text {
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #333;
+          }
+          
+          /* Contact Information in Footer */
+          .footer-contact {
+            margin: 8px 0;
+          }
+          
+          .company-details-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 4px;
+            margin: 6px 0;
+          }
+          
+          .footer-contact-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 0.65rem;
+            color: #555;
+            background: white;
+            padding: 2px 6px;
+            border-radius: 2px;
+            border: 1px solid #ddd;
+            margin: 1px;
+          }
+          
+          .footer-contact-item.address-item {
+            flex-basis: 100%;
+            justify-content: center;
+            margin-bottom: 3px;
+          }
+          
+          .footer-contact-icon {
+            font-size: 0.7rem;
+            color: #666;
+          }
+          
+          .contact-label {
+            font-weight: bold;
+            color: #333;
+          }
+          
+          .contact-value {
+            color: #555;
+          }
+          
+          .footer-date {
+            font-size: 0.6rem;
+            color: #666;
+            margin-top: 6px;
+            font-style: italic;
+            border-top: 1px solid #ddd;
+            padding-top: 4px;
+          }
+          
+          /* Print Styles */
           @media print {
-            body { margin: 0; }
-            .no-print { display: none; }
+            body { 
+              margin: 0; 
+              font-size: 10px;
+            }
+            .invoice-container {
+              border: 2px solid #666;
+              max-width: 100%;
+            }
+            .no-print { 
+              display: none; 
+            }
+            .items-table {
+              font-size: 0.7rem;
+            }
+            .items-table th,
+            .items-table td {
+              padding: 4px 4px;
+            }
+            .invoice-footer {
+              background: #f5f5f5 !important;
+              color: #333 !important;
+              padding: 8px 20px !important;
+            }
+            .footer-contact-item {
+              background: white !important;
+              border: 1px solid #ddd !important;
+              font-size: 0.6rem !important;
+            }
+            .policies-section {
+              padding: 8px 20px !important;
+            }
+            .signature-section {
+              padding: 8px 20px !important;
+            }
+          }
+          
+          /* Responsive */
+          @media (max-width: 600px) {
+            .header-content {
+              flex-direction: column;
+              text-align: center;
+            }
+            
+            .invoice-info {
+              grid-template-columns: 1fr;
+              gap: 10px;
+            }
+            
+            .company-details-grid {
+              flex-direction: column;
+              align-items: center;
+            }
+            
+            .footer-contact-item {
+              font-size: 0.6rem !important;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="invoice-header">
-          <div class="invoice-title">${invoice.type === 'sales' ? t('salesInvoice') : t('purchaseInvoice')}</div>
-          <div>${t('invoiceNumber')}: ${invoice.number || invoice.id}</div>
-        </div>
-        
-        <div class="invoice-info">
-          <div class="info-section">
-            <div class="info-label">${invoice.type === 'sales' ? t('customer') : t('supplier')}:</div>
-            <div>${clientName}</div>
+        <div class="invoice-container">
+          <!-- Header with Logo and Company Info -->
+          <div class="invoice-header">
+            <div class="header-content">
+              <div class="logo-section">
+                ${invoiceSettings.showLogo && brandSettings?.logoUrl ? `
+                  <img src="${brandSettings.logoUrl}" alt="Logo" class="company-logo" />
+                ` : ''}
+                <div class="company-info">
+                  <h1>${invoiceSettings.companyName || brandSettings?.companyName || 'AccouTech Pro'}</h1>
+                  ${invoiceSettings.headerText ? `<div class="header-text">${invoiceSettings.headerText}</div>` : ''}
+                </div>
+              </div>
+              <div class="invoice-details">
+                <div class="invoice-number">${language === 'ar' ? 'رقم الفاتورة | Invoice No' : 'Invoice No | رقم الفاتورة'}: ${invoiceNumber}</div>
+                <div class="invoice-type">${invoice.type === 'sales' ? 
+                  (language === 'ar' ? 'فاتورة مبيعات | Sales Invoice' : 'Sales Invoice | فاتورة مبيعات') : 
+                  (language === 'ar' ? 'فاتورة مشتريات | Purchase Invoice' : 'Purchase Invoice | فاتورة مشتريات')
+                }</div>
+              </div>
+            </div>
           </div>
-          <div class="info-section">
-            <div class="info-label">${t('date')}:</div>
-            <div>${new Date(invoice.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</div>
-            ${invoice.dueDate ? `
-              <div class="info-label" style="margin-top: 10px;">${t('dueDate')}:</div>
-              <div>${new Date(invoice.dueDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</div>
-            ` : ''}
+          
+          <!-- Invoice Information -->
+          <div class="invoice-info">
+            <div class="info-section">
+              <h3>${language === 'ar' ? 'تفاصيل الفاتورة | Invoice Details' : 'Invoice Details | تفاصيل الفاتورة'}</h3>
+              <div class="info-item">
+                <span class="info-label">${language === 'ar' ? 'التاريخ | Date' : 'Date | التاريخ'}:</span>
+                <span class="info-value">${new Date(invoice.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</span>
+              </div>
+              ${invoice.dueDate ? `
+                <div class="info-item">
+                  <span class="info-label">${language === 'ar' ? 'تاريخ الاستحقاق | Due Date' : 'Due Date | تاريخ الاستحقاق'}:</span>
+                  <span class="info-value">${new Date(invoice.dueDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</span>
+                </div>
+              ` : ''}
+            </div>
+            <div class="info-section">
+              <h3>${language === 'ar' ? 'نوع الفاتورة | Invoice Type' : 'Invoice Type | نوع الفاتورة'}</h3>
+              <div class="info-item">
+                <span class="info-label">${language === 'ar' ? 'النوع | Type' : 'Type | النوع'}:</span>
+                <span class="info-value">${invoice.type === 'sales' ? 
+                  (language === 'ar' ? 'فاتورة مبيعات | Sales Invoice' : 'Sales Invoice | فاتورة مبيعات') : 
+                  (language === 'ar' ? 'فاتورة مشتريات | Purchase Invoice' : 'Purchase Invoice | فاتورة مشتريات')
+                }</span>
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <table class="items-table">
-          <thead>
-            <tr>
-              <th>${t('item')}</th>
-              <th>${language === 'ar' ? 'اللون' : 'Color'}</th>
-              <th>${t('quantity')}</th>
-              <th>${t('unitPrice')}</th>
-              <th>${t('discount')}</th>
-              <th>${t('total')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${invoice.items?.map(item => {
-              const discountAmount = item.discountAmount || 0;
-              const discountDisplay = discountAmount > 0 ? discountAmount.toFixed(2) : '-';
-              
-              // عرض اللون - إما من القائمة أو مخصص - مختصر
-              let colorDisplay = '-';
-              if (item.color === 'custom' && item.customColorName) {
-                colorDisplay = item.customColorName;
-                if (item.colorPrice > 0) colorDisplay += ` (+${item.colorPrice})`;
-              } else if (item.color && item.color !== 'custom') {
-                colorDisplay = item.color;
-                if (item.colorPrice > 0) colorDisplay += ` (+${item.colorPrice})`;
-              }
-              
-              const colorPrice = item.colorPrice || 0;
-              const basePrice = item.unitPrice || 0;
-              const totalPrice = basePrice + colorPrice;
-              const priceDisplay = colorPrice > 0 ? 
-                `${basePrice.toFixed(2)} + ${colorPrice.toFixed(2)} = ${totalPrice.toFixed(2)}` : 
-                basePrice.toFixed(2);
-              
-              return `
+          
+          <!-- Items Table -->
+          <div class="items-section">
+            <table class="items-table">
+              <thead>
                 <tr>
-                  <td>${item.itemName}</td>
-                  <td style="color: #666; font-size: 0.9em;">${colorDisplay}</td>
-                  <td>${item.quantity}</td>
-                  <td>${priceDisplay}</td>
-                  <td>${discountDisplay}</td>
-                  <td>${item.total?.toFixed(2)}</td>
+                  <th>${language === 'ar' ? 'العنصر | Item' : 'Item | العنصر'}</th>
+                  <th>${language === 'ar' ? 'اللون | Color' : 'Color | اللون'}</th>
+                  <th>${language === 'ar' ? 'الكمية | Qty' : 'Qty | الكمية'}</th>
+                  <th>${language === 'ar' ? 'سعر الوحدة | Unit Price' : 'Unit Price | سعر الوحدة'}</th>
+                  <th>${language === 'ar' ? 'الخصم | Discount' : 'Discount | الخصم'}</th>
+                  <th>${language === 'ar' ? 'المجموع | Total' : 'Total | المجموع'}</th>
                 </tr>
-              `;
-            }).join('') || ''}
-          </tbody>
-        </table>
-        
-        <div class="totals-section">
-          <div class="total-row">
-            <span>${t('subtotal')}:</span>
-            <span>${subtotal.toFixed(2)}</span>
+              </thead>
+              <tbody>
+                ${invoice.items?.map(item => {
+                  const discountAmount = item.discountAmount || 0;
+                  const discountDisplay = discountAmount > 0 ? discountAmount.toFixed(2) : '-';
+                  
+                  // عرض اللون
+                  let colorDisplay = '-';
+                  if (item.color === 'custom' && item.customColorName) {
+                    colorDisplay = item.customColorName;
+                    if (item.colorPrice > 0) colorDisplay += ` (+${item.colorPrice})`;
+                  } else if (item.color && item.color !== 'custom') {
+                    colorDisplay = item.color;
+                    if (item.colorPrice > 0) colorDisplay += ` (+${item.colorPrice})`;
+                  }
+                  
+                  const colorPrice = item.colorPrice || 0;
+                  const basePrice = item.unitPrice || 0;
+                  const totalPrice = basePrice + colorPrice;
+                  const priceDisplay = colorPrice > 0 ? 
+                    `${basePrice.toFixed(2)} + ${colorPrice.toFixed(2)} = ${totalPrice.toFixed(2)}` : 
+                    basePrice.toFixed(2);
+                  
+                  return `
+                    <tr>
+                      <td class="item-name">${item.itemName}</td>
+                      <td class="color-cell">${colorDisplay}</td>
+                      <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
+                      <td style="text-align: center;">${priceDisplay}</td>
+                      <td style="text-align: center;">${discountDisplay}</td>
+                      <td style="text-align: center; font-weight: bold;">${item.total?.toFixed(2)}</td>
+                    </tr>
+                  `;
+                }).join('') || ''}
+              </tbody>
+            </table>
           </div>
-          ${discountAmount > 0 ? `
-            <div class="total-row">
-              <span>${t('discount')}:</span>
-              <span>-${discountAmount.toFixed(2)}</span>
+          
+          <!-- Totals -->
+          <div class="totals-section">
+            <div class="totals-container">
+              <div class="total-row">
+                <span>${language === 'ar' ? 'المجموع الفرعي | Subtotal' : 'Subtotal | المجموع الفرعي'}:</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+              ${discountAmount > 0 ? `
+                <div class="total-row">
+                  <span>${language === 'ar' ? 'الخصم | Discount' : 'Discount | الخصم'}:</span>
+                  <span>-${discountAmount.toFixed(2)}</span>
+                </div>
+              ` : ''}
+              ${vatAmount > 0 ? `
+                <div class="total-row">
+                  <span>${language === 'ar' ? 'ضريبة القيمة المضافة | VAT' : 'VAT | ضريبة القيمة المضافة'}:</span>
+                  <span>${vatAmount.toFixed(2)}</span>
+                </div>
+              ` : ''}
+              <div class="total-row final-total">
+                <span>${language === 'ar' ? 'الإجمالي | Total' : 'Total | الإجمالي'}:</span>
+                <span>${total.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Receiver Signature -->
+          ${invoiceSettings.showReceiverSignature ? `
+            <div class="signature-section">
+              <div class="signature-box">
+                <div class="signature-label">${invoiceSettings.receiverSignatureLabel || 
+                  (language === 'ar' ? 'توقيع المستلم | Receiver Signature' : 'Receiver Signature | توقيع المستلم')
+                }</div>
+              </div>
             </div>
           ` : ''}
-          ${vatAmount > 0 ? `
-            <div class="total-row">
-              <span>${t('vat')}:</span>
-              <span>${vatAmount.toFixed(2)}</span>
+          
+          <!-- Enhanced Store Policies -->
+          ${invoiceSettings.showPolicies && invoiceSettings.policies?.length > 0 ? `
+            <div class="policies-section">
+              <div class="policies-title">
+                ${invoiceSettings.policiesTitle || (language === 'ar' ? 
+                  (invoice.type === 'sales' ? 'سياسات وشروط البيع' : 'سياسات وشروط الشراء') : 
+                  (invoice.type === 'sales' ? 'Sales Terms & Policies' : 'Purchase Terms & Policies')
+                )}
+              </div>
+              <ul class="policies-list">
+                ${invoiceSettings.policies.filter(policy => policy.trim()).map(policy => `
+                  <li>${policy}</li>
+                `).join('')}
+              </ul>
             </div>
           ` : ''}
-          <div class="total-row final-total">
-            <span>${t('total')}:</span>
-            <span>${total.toFixed(2)}</span>
+          
+          <!-- Footer with Complete Company Info -->
+          <div class="invoice-footer">
+            <div class="footer-text">${invoiceSettings.footerText || 'شكراً لتعاملكم معنا'}</div>
+            
+            <!-- Complete Company Information -->
+            <div class="footer-contact">
+              <div class="company-details-grid">
+                ${invoiceSettings.companyAddress ? `
+                  <div class="footer-contact-item address-item">
+                    <span class="footer-contact-icon">📍</span>
+                    <span class="contact-label">${language === 'ar' ? 'العنوان | Address' : 'Address | العنوان'}:</span>
+                    <span class="contact-value">${invoiceSettings.companyAddress}</span>
+                  </div>
+                ` : ''}
+                
+                ${invoiceSettings.companyPhone ? `
+                  <div class="footer-contact-item">
+                    <span class="footer-contact-icon">📞</span>
+                    <span class="contact-label">${language === 'ar' ? 'الهاتف | Phone' : 'Phone | الهاتف'}:</span>
+                    <span class="contact-value">${invoiceSettings.companyPhone}</span>
+                  </div>
+                ` : ''}
+                
+                ${invoiceSettings.companyEmail ? `
+                  <div class="footer-contact-item">
+                    <span class="footer-contact-icon">📧</span>
+                    <span class="contact-label">${language === 'ar' ? 'البريد | Email' : 'Email | البريد'}:</span>
+                    <span class="contact-value">${invoiceSettings.companyEmail}</span>
+                  </div>
+                ` : ''}
+                
+                ${invoiceSettings.companyWebsite ? `
+                  <div class="footer-contact-item">
+                    <span class="footer-contact-icon">🌐</span>
+                    <span class="contact-label">${language === 'ar' ? 'الموقع | Website' : 'Website | الموقع'}:</span>
+                    <span class="contact-value">${invoiceSettings.companyWebsite}</span>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            <div class="footer-date">${new Date().toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</div>
           </div>
         </div>
       </body>
@@ -1240,7 +1768,14 @@ const Invoices = () => {
             <tbody>
               {filteredInvoices.map(invoice => (
                 <tr key={invoice.id}>
-                  <td>{invoice.invoiceNumber}</td>
+                  <td>
+                    <span 
+                      className="invoice-number"
+                      data-has-custom={invoice.number && invoice.number !== invoice.id && !invoice.number.startsWith('INV-') ? 'true' : 'false'}
+                    >
+                      {getDisplayInvoiceNumber(invoice)}
+                    </span>
+                  </td>
                   <td>
                     <span className={`invoice-type ${invoice.type}`}>
                       {invoice.type === 'sales' ? t('sales') : t('purchase')}

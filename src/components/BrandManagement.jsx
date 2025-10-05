@@ -20,7 +20,30 @@ const BrandManagement = () => {
     )
   }
   
-  const [formData, setFormData] = useState(brandSettings)
+  const [formData, setFormData] = useState({
+    ...brandSettings,
+    // إعدادات الفواتير
+    invoiceSettings: brandSettings.invoiceSettings || {
+      companyName: 'AccouTech Pro',
+      companyAddress: '',
+      companyPhone: '',
+      companyEmail: '',
+      companyWebsite: '',
+      receiverSignatureLabel: 'توقيع المستلم',
+      showReceiverSignature: true,
+      policies: [
+        'جميع المبيعات نهائية',
+        'يرجى فحص البضاعة قبل الاستلام',
+        'المرتجعات خلال 7 أيام فقط'
+      ],
+      showPolicies: true,
+      footerText: 'شكراً لتعاملكم معنا',
+      showLogo: true,
+      logoSize: 'medium', // small, medium, large
+      headerText: '',
+      showCompanyInfo: true
+    }
+  })
   const [uploading, setUploading] = useState({
     logo: false,
     favicon: false
@@ -33,10 +56,54 @@ const BrandManagement = () => {
   }
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value, type, checked } = e.target
+    
+    if (name.startsWith('invoice.')) {
+      const invoiceField = name.replace('invoice.', '')
+      setFormData(prev => ({
+        ...prev,
+        invoiceSettings: {
+          ...prev.invoiceSettings,
+          [invoiceField]: type === 'checkbox' ? checked : value
+        }
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }))
+    }
+  }
+
+  const handlePolicyChange = (index, value) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      invoiceSettings: {
+        ...prev.invoiceSettings,
+        policies: prev.invoiceSettings.policies.map((policy, i) => 
+          i === index ? value : policy
+        )
+      }
+    }))
+  }
+
+  const addPolicy = () => {
+    setFormData(prev => ({
+      ...prev,
+      invoiceSettings: {
+        ...prev.invoiceSettings,
+        policies: [...prev.invoiceSettings.policies, '']
+      }
+    }))
+  }
+
+  const removePolicy = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      invoiceSettings: {
+        ...prev.invoiceSettings,
+        policies: prev.invoiceSettings.policies.filter((_, i) => i !== index)
+      }
     }))
   }
 
@@ -247,6 +314,232 @@ const BrandManagement = () => {
                 value={formData.taglineEn}
                 onChange={handleInputChange}
                 placeholder="Complete Accounting System"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* قسم إعدادات الفواتير */}
+        <div className="brand-section">
+          <h4>
+            <span className="section-icon">🧾</span>
+            إعدادات الفواتير المطبوعة
+          </h4>
+          
+          {/* معلومات الشركة */}
+          <div className="invoice-subsection">
+            <h5>معلومات الشركة</h5>
+            
+            <div className="form-group">
+              <label>اسم الشركة</label>
+              <input
+                type="text"
+                name="invoice.companyName"
+                value={formData.invoiceSettings.companyName}
+                onChange={handleInputChange}
+                placeholder="اسم الشركة أو المحل"
+              />
+            </div>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label>رقم الهاتف</label>
+                <input
+                  type="text"
+                  name="invoice.companyPhone"
+                  value={formData.invoiceSettings.companyPhone}
+                  onChange={handleInputChange}
+                  placeholder="رقم هاتف الشركة"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>البريد الإلكتروني</label>
+                <input
+                  type="email"
+                  name="invoice.companyEmail"
+                  value={formData.invoiceSettings.companyEmail}
+                  onChange={handleInputChange}
+                  placeholder="email@company.com"
+                />
+              </div>
+            </div>
+            
+            <div className="form-group">
+              <label>عنوان الشركة</label>
+              <textarea
+                name="invoice.companyAddress"
+                value={formData.invoiceSettings.companyAddress}
+                onChange={handleInputChange}
+                placeholder="العنوان الكامل للشركة"
+                rows="3"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>الموقع الإلكتروني</label>
+              <input
+                type="url"
+                name="invoice.companyWebsite"
+                value={formData.invoiceSettings.companyWebsite}
+                onChange={handleInputChange}
+                placeholder="https://www.company.com"
+              />
+            </div>
+          </div>
+
+          {/* إعدادات عرض اللوجو */}
+          <div className="invoice-subsection">
+            <h5>إعدادات اللوجو</h5>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="invoice.showLogo"
+                    checked={formData.invoiceSettings.showLogo}
+                    onChange={handleInputChange}
+                  />
+                  عرض اللوجو في الفاتورة
+                </label>
+              </div>
+              
+              <div className="form-group">
+                <label>حجم اللوجو</label>
+                <select
+                  name="invoice.logoSize"
+                  value={formData.invoiceSettings.logoSize}
+                  onChange={handleInputChange}
+                  disabled={!formData.invoiceSettings.showLogo}
+                >
+                  <option value="small">صغير</option>
+                  <option value="medium">متوسط</option>
+                  <option value="large">كبير</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="form-group">
+              <label>نص إضافي في الرأس</label>
+              <input
+                type="text"
+                name="invoice.headerText"
+                value={formData.invoiceSettings.headerText}
+                onChange={handleInputChange}
+                placeholder="نص إضافي يظهر تحت اللوجو"
+              />
+            </div>
+          </div>
+
+          {/* إعدادات توقيع المستلم */}
+          <div className="invoice-subsection">
+            <h5>توقيع المستلم</h5>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="invoice.showReceiverSignature"
+                    checked={formData.invoiceSettings.showReceiverSignature}
+                    onChange={handleInputChange}
+                  />
+                  عرض مساحة توقيع المستلم
+                </label>
+              </div>
+              
+              <div className="form-group">
+                <label>عنوان التوقيع</label>
+                <input
+                  type="text"
+                  name="invoice.receiverSignatureLabel"
+                  value={formData.invoiceSettings.receiverSignatureLabel}
+                  onChange={handleInputChange}
+                  placeholder="توقيع المستلم"
+                  disabled={!formData.invoiceSettings.showReceiverSignature}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* سياسات المحل */}
+          <div className="invoice-subsection">
+            <h5>سياسات المحل</h5>
+            
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="invoice.showPolicies"
+                  checked={formData.invoiceSettings.showPolicies}
+                  onChange={handleInputChange}
+                />
+                عرض سياسات المحل في الفاتورة
+              </label>
+            </div>
+            
+            {formData.invoiceSettings.showPolicies && (
+              <div className="policies-list">
+                <div className="form-group">
+                  <label>عنوان قسم السياسات:</label>
+                  <input
+                    type="text"
+                    value={formData.invoiceSettings.policiesTitle || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      invoiceSettings: {
+                        ...prev.invoiceSettings,
+                        policiesTitle: e.target.value
+                      }
+                    }))}
+                    placeholder="سياسات وشروط المحل"
+                    className="form-input"
+                  />
+                </div>
+                <label>قائمة السياسات:</label>
+                {formData.invoiceSettings.policies.map((policy, index) => (
+                  <div key={index} className="policy-item">
+                    <input
+                      type="text"
+                      value={policy}
+                      onChange={(e) => handlePolicyChange(index, e.target.value)}
+                      placeholder={`السياسة ${index + 1}`}
+                    />
+                    {formData.invoiceSettings.policies.length > 1 && (
+                      <button
+                        type="button"
+                        className="remove-policy-btn"
+                        onClick={() => removePolicy(index)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="add-policy-btn"
+                  onClick={addPolicy}
+                >
+                  + إضافة سياسة جديدة
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* نص التذييل */}
+          <div className="invoice-subsection">
+            <h5>تذييل الفاتورة</h5>
+            
+            <div className="form-group">
+              <label>نص الشكر والتقدير</label>
+              <textarea
+                name="invoice.footerText"
+                value={formData.invoiceSettings.footerText}
+                onChange={handleInputChange}
+                placeholder="نص يظهر في نهاية الفاتورة"
+                rows="2"
               />
             </div>
           </div>

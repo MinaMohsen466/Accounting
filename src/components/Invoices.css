@@ -52,6 +52,45 @@
   text-transform: uppercase;
 }
 
+/* Invoice Number Styles */
+.invoice-number {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #2c3e50;
+  background: #ecf0f1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+.invoice-number[data-has-custom="true"] {
+  background: #d4edda;
+  color: #155724;
+}
+
+.invoice-number[data-has-custom="false"] {
+  background: #f8d7da;
+  color: #721c24;
+  font-style: italic;
+}
+
+/* Tooltip for invoice number format */
+.invoice-number[data-has-custom="true"]:hover::after {
+  content: "رقم-شهر/يوم";
+  position: absolute;
+  bottom: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  z-index: 1000;
+}
+
 .invoice-type.sales {
   background-color: #d4edda;
   color: #155724;
