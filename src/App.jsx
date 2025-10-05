@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 // Import Components
 import Sidebar from './components/Sidebar'
@@ -13,10 +14,12 @@ import Inventory from './components/Inventory'
 import Reports from './components/Reports'
 import DataManagement from './components/DataManagement'
 import Settings from './components/Settings'
+import LoginOverlay from './components/LoginOverlay'
 
 const AppContent = () => {
   const [currentView, setCurrentView] = useState('dashboard')
   const { direction } = useLanguage()
+  const { isAuthenticated, isLoading } = useAuth()
 
   useEffect(() => {
     // Update body class for direction
@@ -52,6 +55,9 @@ const AppContent = () => {
       <main className="main-content">
         {renderContent()}
       </main>
+      
+      {/* Show login overlay if not authenticated */}
+      {!isLoading && !isAuthenticated && <LoginOverlay />}
     </div>
   )
 }
@@ -59,7 +65,9 @@ const AppContent = () => {
 function App() {
   return (
     <LanguageProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </LanguageProvider>
   )
 }

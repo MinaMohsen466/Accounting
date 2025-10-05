@@ -401,7 +401,8 @@ const JournalEntries = () => {
                   </div>
                 </div>
               </div>
-              
+
+              {/* Modal Actions */}
               <div className="modal-actions">
                 <button type="submit" className="btn btn-primary">
                   {editingEntry ? 'حفظ التغييرات' : 'إضافة القيد'}

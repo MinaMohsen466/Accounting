@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import DataManagement from './DataManagement'
+import AccountManagement from './AccountManagement'
 import './Settings.css'
 
 const Settings = () => {
@@ -23,6 +24,11 @@ const Settings = () => {
       id: 'general',
       label: t('generalSettings') || 'الإعدادات العامة',
       icon: '⚙️'
+    },
+    {
+      id: 'account',
+      label: language === 'ar' ? 'إدارة الحساب' : 'Account Management',
+      icon: '👤'
     },
     {
       id: 'language',
@@ -150,6 +156,13 @@ const Settings = () => {
                 </button>
               </div>
             </div>
+          </div>
+        )
+      
+      case 'account':
+        return (
+          <div className="settings-section">
+            <AccountManagement />
           </div>
         )
       
