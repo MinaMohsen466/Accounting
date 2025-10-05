@@ -6,19 +6,23 @@ import { useBrand } from '../contexts/BrandContext'
 
 const Sidebar = ({ currentView, setCurrentView }) => {
   const { t, direction, language } = useLanguage()
-  const { user, logout } = useAuth()
+  const { user, logout, hasPermission } = useAuth()
   const { brandSettings } = useBrand()
   const [showUserMenu, setShowUserMenu] = useState(false)
   
-  const menuItems = [
-    { id: 'dashboard', label: t('dashboard'), icon: '🏠' },
-    { id: 'accounts', label: t('chartOfAccounts'), icon: '📊' },
-    { id: 'entries', label: t('journalEntries'), icon: '📝' },
-    { id: 'invoices', label: t('invoices'), icon: '🧾' },
-    { id: 'customers', label: t('customersSuppliers'), icon: '👥' },
-    { id: 'inventory', label: t('inventory'), icon: '📦' },
-    { id: 'reports', label: t('reports'), icon: '📈' },
+  // Define menu items with their required permissions
+  const allMenuItems = [
+    { id: 'dashboard', label: t('dashboard'), icon: '🏠', permission: 'view_dashboard' },
+    { id: 'accounts', label: t('chartOfAccounts'), icon: '📊', permission: 'view_chart_of_accounts' },
+    { id: 'entries', label: t('journalEntries'), icon: '📝', permission: 'view_journal_entries' },
+    { id: 'invoices', label: t('invoices'), icon: '🧾', permission: 'view_invoices' },
+    { id: 'customers', label: t('customersSuppliers'), icon: '👥', permission: 'view_customers_suppliers' },
+    { id: 'inventory', label: t('inventory'), icon: '📦', permission: 'view_inventory' },
+    { id: 'reports', label: t('reports'), icon: '📈', permission: 'view_financial_reports' },
   ]
+
+  // Filter menu items based on user permissions
+  const menuItems = allMenuItems.filter(item => hasPermission(item.permission))
 
   const handleLogout = () => {
     if (window.confirm(language === 'ar' ? 'هل تريد تسجيل الخروج؟' : 'Are you sure you want to logout?')) {
@@ -94,13 +98,15 @@ const Sidebar = ({ currentView, setCurrentView }) => {
       </nav>
       
       <div className="sidebar-footer">
-        <button
-          className={`nav-item settings-btn ${currentView === 'settings' ? 'active' : ''}`}
-          onClick={() => setCurrentView('settings')}
-        >
-          <span className="nav-icon">⚙️</span>
-          <span className="nav-label">{t('settings')}</span>
-        </button>
+        {hasPermission('view_settings') && (
+          <button
+            className={`nav-item settings-btn ${currentView === 'settings' ? 'active' : ''}`}
+            onClick={() => setCurrentView('settings')}
+          >
+            <span className="nav-icon">⚙️</span>
+            <span className="nav-label">{t('settings')}</span>
+          </button>
+        )}
       </div>
     </aside>
   )

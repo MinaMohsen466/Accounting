@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import { updateInvoicesStatus, getInvoiceNotifications, getDaysInfo } from '../utils/invoiceUtils'
 import InvoiceNotifications from './InvoiceNotifications'
+import PermissionDenied from './PermissionDenied'
 import './Invoices.css'
 
 const Invoices = () => {
@@ -18,6 +20,17 @@ const Invoices = () => {
     updateInventoryItem
   } = useAccounting()
   const { t, language, notificationsEnabled } = useLanguage()
+  const { hasPermission } = useAuth()
+
+  // Check if user has permission to view invoices
+  if (!hasPermission('view_invoices')) {
+    return (
+      <PermissionDenied 
+        message="ليس لديك صلاحية لعرض الفواتير"
+        description="تحتاج إلى صلاحية 'عرض الفواتير' للوصول إلى هذه الصفحة"
+      />
+    )
+  }
 
   const [showModal, setShowModal] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState(null)
@@ -373,8 +386,6 @@ const Invoices = () => {
         
         return aName.localeCompare(bName)
       }) || []
-      
-      console.log('Search term:', searchTerm, 'Results:', filtered.length) // Debug log
       
       setSearchResults(prev => ({
         ...prev,
@@ -1081,9 +1092,11 @@ const Invoices = () => {
     <div className="invoices">
       <div className="page-header">
         <h1>{t('invoicesManagement')}</h1>
-        <button className="btn btn-primary" onClick={() => openModal()}>
-          {t('createNewInvoice')}
-        </button>
+        {hasPermission('create_invoices') && (
+          <button className="btn btn-primary" onClick={() => openModal()}>
+            {t('createNewInvoice')}
+          </button>
+        )}
       </div>
 
       {notification && (
@@ -1273,24 +1286,30 @@ const Invoices = () => {
                   </td>
                   <td>
                     <div className="action-buttons">
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => openModal(invoice)}
-                      >
-                        {t('viewEdit')}
-                      </button>
-                      <button 
-                        className="btn btn-info btn-sm"
-                        onClick={() => printInvoice(invoice)}
-                      >
-                        {t('print')}
-                      </button>
-                      <button 
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete(invoice)}
-                      >
-                        {t('delete')}
-                      </button>
+                      {hasPermission('edit_invoices') && (
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => openModal(invoice)}
+                        >
+                          {t('viewEdit')}
+                        </button>
+                      )}
+                      {hasPermission('print_reports') && (
+                        <button 
+                          className="btn btn-info btn-sm"
+                          onClick={() => printInvoice(invoice)}
+                        >
+                          {t('print')}
+                        </button>
+                      )}
+                      {hasPermission('delete_invoices') && (
+                        <button 
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(invoice)}
+                        >
+                          {t('delete')}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

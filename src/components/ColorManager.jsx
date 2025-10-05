@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import { COLOR_SYSTEMS } from '../services/PaintProductService'
 import './ColorManager.css'
 
 const ColorManager = ({ onColorSelect, selectedColor, showModal, onClose }) => {
   const { t } = useLanguage()
+  const { hasPermission } = useAuth()
   const [colors, setColors] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSystem, setSelectedSystem] = useState('all')
@@ -123,17 +125,19 @@ const ColorManager = ({ onColorSelect, selectedColor, showModal, onClose }) => {
                 <option value="custom">{t('customColor')}</option>
               </select>
 
-              <button 
-                className="btn btn-primary"
-                onClick={() => setShowAddForm(!showAddForm)}
-              >
-                {showAddForm ? t('cancel') : t('addNewColor')}
-              </button>
+              {hasPermission('manage_inventory_items') && (
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => setShowAddForm(!showAddForm)}
+                >
+                  {showAddForm ? t('cancel') : t('addNewColor')}
+                </button>
+              )}
             </div>
           </div>
 
           {/* Add New Color Form */}
-          {showAddForm && (
+          {showAddForm && hasPermission('manage_inventory_items') && (
             <div className="add-color-form">
               <h3>{t('addNewColor')}</h3>
               <div className="form-grid">
@@ -266,15 +270,17 @@ const ColorManager = ({ onColorSelect, selectedColor, showModal, onClose }) => {
                   >
                     {t('select')}
                   </button>
-                  <button 
-                    className="btn-action btn-delete"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteColor(color.id)
-                    }}
-                  >
-                    {t('delete')}
-                  </button>
+                  {hasPermission('manage_inventory_items') && (
+                    <button 
+                      className="btn-action btn-delete"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteColor(color.id)
+                      }}
+                    >
+                      {t('delete')}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

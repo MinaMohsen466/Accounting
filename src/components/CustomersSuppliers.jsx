@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import { getOverdueInvoices, getInvoicesDueSoon, getDaysInfo } from '../utils/invoiceUtils'
+import PermissionDenied from './PermissionDenied'
 import './CustomersSuppliers.css'
 
 const CustomersSuppliers = () => {
@@ -17,6 +19,17 @@ const CustomersSuppliers = () => {
     deleteSupplier
   } = useAccounting()
   const { t, language } = useLanguage()
+  const { hasPermission } = useAuth()
+
+  // Check if user has permission to view customers and suppliers
+  if (!hasPermission('view_customers_suppliers')) {
+    return (
+      <PermissionDenied 
+        message="ليس لديك صلاحية لعرض العملاء والموردين"
+        description="تحتاج إلى صلاحية 'عرض العملاء والموردين' للوصول إلى هذه الصفحة"
+      />
+    )
+  }
 
   const [activeTab, setActiveTab] = useState('customers')
   const [showModal, setShowModal] = useState(false)
@@ -405,9 +418,11 @@ const CustomersSuppliers = () => {
               />
             </label>
           </div>
-          <button className="btn btn-primary" onClick={() => openModal()}>
-            {activeTab === 'customers' ? t('addNewCustomer') : t('addNewSupplier')}
-          </button>
+          {hasPermission('create_customers_suppliers') && (
+            <button className="btn btn-primary" onClick={() => openModal()}>
+              {activeTab === 'customers' ? t('addNewCustomer') : t('addNewSupplier')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -662,18 +677,22 @@ const CustomersSuppliers = () => {
                       </td>
                       <td>
                         <div className="action-buttons">
-                          <button 
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => openModal(item)}
-                          >
-                            {language === 'ar' ? 'تعديل' : 'Edit'}
-                          </button>
-                          <button 
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleDelete(item)}
-                          >
-                            {language === 'ar' ? 'حذف' : 'Delete'}
-                          </button>
+                          {hasPermission('edit_customers_suppliers') && (
+                            <button 
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => openModal(item)}
+                            >
+                              {language === 'ar' ? 'تعديل' : 'Edit'}
+                            </button>
+                          )}
+                          {hasPermission('delete_customers_suppliers') && (
+                            <button 
+                              className="btn btn-danger btn-sm"
+                              onClick={() => handleDelete(item)}
+                            >
+                              {language === 'ar' ? 'حذف' : 'Delete'}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -767,18 +786,22 @@ const CustomersSuppliers = () => {
                   </div>
 
                   <div className="card-actions">
-                    <button 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => openModal(item)}
-                    >
-                      {language === 'ar' ? 'تعديل' : 'Edit'}
-                    </button>
-                    <button 
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(item)}
-                    >
-                      {language === 'ar' ? 'حذف' : 'Delete'}
-                    </button>
+                    {hasPermission('edit_customers_suppliers') && (
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => openModal(item)}
+                      >
+                        {language === 'ar' ? 'تعديل' : 'Edit'}
+                      </button>
+                    )}
+                    {hasPermission('delete_customers_suppliers') && (
+                      <button 
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete(item)}
+                      >
+                        {language === 'ar' ? 'حذف' : 'Delete'}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

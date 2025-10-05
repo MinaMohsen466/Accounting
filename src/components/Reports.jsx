@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import PermissionDenied from './PermissionDenied'
 import './Reports.css'
 
 const Reports = () => {
@@ -13,6 +15,17 @@ const Reports = () => {
     inventoryItems
   } = useAccounting()
   const { t, language } = useLanguage()
+  const { hasPermission } = useAuth()
+
+  // Check if user has permission to view financial reports
+  if (!hasPermission('view_financial_reports')) {
+    return (
+      <PermissionDenied 
+        message="ليس لديك صلاحية لعرض التقارير المالية"
+        description="تحتاج إلى صلاحية 'عرض التقارير المالية' للوصول إلى هذه الصفحة"
+      />
+    )
+  }
 
   const [activeReport, setActiveReport] = useState('trialBalance')
   const [refreshKey, setRefreshKey] = useState(0)

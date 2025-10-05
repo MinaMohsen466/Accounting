@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import './AccountManagement.css'
 
 const AccountManagement = () => {
-  const { user, logout, changePassword } = useAuth()
+  const { user, logout, changePassword, hasPermission } = useAuth()
   const { language } = useLanguage()
   
   const [formData, setFormData] = useState({
@@ -128,13 +128,15 @@ const AccountManagement = () => {
           <div className="info-row">
             <span className="info-label">{language === 'ar' ? 'الاسم:' : 'Name:'}</span>
             <span className="info-value">{user?.name}</span>
-            <button 
-              className="edit-btn"
-              onClick={() => setShowNameForm(!showNameForm)}
-              disabled={isLoading}
-            >
-              {language === 'ar' ? 'تعديل' : 'Edit'}
-            </button>
+            {hasPermission('manage_user_account') && (
+              <button 
+                className="edit-btn"
+                onClick={() => setShowNameForm(!showNameForm)}
+                disabled={isLoading}
+              >
+                {language === 'ar' ? 'تعديل' : 'Edit'}
+              </button>
+            )}
           </div>
           
           <div className="info-row">
@@ -146,7 +148,7 @@ const AccountManagement = () => {
         </div>
 
         {/* Name Edit Form */}
-        {showNameForm && (
+        {showNameForm && hasPermission('manage_user_account') && (
           <form onSubmit={handleNameChange} className="edit-form">
             <h4>{language === 'ar' ? 'تعديل الاسم' : 'Edit Name'}</h4>
             <div className="form-group">
@@ -187,17 +189,19 @@ const AccountManagement = () => {
               <h4>{language === 'ar' ? 'كلمة المرور' : 'Password'}</h4>
               <p>{language === 'ar' ? 'تغيير كلمة مرور الحساب' : 'Change your account password'}</p>
             </div>
-            <button 
-              className="change-password-btn"
-              onClick={() => setShowPasswordForm(!showPasswordForm)}
-              disabled={isLoading}
-            >
-              {language === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}
-            </button>
+            {hasPermission('manage_user_account') && (
+              <button 
+                className="change-password-btn"
+                onClick={() => setShowPasswordForm(!showPasswordForm)}
+                disabled={isLoading}
+              >
+                {language === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}
+              </button>
+            )}
           </div>
 
           {/* Password Change Form */}
-          {showPasswordForm && (
+          {showPasswordForm && hasPermission('manage_user_account') && (
             <form onSubmit={handlePasswordChange} className="password-form">
               <div className="form-group">
                 <label>{language === 'ar' ? 'كلمة المرور الحالية:' : 'Current Password:'}</label>

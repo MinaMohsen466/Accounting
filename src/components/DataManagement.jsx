@@ -1,11 +1,25 @@
 import React, { useState } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import { ExportService } from '../services/ExportService'
 import { ImportService } from '../services/ImportService'
+import PermissionDenied from './PermissionDenied'
 import './DataManagement.css'
 
 const DataManagement = () => {
   const { t, language } = useLanguage()
+  const { hasPermission } = useAuth()
+
+  // Check if user has permission to manage data
+  if (!hasPermission('export_data') && !hasPermission('import_data')) {
+    return (
+      <PermissionDenied 
+        message="ليس لديك صلاحية لإدارة البيانات"
+        description="تحتاج إلى صلاحية 'تصدير البيانات' أو 'استيراد البيانات' للوصول إلى هذه الصفحة"
+      />
+    )
+  }
+
   const [isImportEnabled, setIsImportEnabled] = useState(false)
   const [importFile, setImportFile] = useState(null)
   const [importConfirmed, setImportConfirmed] = useState(false)
@@ -195,12 +209,14 @@ const DataManagement = () => {
         </div>
         
         <div className="export-controls">
-          <button 
-            className="btn btn-primary export-btn"
-            onClick={handleExportWithLocation}
-          >
-            📁 {t('exportWithLocation')}
-          </button>
+          {hasPermission('export_data') && (
+            <button 
+              className="btn btn-primary export-btn"
+              onClick={handleExportWithLocation}
+            >
+              📁 {t('exportWithLocation')}
+            </button>
+          )}
           
           <div className="export-info">
             <small>{t('exportInfo')}</small>
@@ -229,24 +245,26 @@ const DataManagement = () => {
         )}
 
         {/* تفعيل الاستيراد */}
-        <div className="import-toggle">
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={isImportEnabled}
-              onChange={toggleImportEnabled}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-          <span className="toggle-label">
-            {isImportEnabled ? t('importEnabled') : t('enableImport')}
-          </span>
-          {isImportEnabled && (
-            <span className="timer-warning">
-              ⏰ {t('autoDisableAfter30Seconds')}
+        {hasPermission('import_data') && (
+          <div className="import-toggle">
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={isImportEnabled}
+                onChange={toggleImportEnabled}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <span className="toggle-label">
+              {isImportEnabled ? t('importEnabled') : t('enableImport')}
             </span>
-          )}
-        </div>
+            {isImportEnabled && (
+              <span className="timer-warning">
+                ⏰ {t('autoDisableAfter30Seconds')}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* اختيار الملف */}
         {isImportEnabled && (
@@ -300,13 +318,15 @@ const DataManagement = () => {
 
                 {/* أزرار التحكم */}
                 <div className="import-actions">
-                  <button
-                    className="btn btn-danger import-btn"
-                    onClick={executeImport}
-                    disabled={!importConfirmed}
-                  >
-                    🔄 {t('executeImport')}
-                  </button>
+                  {hasPermission('import_data') && (
+                    <button
+                      className="btn btn-danger import-btn"
+                      onClick={executeImport}
+                      disabled={!importConfirmed}
+                    >
+                      🔄 {t('executeImport')}
+                    </button>
+                  )}
                   <button
                     className="btn btn-secondary"
                     onClick={resetImportState}

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import PermissionDenied from './PermissionDenied'
 import './ChartOfAccounts.css'
 
 const ChartOfAccounts = () => {
@@ -13,6 +15,17 @@ const ChartOfAccounts = () => {
     error 
   } = useAccounting()
   const { t, language } = useLanguage()
+  const { hasPermission } = useAuth()
+  
+  // Check if user has permission to view chart of accounts
+  if (!hasPermission('view_chart_of_accounts')) {
+    return (
+      <PermissionDenied 
+        message="ليس لديك صلاحية لعرض دليل الحسابات"
+        description="تحتاج إلى صلاحية 'عرض دليل الحسابات' للوصول إلى هذه الصفحة"
+      />
+    )
+  }
   
   const [showModal, setShowModal] = useState(false)
   const [editingAccount, setEditingAccount] = useState(null)
@@ -154,9 +167,11 @@ const ChartOfAccounts = () => {
     <div className="chart-of-accounts">
       <div className="page-header">
         <h1>{t('chartOfAccounts')}</h1>
-        <button className="btn btn-primary" onClick={() => openModal()}>
-          {t('addNewAccount')}
-        </button>
+        {hasPermission('create_accounts') && (
+          <button className="btn btn-primary" onClick={() => openModal()}>
+            {t('addNewAccount')}
+          </button>
+        )}
       </div>
 
       {notification && (
@@ -220,18 +235,22 @@ const ChartOfAccounts = () => {
                   <td>{accountTypes[account.type]}</td>
                   <td>{accountCategories[account.category]}</td>
                   <td>
-                    <button 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => openModal(account)}
-                    >
-                      {t('editAccount')}
-                    </button>
-                    <button 
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(account)}
-                    >
-                      {t('deleteAccount')}
-                    </button>
+                    {hasPermission('edit_accounts') && (
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => openModal(account)}
+                      >
+                        {t('editAccount')}
+                      </button>
+                    )}
+                    {hasPermission('delete_accounts') && (
+                      <button 
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete(account)}
+                      >
+                        {t('deleteAccount')}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

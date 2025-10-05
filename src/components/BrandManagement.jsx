@@ -1,11 +1,24 @@
 import React, { useState } from 'react'
 import { useBrand } from '../contexts/BrandContext'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import PermissionDenied from './PermissionDenied'
 import './BrandManagement.css'
 
 const BrandManagement = () => {
   const { brandSettings, saveBrandSettings, uploadImage, resetToDefaults } = useBrand()
   const { language } = useLanguage()
+  const { hasPermission } = useAuth()
+
+  // Check if user has permission to manage brand settings
+  if (!hasPermission('manage_brand_settings')) {
+    return (
+      <PermissionDenied 
+        message="ليس لديك صلاحية لإدارة الهوية البصرية"
+        description="تحتاج إلى صلاحية 'إدارة الهوية البصرية' للوصول إلى هذه الصفحة"
+      />
+    )
+  }
   
   const [formData, setFormData] = useState(brandSettings)
   const [uploading, setUploading] = useState({
@@ -290,18 +303,22 @@ const BrandManagement = () => {
 
       {/* أزرار الحفظ والإعادة تعيين */}
       <div className="brand-actions">
-        <button 
-          className="btn btn-secondary"
-          onClick={handleReset}
-        >
-          إعادة تعيين افتراضي
-        </button>
-        <button 
-          className="btn btn-primary"
-          onClick={handleSave}
-        >
-          حفظ التغييرات
-        </button>
+        {hasPermission('manage_brand_settings') && (
+          <>
+            <button 
+              className="btn btn-secondary"
+              onClick={handleReset}
+            >
+              إعادة تعيين افتراضي
+            </button>
+            <button 
+              className="btn btn-primary"
+              onClick={handleSave}
+            >
+              حفظ التغييرات
+            </button>
+          </>
+        )}
       </div>
 
       {/* معاينة سريعة */}

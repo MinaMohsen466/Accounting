@@ -1,12 +1,16 @@
 import React, { useState } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import DataManagement from './DataManagement'
 import AccountManagement from './AccountManagement'
 import BrandManagement from './BrandManagement'
+import UserManagement from './UserManagement'
+import SystemAdministration from './SystemAdministration'
 import './Settings.css'
 
 const Settings = () => {
   const { language, setLanguage, notificationsEnabled, setNotificationsEnabled, t, direction } = useLanguage()
+  const { user, hasPermission } = useAuth()
   const [activeTab, setActiveTab] = useState('general')
   
   // Settings states
@@ -26,26 +30,36 @@ const Settings = () => {
       label: t('generalSettings') || 'الإعدادات العامة',
       icon: '⚙️'
     },
-    {
+    ...(hasPermission('manage_user_account') ? [{
       id: 'account',
       label: language === 'ar' ? 'إدارة الحساب' : 'Account Management',
       icon: '👤'
-    },
-    {
+    }] : []),
+    ...(hasPermission('manage_users') ? [{
+      id: 'users',
+      label: language === 'ar' ? 'إدارة المستخدمين' : 'User Management',
+      icon: '👥'
+    }] : []),
+    ...(hasPermission('manage_brand_settings') ? [{
       id: 'brand',
       label: language === 'ar' ? 'الهوية البصرية' : 'Brand Identity',
       icon: '🎨'
-    },
+    }] : []),
     {
       id: 'language',
       label: t('languageSettings') || 'إعدادات اللغة',
       icon: '🌐'
     },
-    {
+    ...(hasPermission('export_data') || hasPermission('import_data') ? [{
       id: 'data',
       label: t('dataManagement') || 'إدارة البيانات',
       icon: '💾'
-    }
+    }] : []),
+    ...(hasPermission('system_maintenance') || hasPermission('view_system_logs') || hasPermission('manage_system_backups') ? [{
+      id: 'system',
+      label: language === 'ar' ? 'إدارة النظام' : 'System Administration',
+      icon: '🔧'
+    }] : [])
   ]
 
   const handleLanguageChange = (newLanguage) => {
@@ -137,12 +151,14 @@ const Settings = () => {
                   <h4>العربية</h4>
                   <p>اللغة العربية</p>
                 </div>
-                <button 
-                  className={`language-btn ${language === 'ar' ? 'active' : ''}`}
-                  onClick={() => handleLanguageChange('ar')}
-                >
-                  {language === 'ar' ? '✓ مفعل' : 'تفعيل'}
-                </button>
+                {hasPermission('change_language') && (
+                  <button 
+                    className={`language-btn ${language === 'ar' ? 'active' : ''}`}
+                    onClick={() => handleLanguageChange('ar')}
+                  >
+                    {language === 'ar' ? '✓ مفعل' : 'تفعيل'}
+                  </button>
+                )}
               </div>
               
               <div 
@@ -154,12 +170,14 @@ const Settings = () => {
                   <h4>English</h4>
                   <p>English Language</p>
                 </div>
-                <button 
-                  className={`language-btn ${language === 'en' ? 'active' : ''}`}
-                  onClick={() => handleLanguageChange('en')}
-                >
-                  {language === 'en' ? '✓ Active' : 'Activate'}
-                </button>
+                {hasPermission('change_language') && (
+                  <button 
+                    className={`language-btn ${language === 'en' ? 'active' : ''}`}
+                    onClick={() => handleLanguageChange('en')}
+                  >
+                    {language === 'en' ? '✓ Active' : 'Activate'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -169,6 +187,13 @@ const Settings = () => {
         return (
           <div className="settings-section">
             <AccountManagement />
+          </div>
+        )
+      
+      case 'users':
+        return (
+          <div className="settings-section">
+            <UserManagement />
           </div>
         )
       
@@ -186,6 +211,13 @@ const Settings = () => {
             <div className="data-management-wrapper">
               <DataManagement />
             </div>
+          </div>
+        )
+      
+      case 'system':
+        return (
+          <div className="settings-section">
+            <SystemAdministration />
           </div>
         )
       

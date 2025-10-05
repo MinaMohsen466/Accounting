@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import PermissionDenied from './PermissionDenied'
 import './JournalEntries.css'
 
 const JournalEntries = () => {
@@ -12,6 +14,17 @@ const JournalEntries = () => {
     deleteJournalEntry 
   } = useAccounting()
   const { t, language } = useLanguage()
+  const { hasPermission } = useAuth()
+
+  // Check if user has permission to view journal entries
+  if (!hasPermission('view_journal_entries')) {
+    return (
+      <PermissionDenied 
+        message="ليس لديك صلاحية لعرض القيود اليومية"
+        description="تحتاج إلى صلاحية 'عرض القيود اليومية' للوصول إلى هذه الصفحة"
+      />
+    )
+  }
 
   const [showModal, setShowModal] = useState(false)
   const [editingEntry, setEditingEntry] = useState(null)
@@ -188,9 +201,11 @@ const JournalEntries = () => {
     <div className="journal-entries">
       <div className="page-header">
         <h1>{t('journalEntries')}</h1>
-        <button className="btn btn-primary" onClick={() => openModal()}>
-          {t('journalEntriesAdd')}
-        </button>
+        {hasPermission('create_journal_entries') && (
+          <button className="btn btn-primary" onClick={() => openModal()}>
+            {t('journalEntriesAdd')}
+          </button>
+        )}
       </div>
 
       {notification && (
@@ -227,18 +242,22 @@ const JournalEntries = () => {
                     <td>{totalDebit.toFixed(2)}</td>
                     <td>{totalCredit.toFixed(2)}</td>
                     <td>
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => openModal(entry)}
-                      >
-                        {t('view')}/{t('edit')}
-                      </button>
-                      <button 
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete(entry)}
-                      >
-                        {t('delete')}
-                      </button>
+                      {hasPermission('edit_journal_entries') && (
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => openModal(entry)}
+                        >
+                          {t('view')}/{t('edit')}
+                        </button>
+                      )}
+                      {hasPermission('delete_journal_entries') && (
+                        <button 
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(entry)}
+                        >
+                          {t('delete')}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )

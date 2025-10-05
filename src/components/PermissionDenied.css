@@ -1,0 +1,117 @@
+/* Permission Denied Styles */
+.permission-denied {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 40px 20px;
+}
+
+.permission-denied-content {
+  text-align: center;
+  max-width: 500px;
+  padding: 40px;
+  background: var(--card-bg, #ffffff);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.permission-denied-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  opacity: 0.8;
+}
+
+.permission-denied-content h3 {
+  color: var(--error-color, #ef4444);
+  margin: 0 0 16px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.permission-denied-message {
+  color: var(--text-primary, #1e293b);
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin: 0 0 12px 0;
+}
+
+.permission-denied-description {
+  color: var(--text-secondary, #64748b);
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.permission-denied-suggestions {
+  background: var(--section-bg, #f9fafb);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 24px;
+  text-align: right;
+}
+
+.permission-denied-suggestions h4 {
+  color: var(--text-primary, #1e293b);
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.permission-denied-suggestions ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.permission-denied-suggestions li {
+  color: var(--text-secondary, #64748b);
+  padding: 6px 0;
+  font-size: 0.9rem;
+  position: relative;
+  padding-right: 20px;
+}
+
+.permission-denied-suggestions li:before {
+  content: "•";
+  color: var(--primary-color, #3b82f6);
+  font-weight: bold;
+  position: absolute;
+  right: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .permission-denied {
+    padding: 20px;
+    min-height: 50vh;
+  }
+  
+  .permission-denied-content {
+    padding: 24px;
+  }
+  
+  .permission-denied-icon {
+    font-size: 3rem;
+  }
+  
+  .permission-denied-content h3 {
+    font-size: 1.3rem;
+  }
+  
+  .permission-denied-message {
+    font-size: 1rem;
+  }
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .permission-denied-suggestions {
+  background: rgba(55, 65, 81, 0.3);
+}
+
+[data-theme="dark"] .permission-denied-suggestions li:before {
+  color: #60a5fa;
+}

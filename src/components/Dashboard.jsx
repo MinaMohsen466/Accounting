@@ -1,5 +1,6 @@
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import InvoiceNotifications from './InvoiceNotifications'
 import ExpiryAlerts from './ExpiryAlerts'
 import StockAlerts from './StockAlerts'
@@ -16,6 +17,7 @@ const Dashboard = ({ onNavigate }) => {
   } = useAccounting()
 
   const { t, language, notificationsEnabled } = useLanguage()
+  const { hasPermission } = useAuth()
 
   if (loading) {
     return <div className="loading">{t('loading')}</div>
@@ -89,121 +91,134 @@ const Dashboard = ({ onNavigate }) => {
 
       {/* Main Statistics */}
       <div className="dashboard-stats">
-        <div className="stat-card">
-          <div className="stat-icon">📊</div>
-          <div className="stat-info">
-            <h3>{t('accountsCount')}</h3>
-            <p>{accounts.length}</p>
-            <span>{t('accountsRegistered')}</span>
+        {hasPermission('view_chart_of_accounts') && (
+          <div className="stat-card">
+            <div className="stat-icon">📊</div>
+            <div className="stat-info">
+              <h3>{t('accountsCount')}</h3>
+              <p>{accounts.length}</p>
+              <span>{t('accountsRegistered')}</span>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="stat-card">
-          <div className="stat-icon">📝</div>
-          <div className="stat-info">
-            <h3>{t('entriesCount')}</h3>
-            <p>{journalEntries.length}</p>
-            <span>{t('entriesRecorded')}</span>
+        {hasPermission('view_journal_entries') && (
+          <div className="stat-card">
+            <div className="stat-icon">📝</div>
+            <div className="stat-info">
+              <h3>{t('entriesCount')}</h3>
+              <p>{journalEntries.length}</p>
+              <span>{t('entriesRecorded')}</span>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="stat-card">
-          <div className="stat-icon">🧾</div>
-          <div className="stat-info">
-            <h3>{t('invoicesCount')}</h3>
-            <p>{invoices.length}</p>
-            <span>{t('invoicesIssued')}</span>
+        {hasPermission('view_invoices') && (
+          <div className="stat-card">
+            <div className="stat-icon">🧾</div>
+            <div className="stat-info">
+              <h3>{t('invoicesCount')}</h3>
+              <p>{invoices.length}</p>
+              <span>{t('invoicesIssued')}</span>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="stat-card">
-          <div className="stat-icon">👥</div>
-          <div className="stat-info">
-            <h3>{t('clientsCount')}</h3>
-            <p>{customers.length + suppliers.length}</p>
-            <span>{t('clientsAndSuppliers')}</span>
+        {hasPermission('view_customers_suppliers') && (
+          <div className="stat-card">
+            <div className="stat-icon">👥</div>
+            <div className="stat-info">
+              <h3>{t('clientsCount')}</h3>
+              <p>{customers.length + suppliers.length}</p>
+              <span>{t('clientsAndSuppliers')}</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Sales & Purchase Overview */}
-      <div className="overview-section">
-        <div className="overview-card sales">
-          <h3>📈 {t('salesOverview')}</h3>
-          <div className="overview-stats">
-            <div className="overview-item">
-              <label>{t('salesInvoicesCount')}</label>
-              <span>{totalSalesInvoices}</span>
-            </div>
-            <div className="overview-item">
-              <label>{t('totalSalesAmount')}</label>
-              <span className="amount">{totalSalesAmount.toFixed(2)} {t('currency')}</span>
-            </div>
-            <div className="overview-item">
-              <label>{t('averageInvoiceAmount')}</label>
-              <span className="amount">
-                {totalSalesInvoices > 0 ? (totalSalesAmount / totalSalesInvoices).toFixed(2) : '0.00'} {t('currency')}
-              </span>
+      {hasPermission('view_invoices') && (
+        <div className="overview-section">
+          <div className="overview-card sales">
+            <h3>📈 {t('salesOverview')}</h3>
+            <div className="overview-stats">
+              <div className="overview-item">
+                <label>{t('salesInvoicesCount')}</label>
+                <span>{totalSalesInvoices}</span>
+              </div>
+              <div className="overview-item">
+                <label>{t('totalSalesAmount')}</label>
+                <span className="amount">{totalSalesAmount.toFixed(2)} {t('currency')}</span>
+              </div>
+              <div className="overview-item">
+                <label>{t('averageInvoiceAmount')}</label>
+                <span className="amount">
+                  {totalSalesInvoices > 0 ? (totalSalesAmount / totalSalesInvoices).toFixed(2) : '0.00'} {t('currency')}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="overview-card purchases">
-          <h3>📉 {t('purchaseOverview')}</h3>
-          <div className="overview-stats">
-            <div className="overview-item">
-              <label>{t('purchaseInvoicesCount')}</label>
-              <span>{totalPurchaseInvoices}</span>
-            </div>
-            <div className="overview-item">
-              <label>{t('totalPurchaseAmount')}</label>
-              <span className="amount">{totalPurchaseAmount.toFixed(2)} {t('currency')}</span>
-            </div>
-            <div className="overview-item">
-              <label>{t('averageInvoiceAmount')}</label>
-              <span className="amount">
-                {totalPurchaseInvoices > 0 ? (totalPurchaseAmount / totalPurchaseInvoices).toFixed(2) : '0.00'} {t('currency')}
-              </span>
+          <div className="overview-card purchases">
+            <h3>📉 {t('purchaseOverview')}</h3>
+            <div className="overview-stats">
+              <div className="overview-item">
+                <label>{t('purchaseInvoicesCount')}</label>
+                <span>{totalPurchaseInvoices}</span>
+              </div>
+              <div className="overview-item">
+                <label>{t('totalPurchaseAmount')}</label>
+                <span className="amount">{totalPurchaseAmount.toFixed(2)} {t('currency')}</span>
+              </div>
+              <div className="overview-item">
+                <label>{t('averageInvoiceAmount')}</label>
+                <span className="amount">
+                  {totalPurchaseInvoices > 0 ? (totalPurchaseAmount / totalPurchaseInvoices).toFixed(2) : '0.00'} {t('currency')}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Recent Activities */}
       <div className="recent-activities">
-        <div className="activity-section">
-          <h3>{t('recentEntries')}</h3>
-          {recentEntries.length > 0 ? (
-            <div className="activity-list">
-              {recentEntries.map(entry => (
-                <div key={entry.id} className="activity-item">
-                  <div className="activity-icon">📝</div>
-                  <div className="activity-details">
-                    <div className="activity-title">
-                      {language === 'ar' 
-                        ? `القيد رقم ${entry.entryNumber}`
-                        : `Entry #${entry.entryNumber}`
-                      }
+        {hasPermission('view_journal_entries') && (
+          <div className="activity-section">
+            <h3>{t('recentEntries')}</h3>
+            {recentEntries.length > 0 ? (
+              <div className="activity-list">
+                {recentEntries.map(entry => (
+                  <div key={entry.id} className="activity-item">
+                    <div className="activity-icon">📝</div>
+                    <div className="activity-details">
+                      <div className="activity-title">
+                        {language === 'ar' 
+                          ? `القيد رقم ${entry.entryNumber}`
+                          : `Entry #${entry.entryNumber}`
+                        }
+                      </div>
+                      <div className="activity-desc">{entry.description}</div>
+                      <div className="activity-date">
+                        {formatDate(entry.date)}
+                      </div>
                     </div>
-                    <div className="activity-desc">{entry.description}</div>
-                    <div className="activity-date">
-                      {formatDate(entry.date)}
+                    <div className="activity-amount">
+                      {entry.lines?.reduce((sum, line) => sum + (parseFloat(line.debit) || 0), 0).toFixed(2)} {t('currency')}
                     </div>
                   </div>
-                  <div className="activity-amount">
-                    {entry.lines?.reduce((sum, line) => sum + (parseFloat(line.debit) || 0), 0).toFixed(2)} {t('currency')}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-activity">{t('noEntriesYet')}</div>
-          )}
-        </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-activity">{t('noEntriesYet')}</div>
+            )}
+          </div>
+        )}
 
-        <div className="activity-section">
-          <h3>{t('recentInvoices')}</h3>
-          {recentInvoices.length > 0 ? (
+        {hasPermission('view_invoices') && (
+          <div className="activity-section">
+            <h3>{t('recentInvoices')}</h3>
+            {recentInvoices.length > 0 ? (
             <div className="activity-list">
               {recentInvoices.map(invoice => (
                 <div key={invoice.id} className="activity-item">
@@ -231,7 +246,8 @@ const Dashboard = ({ onNavigate }) => {
           ) : (
             <div className="empty-activity">{t('noInvoicesYet')}</div>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
@@ -239,31 +255,41 @@ const Dashboard = ({ onNavigate }) => {
         <h3>{t('quickActions')}</h3>
         <div className="actions-container">
           <div className="actions-grid">
-            <div className="action-card" onClick={handleAddNewEntry} style={{cursor: 'pointer'}}>
-              <div className="action-icon">📝</div>
-              <h4>{t('addNewEntry')}</h4>
-              <p>{t('addNewEntryDesc')}</p>
-            </div>
-            <div className="action-card" onClick={handleCreateInvoice} style={{cursor: 'pointer'}}>
-              <div className="action-icon">🧾</div>
-              <h4>{t('createInvoice')}</h4>
-              <p>{t('createInvoiceDesc')}</p>
-            </div>
-            <div className="action-card" onClick={handleAddClient} style={{cursor: 'pointer'}}>
-              <div className="action-icon">👤</div>
-              <h4>{t('addClient')}</h4>
-              <p>{t('addClientDesc')}</p>
-            </div>
-            <div className="action-card" onClick={handleViewReports} style={{cursor: 'pointer'}}>
-              <div className="action-icon">📈</div>
-              <h4>{t('viewReports')}</h4>
-              <p>{t('viewReportsDesc')}</p>
-            </div>
-            <div className="action-card" onClick={handleOpenSettings} style={{cursor: 'pointer'}}>
-              <div className="action-icon">⚙️</div>
-              <h4>{t('settings')}</h4>
-              <p>{t('settingsDescription')}</p>
-            </div>
+            {hasPermission('create_journal_entries') && (
+              <div className="action-card" onClick={handleAddNewEntry} style={{cursor: 'pointer'}}>
+                <div className="action-icon">📝</div>
+                <h4>{t('addNewEntry')}</h4>
+                <p>{t('addNewEntryDesc')}</p>
+              </div>
+            )}
+            {hasPermission('create_invoices') && (
+              <div className="action-card" onClick={handleCreateInvoice} style={{cursor: 'pointer'}}>
+                <div className="action-icon">🧾</div>
+                <h4>{t('createInvoice')}</h4>
+                <p>{t('createInvoiceDesc')}</p>
+              </div>
+            )}
+            {hasPermission('create_customers_suppliers') && (
+              <div className="action-card" onClick={handleAddClient} style={{cursor: 'pointer'}}>
+                <div className="action-icon">👤</div>
+                <h4>{t('addClient')}</h4>
+                <p>{t('addClientDesc')}</p>
+              </div>
+            )}
+            {hasPermission('view_financial_reports') && (
+              <div className="action-card" onClick={handleViewReports} style={{cursor: 'pointer'}}>
+                <div className="action-icon">📈</div>
+                <h4>{t('viewReports')}</h4>
+                <p>{t('viewReportsDesc')}</p>
+              </div>
+            )}
+            {hasPermission('view_settings') && (
+              <div className="action-card" onClick={handleOpenSettings} style={{cursor: 'pointer'}}>
+                <div className="action-icon">⚙️</div>
+                <h4>{t('settings')}</h4>
+                <p>{t('settingsDescription')}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

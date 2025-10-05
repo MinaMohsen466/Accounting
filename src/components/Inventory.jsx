@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import { 
   PRODUCT_CATEGORIES, 
   MEASUREMENT_UNITS, 
@@ -10,6 +11,7 @@ import {
 } from '../services/PaintProductService'
 import ColorManager from './ColorManager'
 import UnitConverter from './UnitConverter'
+import PermissionDenied from './PermissionDenied'
 import './Inventory.css'
 
 const Inventory = () => {
@@ -20,6 +22,17 @@ const Inventory = () => {
     deleteInventoryItem
   } = useAccounting()
   const { t, language } = useLanguage()
+  const { hasPermission } = useAuth()
+
+  // Check if user has permission to view inventory
+  if (!hasPermission('view_inventory')) {
+    return (
+      <PermissionDenied 
+        message="ليس لديك صلاحية لعرض المخزون"
+        description="تحتاج إلى صلاحية 'عرض المخزون' للوصول إلى هذه الصفحة"
+      />
+    )
+  }
 
   // Get unique categories from existing items only
   const existingCategories = [...new Set(inventoryItems?.map(item => item.category).filter(Boolean))].sort()
@@ -292,9 +305,11 @@ const Inventory = () => {
           >
             🔄 {t('unitConverter')}
           </button>
-          <button className="btn btn-primary" onClick={() => openModal()}>
-            {t('addProduct')}
-          </button>
+          {hasPermission('create_inventory_items') && (
+            <button className="btn btn-primary" onClick={() => openModal()}>
+              {t('addProduct')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -471,18 +486,22 @@ const Inventory = () => {
                   <td className="selling-price">{(item.price || item.unitPrice || 0).toFixed(3)} {t('kwd')}</td>
                   <td className="total-value">{(item.quantity * (item.price || item.unitPrice || 0)).toFixed(3)} {t('kwd')}</td>
                   <td>
-                    <button 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => openModal(item)}
-                    >
-                      {t('edit')}
-                    </button>
-                    <button 
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(item)}
-                    >
-                      {t('delete')}
-                    </button>
+                    {hasPermission('edit_inventory_items') && (
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => openModal(item)}
+                      >
+                        {t('edit')}
+                      </button>
+                    )}
+                    {hasPermission('delete_inventory_items') && (
+                      <button 
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete(item)}
+                      >
+                        {t('delete')}
+                      </button>
+                    )}
                   </td>
                 </tr>
                 )
