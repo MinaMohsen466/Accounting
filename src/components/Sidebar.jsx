@@ -2,10 +2,12 @@ import { useState } from 'react'
 import './Sidebar.css'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useBrand } from '../contexts/BrandContext'
 
 const Sidebar = ({ currentView, setCurrentView }) => {
   const { t, direction, language } = useLanguage()
   const { user, logout } = useAuth()
+  const { brandSettings } = useBrand()
   const [showUserMenu, setShowUserMenu] = useState(false)
   
   const menuItems = [
@@ -27,7 +29,28 @@ const Sidebar = ({ currentView, setCurrentView }) => {
   return (
     <aside className={`sidebar ${direction}`}>
       <div className="sidebar-header">
-        <h2>{t('appTitle')}</h2>
+        {brandSettings.logoUrl && (
+          <div className="app-logo">
+            <img 
+              src={brandSettings.logoUrl} 
+              alt="Company Logo" 
+              className="logo-image"
+              onError={(e) => {
+                e.target.style.display = 'none'
+              }}
+            />
+          </div>
+        )}
+        <div className="app-info">
+          <h2 className="app-title">
+            {language === 'ar' ? brandSettings.appName : brandSettings.appNameEn}
+          </h2>
+          {(brandSettings.tagline || brandSettings.taglineEn) && (
+            <p className="app-tagline">
+              {language === 'ar' ? brandSettings.tagline : brandSettings.taglineEn}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* User Info */}

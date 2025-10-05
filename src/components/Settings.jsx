@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import DataManagement from './DataManagement'
 import AccountManagement from './AccountManagement'
+import BrandManagement from './BrandManagement'
 import './Settings.css'
 
 const Settings = () => {
@@ -29,6 +30,11 @@ const Settings = () => {
       id: 'account',
       label: language === 'ar' ? 'إدارة الحساب' : 'Account Management',
       icon: '👤'
+    },
+    {
+      id: 'brand',
+      label: language === 'ar' ? 'الهوية البصرية' : 'Brand Identity',
+      icon: '🎨'
     },
     {
       id: 'language',
@@ -163,6 +169,13 @@ const Settings = () => {
         return (
           <div className="settings-section">
             <AccountManagement />
+          </div>
+        )
+      
+      case 'brand':
+        return (
+          <div className="settings-section">
+            <BrandManagement />
           </div>
         )
       

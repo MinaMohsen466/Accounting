@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { BrandProvider } from './contexts/BrandContext'
 
 // Import Components
 import Sidebar from './components/Sidebar'
@@ -64,11 +65,13 @@ const AppContent = () => {
 
 function App() {
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </LanguageProvider>
+    <BrandProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </LanguageProvider>
+    </BrandProvider>
   )
 }
 
