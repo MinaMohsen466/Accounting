@@ -953,6 +953,23 @@ const Invoices = () => {
             line-height: 1.2;
           }
           
+          /* تنسيق عمود الرقم المسلسل في الطباعة */
+          .items-table th:first-child {
+            background: #333;
+            color: white;
+            text-align: center;
+            width: 40px;
+            font-weight: bold;
+          }
+          
+          .items-table td:first-child {
+            background: #f8f9fa;
+            color: #495057;
+            text-align: center;
+            font-weight: bold;
+            border-right: 2px solid #007bff;
+          }
+          
           .items-table td {
             padding: 6px 6px;
             border: 1px solid #ccc;
@@ -1271,6 +1288,7 @@ const Invoices = () => {
             <table class="items-table">
               <thead>
                 <tr>
+                  <th style="width: 40px; text-align: center;">#</th>
                   <th>${language === 'ar' ? 'العنصر | Item' : 'Item | العنصر'}</th>
                   <th>${language === 'ar' ? 'اللون | Color' : 'Color | اللون'}</th>
                   <th>${language === 'ar' ? 'الكمية | Qty' : 'Qty | الكمية'}</th>
@@ -1280,7 +1298,7 @@ const Invoices = () => {
                 </tr>
               </thead>
               <tbody>
-                ${invoice.items?.map(item => {
+                ${invoice.items?.map((item, index) => {
                   const discountAmount = item.discountAmount || 0;
                   const discountDisplay = discountAmount > 0 ? discountAmount.toFixed(2) : '-';
                   
@@ -1303,6 +1321,7 @@ const Invoices = () => {
                   
                   return `
                     <tr>
+                      <td style="text-align: center; font-weight: bold; background: #f8f9fa; color: #495057;">${index + 1}</td>
                       <td class="item-name">${item.itemName}</td>
                       <td class="color-cell">${colorDisplay}</td>
                       <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
@@ -1429,11 +1448,6 @@ const Invoices = () => {
     // Validation
     if (!formData.clientId) {
       showNotification(t('selectClientSupplier'), 'error')
-      return
-    }
-
-    if (!formData.description) {
-      showNotification(t('enterInvoiceDescription'), 'error')
       return
     }
 
@@ -1752,7 +1766,7 @@ const Invoices = () => {
       {/* Invoices Table */}
       <div className="table-container">
         {filteredInvoices.length > 0 ? (
-          <table>
+          <table className="invoices-table">
             <thead>
               <tr>
                 <th>{t('invoiceNum')}</th>
@@ -1871,19 +1885,20 @@ const Invoices = () => {
               <button className="close-btn" onClick={closeModal}>&times;</button>
             </div>
             
-            <form onSubmit={handleSubmit}>
-              {/* Invoice Header */}
-              <div className="invoice-header">
-                <div className="form-group">
-                  <label>{t('invoiceType')} *</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value, clientId: '', clientName: '' }))}
-                    disabled={editingInvoice}
-                  >
-                    <option value="sales">{t('salesInvoice')}</option>
-                    <option value="purchase">{t('purchaseInvoice')}</option>
-                  </select>
+            <div className="invoice-modal-body">
+              <form onSubmit={handleSubmit}>
+                {/* Invoice Header */}
+                <div className="invoice-header">
+                  <div className="form-group">
+                    <label>{t('invoiceType')} *</label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value, clientId: '', clientName: '' }))}
+                      disabled={editingInvoice}
+                    >
+                      <option value="sales">{t('salesInvoice')}</option>
+                      <option value="purchase">{t('purchaseInvoice')}</option>
+                    </select>
                 </div>
 
                 <div className="form-group">
@@ -1936,13 +1951,12 @@ const Invoices = () => {
               </div>
 
               <div className="form-group">
-                <label>{t('invoiceDescription')} *</label>
+                <label>{t('invoiceDescription')}</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   placeholder={t('invoiceDescriptionPlaceholder')}
                   rows="2"
-                  required
                 />
               </div>
 
@@ -1959,6 +1973,7 @@ const Invoices = () => {
                   <table className="items-table">
                     <thead>
                       <tr>
+                        <th style={{width: '50px', textAlign: 'center'}}>#</th>
                         <th>{t('products')}</th>
                         <th>{language === 'ar' ? 'اللون' : 'Color'}</th>
                         <th>{t('quantity')}</th>
@@ -1971,10 +1986,14 @@ const Invoices = () => {
                     <tbody>
                       {formData.items.map((item, index) => (
                         <tr key={index}>
+                          <td style={{textAlign: 'center', fontWeight: 'bold', backgroundColor: '#f8f9fa'}}>
+                            {index + 1}
+                          </td>
                           <td>
                             <div 
                               className="product-select-container"
                               ref={el => dropdownRefs.current[index] = el}
+                              style={{ position: 'relative' }}
                             >
                               <div className="product-search-wrapper">
                                 <input
@@ -1987,55 +2006,6 @@ const Invoices = () => {
                                   required
                                 />
                               </div>
-                              {searchResults[index] && (
-                                <div 
-                                  className="product-dropdown"
-                                  style={getDropdownStyle(index)}
-                                >
-                                  {searchResults[index].length > 0 ? (
-                                    searchResults[index].map(product => (
-                                      <div
-                                        key={product.id}
-                                        className="product-option"
-                                        onClick={() => selectProduct(index, product)}
-                                      >
-                                        <div className="product-header">
-                                          <span className="product-name">{product.name}</span>
-                                          {product.category && (
-                                            <span className="product-category">{product.category}</span>
-                                          )}
-                                        </div>
-                                        <div className="product-details">
-                                          <div className="product-info">
-                                            <span className="product-sku">
-                                              <strong>SKU:</strong> {product.sku}
-                                            </span>
-                                            {product.quantity !== undefined && (
-                                              product.quantity > 0 ? (
-                                                <span className="stock-available"> • {t('available')}: {product.quantity}</span>
-                                              ) : (
-                                                <span className="stock-out"> • {t('notAvailable')}</span>
-                                              )
-                                            )}
-                                          </div>
-                                          <span className="product-price">
-                                            {(product.price || product.unitPrice || 0).toFixed(3)} {t('kwd')}
-                                          </span>
-                                        </div>
-                                        {product.description && (
-                                          <div className="product-description">
-                                            {product.description}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <div className="product-dropdown-empty">
-                                      🔍 {t('noProductsFound')}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
                             </div>
                           </td>
                           {/* Color Selection Column */}
@@ -2181,21 +2151,84 @@ const Invoices = () => {
                             </div>
                           </td>
                           <td>
-                            {formData.items.length > 1 && (
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-sm"
-                                onClick={() => removeItem(index)}
-                              >
-                                {t('delete')}
-                              </button>
-                            )}
+                            <div className="action-buttons">
+                              {formData.items.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => removeItem(index)}
+                                >
+                                  {t('delete')}
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Product Search Dropdowns - خارج الجدول للظهور فوق كل شيء */}
+                {Object.keys(searchResults).map(itemIndex => (
+                  searchResults[itemIndex] && (
+                    <div
+                      key={itemIndex}
+                      className="product-dropdown-overlay"
+                      style={{
+                        position: 'fixed',
+                        top: getDropdownStyle(parseInt(itemIndex)).top || '50%',
+                        left: getDropdownStyle(parseInt(itemIndex)).left || '50%',
+                        width: getDropdownStyle(parseInt(itemIndex)).width || '300px',
+                        backgroundColor: 'white',
+                        border: '2px solid #007bff',
+                        borderRadius: '8px',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                        zIndex: 999999,
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        marginTop: '2px'
+                      }}
+                      ref={el => dropdownRefs.current[itemIndex] = el}
+                    >
+                      {searchResults[itemIndex].length > 0 ? (
+                        searchResults[itemIndex].map(product => (
+                          <div
+                            key={product.id}
+                            className="product-option"
+                            onClick={() => selectProduct(parseInt(itemIndex), product)}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #eee',
+                              backgroundColor: 'white'
+                            }}
+                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                          >
+                            <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '4px' }}>
+                              {product.name}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#666' }}>
+                              SKU: {product.sku} • {(product.price || product.unitPrice || 0).toFixed(3)} {t('kwd')}
+                              {product.quantity !== undefined && (
+                                product.quantity > 0 ? (
+                                  <span style={{ color: 'green' }}> • متوفر: {product.quantity}</span>
+                                ) : (
+                                  <span style={{ color: 'red' }}> • غير متوفر</span>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: '12px 16px', color: '#666', textAlign: 'center' }}>
+                          🔍 لا توجد منتجات
+                        </div>
+                      )}
+                    </div>
+                  )
+                ))}
 
                 {/* Invoice Totals */}
                 <div className="invoice-totals">
@@ -2296,6 +2329,7 @@ const Invoices = () => {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

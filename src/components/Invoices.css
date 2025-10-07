@@ -1,3 +1,28 @@
+/* تحسين تمرير المحتوى العام */
+* {
+  scroll-behavior: smooth;
+}
+
+/* تخصيص شريط التمرير العام */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
 /* Invoices Specific Styles */
 .invoices {
   max-width: 1400px;
@@ -7,10 +32,103 @@
 .invoice-modal {
   max-width: 1000px;
   width: 95%;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: 85vh;
+  overflow: hidden;
   position: relative;
   z-index: 1000;
+  padding: 0;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+/* منطقة التمرير داخل النموذج */
+.invoice-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 15px 15px 0 15px;
+  max-height: calc(85vh - 100px);
+}
+
+/* تحسين التمرير */
+.invoice-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.invoice-modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.invoice-modal-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.invoice-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* أزرار نموذج الفاتورة */
+.invoice-modal .modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 20px;
+  border-top: 1px solid #dee2e6;
+  background: white;
+  position: sticky;
+  bottom: 0;
+  margin: 0;
+  z-index: 10;
+  border-radius: 0;
+}
+
+.invoice-modal .modal-actions .btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.invoice-modal .modal-actions .btn-primary {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+}
+
+.invoice-modal .modal-actions .btn-primary:hover {
+  background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.invoice-modal .modal-actions .btn-secondary {
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+}
+
+.invoice-modal .modal-actions .btn-secondary:hover {
+  background: #e9ecef;
+  color: #495057;
+  border-color: #adb5bd;
+}
+
+.invoice-modal .modal-actions .btn-info {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+}
+
+.invoice-modal .modal-actions .btn-info:hover {
+  background: linear-gradient(135deg, #138496 0%, #0f6674 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
 }
 
 .invoice-tabs {
@@ -148,11 +266,34 @@
 
 .items-table-container {
   overflow-x: auto;
+  overflow-y: visible;
   margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background: white;
+}
+
+/* تبسيط تمرير جدول العناصر */
+.items-table-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.items-table-container::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+.items-table-container::-webkit-scrollbar-thumb {
+  background: #dee2e6;
+  border-radius: 3px;
+}
+
+.items-table-container::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
 }
 
 .items-table {
   width: 100%;
+  min-width: 800px; /* تقليل العرض الأدنى */
   border-collapse: collapse;
   background: white;
 }
@@ -172,16 +313,115 @@
   vertical-align: middle;
 }
 
+/* تنسيق عمود الرقم المسلسل */
+.items-table td:first-child {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  font-weight: bold;
+  text-align: center;
+  color: #495057;
+  width: 50px;
+  min-width: 50px;
+  font-size: 14px;
+  border-right: 2px solid #007bff;
+}
+
+.items-table th:first-child {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+  text-align: center;
+  width: 7%;
+  font-weight: bold;
+}
+
+/* تحديد عرض الأعمدة لتحسين التوزيع - المجموع = 100% */
+.items-table th:nth-child(2) { /* المنتجات */
+  width: 25% !important;
+}
+
+.items-table th:nth-child(3) { /* اللون */
+  width: 14% !important;
+}
+
+.items-table th:nth-child(4) { /* الكمية */
+  width: 4% !important;
+}
+
+.items-table th:nth-child(5) { /* سعر الوحدة */
+  width: 7% !important;
+}
+
+.items-table th:nth-child(6) { /* الخصم */
+  width: 10% !important;
+}
+
+.items-table th:nth-child(7) { /* المجموع */
+  width: 12% !important;
+}
+
+.items-table th:nth-child(8) { /* الإجراءات */
+  width: 21% !important;
+}
+
+/* تطبيق نفس العرض على TD */
+.items-table td:nth-child(1) { /* الرقم المسلسل */
+  width: 7%;
+  text-align: center;
+}
+
+.items-table td:nth-child(2) { /* المنتجات */
+  width: 25% !important;
+}
+
+.items-table td:nth-child(3) { /* اللون */
+  width: 14% !important;
+}
+
+.items-table td:nth-child(4) { /* الكمية */
+  width: 4% !important;
+  text-align: center;
+}
+
+.items-table td:nth-child(5) { /* سعر الوحدة */
+  width: 7% !important;
+  text-align: center;
+}
+
+.items-table td:nth-child(6) { /* الخصم */
+  width: 10% !important;
+  text-align: center;
+}
+
+.items-table td:nth-child(7) { /* المجموع */
+  width: 12% !important;
+  text-align: center;
+  font-weight: bold;
+}
+
+.items-table td:nth-child(8) { /* الإجراءات */
+  width: 21% !important;
+  text-align: center;
+}
+
 .items-table input {
   width: 100%;
-  padding: 8px;
+  padding: 6px 4px;
   border: 1px solid #ccc;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 12px;
+  text-align: center;
 }
 
 .items-table input[type="number"] {
-  text-align: right;
+  text-align: center;
+}
+
+/* تحسين inputs للخانات الصغيرة */
+.items-table td:nth-child(4) input, /* الكمية */
+.items-table td:nth-child(5) input, /* السعر */
+.items-table td:nth-child(6) input { /* الخصم */
+  padding: 4px 2px;
+  font-size: 11px;
+  min-width: 50px;
 }
 
 .item-total {
@@ -404,11 +644,12 @@
   flex-shrink: 0;
 }
 
-/* Responsive design */
+/* تحسينات للجوال - تمرير مبسط */
 @media (max-width: 768px) {
   .invoice-modal {
     width: 98%;
-    max-height: 95vh;
+    max-height: 90vh;
+    padding: 10px;
   }
 
   .invoice-header {
@@ -419,18 +660,25 @@
   .invoice-tabs {
     flex-direction: column;
     gap: 5px;
+    padding: 10px;
   }
 
   .tab-btn {
     text-align: center;
+    padding: 10px 15px;
   }
 
   .items-table {
-    min-width: 600px;
+    min-width: 500px;
+  }
+
+  .items-table-container {
+    margin-bottom: 15px;
   }
 
   .totals-section {
     max-width: 100%;
+    margin-top: 15px;
   }
 
   .items-header {
@@ -442,10 +690,18 @@
   .modal-actions {
     flex-direction: column;
     gap: 10px;
+    position: sticky;
+    bottom: 0;
+    background: white;
+    padding: 15px;
+    border-top: 1px solid #dee2e6;
+    margin: 0 -10px -10px -10px;
   }
 
   .modal-actions .btn {
     width: 100%;
+    padding: 12px;
+    font-size: 16px;
   }
 }
 
@@ -580,8 +836,9 @@
   border-radius: var(--radius-md);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
   z-index: 10000 !important;
-  max-height: 250px;
+  max-height: 200px;
   overflow-y: auto;
+  overflow-x: hidden;
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -589,8 +846,27 @@
   margin-top: 2px;
 }
 
+/* New dropdown class with highest priority */
+.product-dropdown-working {
+  position: absolute !important;
+  background: white !important;
+  border: 2px solid #007bff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+  z-index: 999999 !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-width: 250px !important;
+  margin-top: 2px !important;
+}
+
+/* تحسين تمرير قائمة المنتجات */
 .product-dropdown::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .product-dropdown::-webkit-scrollbar-track {
@@ -599,7 +875,11 @@
 
 .product-dropdown::-webkit-scrollbar-thumb {
   background: var(--primary-color);
-  border-radius: 3px;
+  border-radius: 2px;
+}
+
+.product-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-hover);
 }
 
 .product-option {
@@ -809,18 +1089,34 @@
 
 /* Remove item button */
 .items-table .btn-danger {
-  padding: 4px 8px;
-  font-size: 12px;
-  border-radius: var(--radius-sm);
-  background: var(--danger-color);
-  color: var(--bg-white);
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: #dc3545;
+  color: white;
   border: none;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
+  min-width: 60px;
+  white-space: nowrap;
 }
 
 .items-table .btn-danger:hover {
-  background: var(--danger-hover);
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* تحسين خانة الإجراءات */
+.items-table td:nth-child(8) .action-buttons {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+
+.items-table td:nth-child(8) button {
+  flex-shrink: 0;
 }
 
 /* Responsive improvements */
@@ -1250,33 +1546,39 @@
 /* Compact Custom Color Input Styles */
 .custom-color-compact {
   display: flex;
-  gap: 2px;
-  margin-top: 3px;
+  gap: 2px; /* تقليل المسافة ليتناسب مع حجم الخانة */
+  margin-top: 2px;
+  align-items: center;
+  max-width: 100%; /* التأكد من عدم تجاوز حجم الخانة */
+  overflow: hidden; /* منع التجاوز */
 }
 
 .custom-input-compact {
-  flex: 2;
-  padding: 3px 4px;
+  flex: 2.5; /* توازن أفضل مع حجم الخانة */
+  padding: 3px 5px;
   border: 1px solid #ddd;
   border-radius: 3px;
-  font-size: 0.75rem;
+  font-size: 0.7rem; /* تصغير ليتناسب مع الخانة */
   color: #000 !important;
   background: white;
+  min-width: 80px; /* تقليل الحد الأدنى */
+  max-width: 90px; /* إضافة حد أقصى */
 }
 
 .custom-price-compact {
-  flex: 1;
-  padding: 8px 12px;
-  border: 2px solid #e74c3c;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 700;
+  flex: 1.5; /* زيادة مساحة السعر ليظهر */
+  padding: 2px 4px;
+  border: 1px solid #e74c3c;
+  border-radius: 4px;
+  font-size: 0.65rem; /* تصغير أكثر ليتناسب */
+  font-weight: 600;
   color: #000 !important;
   background: linear-gradient(145deg, #fff, #f8f9fa);
   text-align: center;
-  min-width: 80px;
-  height: 36px;
-  box-shadow: 0 2px 4px rgba(231, 76, 60, 0.1);
+  min-width: 45px; /* تصغير الحد الأدنى */
+  max-width: 55px; /* إضافة حد أقصى */
+  height: 28px; /* تقليل الارتفاع */
+  box-shadow: 0 1px 2px rgba(231, 76, 60, 0.1);
 }
 
 .custom-input-compact:focus,
@@ -1390,11 +1692,11 @@
   color: #2c3e50 !important;
 }
 
-/* Price column width adjustment */
+/* Price column width adjustment - استخدام النسب المئوية بدلاً من القيم الثابتة */
 .items-table th:nth-child(4),
 .items-table td:nth-child(4) {
-  min-width: 160px;
-  width: 160px;
+  min-width: 60px; /* حد أدنى معقول للكمية */
+  width: 4% !important; /* نفس النسبة المحددة أعلاه مع الأولوية */
 }
 
 /* Responsive adjustments for compact color column */
@@ -1405,16 +1707,28 @@
   }
   
   .custom-color-compact {
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: row; /* الحفاظ على الصف الأفقي */
+    gap: 1px;
+    width: 100%;
+    max-width: 100%;
   }
   
-  .custom-input-compact,
+  .custom-input-compact {
+    font-size: 0.65rem;
+    padding: 2px 4px;
+    min-width: 60px;
+    max-width: 70px;
+    height: 26px;
+    flex: 2;
+  }
+  
   .custom-price-compact {
-    font-size: 0.8rem;
-    padding: 6px 8px;
-    min-width: 70px;
-    height: 32px;
+    font-size: 0.6rem;
+    padding: 2px 3px;
+    min-width: 35px;
+    max-width: 45px;
+    height: 24px;
+    flex: 1;
   }
   
   .color-price-compact {
@@ -1435,8 +1749,8 @@
   
   .items-table th:nth-child(4),
   .items-table td:nth-child(4) {
-    min-width: 120px;
-    width: 120px;
+    min-width: 80px;
+    width: 4% !important; /* الحفاظ على النسبة المئوية */
   }
 }
 
@@ -1451,12 +1765,20 @@
     padding: 2px 4px;
   }
   
-  .custom-input-compact,
+  .custom-input-compact {
+    font-size: 0.6rem;
+    padding: 2px 3px;
+    min-width: 50px;
+    max-width: 60px;
+    height: 22px;
+  }
+  
   .custom-price-compact {
-    font-size: 0.75rem;
-    padding: 4px 6px;
-    min-width: 60px;
-    height: 28px;
+    font-size: 0.55rem;
+    padding: 1px 2px;
+    min-width: 30px;
+    max-width: 38px;
+    height: 20px;
   }
   
   /* Keep price readable even on small screens */
@@ -1469,7 +1791,7 @@
   
   .items-table th:nth-child(4),
   .items-table td:nth-child(4) {
-    min-width: 100px;
-    width: 100px;
+    min-width: 70px;
+    width: 4% !important; /* الحفاظ على النسبة المئوية حتى على الشاشات الصغيرة */
   }
 }

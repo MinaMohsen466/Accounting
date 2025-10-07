@@ -836,121 +836,123 @@ const CustomersSuppliers = () => {
               <button className="close-btn" onClick={closeModal}>&times;</button>
             </div>
             
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>{activeTab === 'customers' ? t('customerName') : t('supplierName')} *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder={language === 'ar' ? 'اسم العميل أو المورد' : 'Customer or Supplier name'}
-                  required
-                  className="name-input"
-                />
-                <small className="field-hint required-hint">
-                  {language === 'ar' ? '* هذا الحقل مطلوب' : '* This field is required'}
-                </small>
-              </div>
-
-              <div className="form-row">
+            <div className="modal-body-scrollable">
+              <form onSubmit={handleSubmit}>
                 <div className="form-group">
-                  <label>{t('phone')}</label>
-                  <div className="phone-input-group">
-                    <span className="phone-prefix">+965</span>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="50000000"
-                      className="phone-input"
-                      maxLength="8"
-                    />
-                  </div>
-                  <small className="field-hint">
-                    {language === 'ar' ? 'أدخل رقم الهاتف (8 أرقام)' : 'Enter phone number (8 digits)'}
-                  </small>
-                </div>
-
-                <div className="form-group">
-                  <label>{t('email')}</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="example@email.com"
-                    className="email-input"
-                  />
-                  <small className="field-hint">
-                    {language === 'ar' ? 'عنوان البريد الإلكتروني (اختياري)' : 'Email address (optional)'}
-                  </small>
-                </div>
-              </div>
-              
-              <div className="form-group">
-                <label>{t('address')}</label>
-                <textarea
-                  value={formData.address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder={language === 'ar' ? 'العنوان الكامل' : 'Full address'}
-                  rows="3"
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>{language === 'ar' ? 'الرصيد الابتدائي' : 'Initial Balance'} *</label>
-                  <div className="currency-input-group">
-                    <input
-                      type="number"
-                      step="0.001"
-                      value={formData.balance}
-                      onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))}
-                      placeholder="0.000"
-                      className="balance-input"
-                    />
-                    <span className="currency-symbol">{language === 'ar' ? 'د.ك' : 'KWD'}</span>
-                  </div>
-                  <small className="field-hint">
-                    {language === 'ar' 
-                      ? 'الرصيد الابتدائي + الفواتير غير المدفوعة = الرصيد الإجمالي'
-                      : 'Initial Balance + Unpaid Invoices = Total Balance'
-                    }
-                  </small>
-                </div>
-
-                <div className="form-group">
-                  <label>{t('notes')}</label>
+                  <label>{activeTab === 'customers' ? t('customerName') : t('supplierName')} *</label>
                   <input
                     type="text"
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder={language === 'ar' ? 'ملاحظات إضافية (اختياري)' : 'Additional notes (optional)'}
-                    className="notes-input"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder={language === 'ar' ? 'اسم العميل أو المورد' : 'Customer or Supplier name'}
+                    required
+                    className="name-input"
                   />
-                  <small className="field-hint">
-                    {language === 'ar' 
-                      ? 'ملاحظات مفيدة لتذكر معلومات إضافية'
-                      : 'Useful notes to remember additional information'
-                    }
+                  <small className="field-hint required-hint">
+                    {language === 'ar' ? '* هذا الحقل مطلوب' : '* This field is required'}
                   </small>
                 </div>
-              </div>
-              
-              <div className="modal-actions">
-                <button type="submit" className="btn btn-primary">
-                  {editingItem ? 
-                    (language === 'ar' ? 'حفظ التغييرات' : 'Save Changes') : 
-                    (activeTab === 'customers' ? 
-                      (language === 'ar' ? 'إضافة عميل' : 'Add Customer') : 
-                      (language === 'ar' ? 'إضافة مورد' : 'Add Supplier')
-                    )
-                  }
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                  {t('cancel')}
-                </button>
-              </div>
-            </form>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('phone')}</label>
+                    <div className="phone-input-group">
+                      <span className="phone-prefix">+965</span>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="50000000"
+                        className="phone-input"
+                        maxLength="8"
+                      />
+                    </div>
+                    <small className="field-hint">
+                      {language === 'ar' ? 'أدخل رقم الهاتف (8 أرقام)' : 'Enter phone number (8 digits)'}
+                    </small>
+                  </div>
+
+                  <div className="form-group">
+                    <label>{t('email')}</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="example@email.com"
+                      className="email-input"
+                    />
+                    <small className="field-hint">
+                      {language === 'ar' ? 'عنوان البريد الإلكتروني (اختياري)' : 'Email address (optional)'}
+                    </small>
+                  </div>
+                </div>
+                
+                <div className="form-group">
+                  <label>{t('address')}</label>
+                  <textarea
+                    value={formData.address}
+                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder={language === 'ar' ? 'العنوان الكامل' : 'Full address'}
+                    rows="3"
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{language === 'ar' ? 'الرصيد الابتدائي' : 'Initial Balance'} *</label>
+                    <div className="currency-input-group">
+                      <input
+                        type="number"
+                        step="0.001"
+                        value={formData.balance}
+                        onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))}
+                        placeholder="0.000"
+                        className="balance-input"
+                      />
+                      <span className="currency-symbol">{language === 'ar' ? 'د.ك' : 'KWD'}</span>
+                    </div>
+                    <small className="field-hint">
+                      {language === 'ar' 
+                        ? 'الرصيد الابتدائي + الفواتير غير المدفوعة = الرصيد الإجمالي'
+                        : 'Initial Balance + Unpaid Invoices = Total Balance'
+                      }
+                    </small>
+                  </div>
+
+                  <div className="form-group">
+                    <label>{t('notes')}</label>
+                    <input
+                      type="text"
+                      value={formData.notes}
+                      onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder={language === 'ar' ? 'ملاحظات إضافية (اختياري)' : 'Additional notes (optional)'}
+                      className="notes-input"
+                    />
+                    <small className="field-hint">
+                      {language === 'ar' 
+                        ? 'ملاحظات مفيدة لتذكر معلومات إضافية'
+                        : 'Useful notes to remember additional information'
+                      }
+                    </small>
+                  </div>
+                </div>
+                
+                <div className="modal-actions">
+                  <button type="submit" className="btn btn-primary">
+                    {editingItem ? 
+                      (language === 'ar' ? 'حفظ التغييرات' : 'Save Changes') : 
+                      (activeTab === 'customers' ? 
+                        (language === 'ar' ? 'إضافة عميل' : 'Add Customer') : 
+                        (language === 'ar' ? 'إضافة مورد' : 'Add Supplier')
+                      )
+                    }
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={closeModal}>
+                    {t('cancel')}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

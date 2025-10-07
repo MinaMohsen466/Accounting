@@ -266,110 +266,112 @@ const ChartOfAccounts = () => {
       {/* Account Modal */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content account-modal">
             <div className="modal-header">
               <h2>{editingAccount ? t('editAccount') : t('addNewAccount')}</h2>
               <button className="close-btn" onClick={closeModal}>&times;</button>
             </div>
             
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>{t('accountCode')} *</label>
-                <input
-                  type="text"
-                  value={formData.code}
-                  onChange={(e) => setFormData({...formData, code: e.target.value})}
-                  placeholder={language === 'ar' ? 'مثال: 1001' : 'Example: 1001'}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>{t('accountName')} *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder={language === 'ar' ? 'مثال: النقدية' : 'Example: Cash'}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>{t('accountType')} *</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({...formData, type: e.target.value, category: 'current'})}
-                  required
-                >
-                  <option value="asset">{accountTypes.asset}</option>
-                  <option value="liability">{accountTypes.liability}</option>
-                  <option value="equity">{accountTypes.equity}</option>
-                  <option value="revenue">{accountTypes.revenue}</option>
-                  <option value="expense">{accountTypes.expense}</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label>{t('accountCategory')} *</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  required
-                >
-                  {formData.type === 'asset' && (
-                    <>
-                      <option value="current">{accountCategories.current}</option>
-                      <option value="fixed">{accountCategories.fixed}</option>
-                    </>
-                  )}
-                  {formData.type === 'liability' && (
-                    <>
-                      <option value="current">{accountCategories.current}</option>
-                      <option value="long_term">{accountCategories.long_term}</option>
-                    </>
-                  )}
-                  {formData.type === 'equity' && (
-                    <>
-                      <option value="capital">{accountCategories.capital}</option>
-                      <option value="retained_earnings">{accountCategories.retained_earnings}</option>
-                    </>
-                  )}
-                  {formData.type === 'revenue' && (
-                    <>
-                      <option value="sales">{accountCategories.sales}</option>
-                      <option value="other">{accountCategories.other}</option>
-                    </>
-                  )}
-                  {formData.type === 'expense' && (
-                    <>
-                      <option value="cost_of_goods">{accountCategories.cost_of_goods}</option>
-                      <option value="operating">{accountCategories.operating}</option>
-                      <option value="administrative">{accountCategories.administrative}</option>
-                    </>
-                  )}
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label>{t('description')}</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder={language === 'ar' ? 'وصف اختياري للحساب' : 'Optional account description'}
-                  rows="3"
-                />
-              </div>
-              
-              <div className="modal-actions">
-                <button type="submit" className="btn btn-primary">
-                  {editingAccount ? t('save') : t('addNewAccount')}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                  {t('cancel')}
-                </button>
-              </div>
-            </form>
+            <div className="modal-body-scrollable">
+              <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                  <label>{t('accountCode')} *</label>
+                  <input
+                    type="text"
+                    value={formData.code}
+                    onChange={(e) => setFormData({...formData, code: e.target.value})}
+                    placeholder={language === 'ar' ? 'مثال: 1001' : 'Example: 1001'}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>{t('accountName')} *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    placeholder={language === 'ar' ? 'مثال: النقدية' : 'Example: Cash'}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>{t('accountType')} *</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({...formData, type: e.target.value, category: 'current'})}
+                    required
+                  >
+                    <option value="asset">{accountTypes.asset}</option>
+                    <option value="liability">{accountTypes.liability}</option>
+                    <option value="equity">{accountTypes.equity}</option>
+                    <option value="revenue">{accountTypes.revenue}</option>
+                    <option value="expense">{accountTypes.expense}</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>{t('accountCategory')} *</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    required
+                  >
+                    {formData.type === 'asset' && (
+                      <>
+                        <option value="current">{accountCategories.current}</option>
+                        <option value="fixed">{accountCategories.fixed}</option>
+                      </>
+                    )}
+                    {formData.type === 'liability' && (
+                      <>
+                        <option value="current">{accountCategories.current}</option>
+                        <option value="long_term">{accountCategories.long_term}</option>
+                      </>
+                    )}
+                    {formData.type === 'equity' && (
+                      <>
+                        <option value="capital">{accountCategories.capital}</option>
+                        <option value="retained_earnings">{accountCategories.retained_earnings}</option>
+                      </>
+                    )}
+                    {formData.type === 'revenue' && (
+                      <>
+                        <option value="sales">{accountCategories.sales}</option>
+                        <option value="other">{accountCategories.other}</option>
+                      </>
+                    )}
+                    {formData.type === 'expense' && (
+                      <>
+                        <option value="cost_of_goods">{accountCategories.cost_of_goods}</option>
+                        <option value="operating">{accountCategories.operating}</option>
+                        <option value="administrative">{accountCategories.administrative}</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>{t('description')}</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    placeholder={language === 'ar' ? 'وصف اختياري للحساب' : 'Optional account description'}
+                    rows="3"
+                  />
+                </div>
+                
+                <div className="modal-actions">
+                  <button type="submit" className="btn btn-primary">
+                    {editingAccount ? t('save') : t('addNewAccount')}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={closeModal}>
+                    {t('cancel')}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
