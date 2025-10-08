@@ -56,7 +56,7 @@
 
 .table-container th,
 .table-container td {
-  padding: 1rem;
+  padding: .5rem;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
 }
@@ -78,10 +78,20 @@
   vertical-align: middle;
 }
 
+/* Table action buttons - specifically for inventory table */
+.table-container .btn-sm {
+  padding: 0.3rem 0.6rem !important;
+  font-size: 0.8rem !important;
+  margin-left: 0.2rem !important;
+  border-radius: 4px !important;
+  min-width: auto !important;
+  white-space: nowrap !important;
+}
+
 .btn-sm {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem !important;
+  font-size: 0.75rem !important;
+  margin-left: 0.25rem !important;
 }
 
 .btn-secondary {
@@ -94,6 +104,15 @@
   background-color: var(--danger-color);
   color: white;
   border: none;
+}
+
+/* Additional specificity for table buttons */
+.table-container td .btn {
+  padding: 0.3rem 0.6rem !important;
+  font-size: 0.8rem !important;
+  margin: 0 0.1rem !important;
+  border-radius: 4px !important;
+  line-height: 1.3 !important;
 }
 
 .empty-state {
@@ -261,9 +280,9 @@
   }
   
   .btn-sm {
-    padding: 0.25rem 0.75rem;
-    font-size: 0.8rem;
-    margin-left: 0.25rem;
+    padding: 0.2rem 0.4rem !important;
+    font-size: 0.7rem !important;
+    margin-left: 0.2rem !important;
   }
   
   .form-row {
@@ -447,12 +466,12 @@
 
 /* Enhanced Table Styling */
 .quantity-badge {
-  padding: 4px 8px;
+  padding: 4px 4px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   text-align: center;
-  min-width: 40px;
+  min-width: 60px;
   display: inline-block;
 }
 

@@ -20,10 +20,10 @@
   flex-wrap: wrap;
 }
 
-.export-import-buttons {
+/* .export-import-buttons {
   display: flex;
   gap: 10px;
-}
+} */
 
 .btn-success {
   background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
@@ -56,6 +56,78 @@
 .client-modal {
   max-width: 700px;
   width: 95%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  max-height: calc(85vh - 140px); /* اطرح ارتفاع header والأزرار */
+}
+
+.modal-body-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body-scrollable::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.modal-body-scrollable::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.modal-body-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 20px;
+  border-top: 1px solid #dee2e6;
+  background: white;
+  margin-top: auto;
+}
+
+.modal-actions .btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.modal-actions .btn-primary {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+}
+
+.modal-actions .btn-primary:hover {
+  background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.modal-actions .btn-secondary {
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+}
+
+.modal-actions .btn-secondary:hover {
+  background: #e9ecef;
+  color: #495057;
+  border-color: #adb5bd;
 }
 
 .client-tabs {
@@ -474,7 +546,7 @@
   background: white;
   border-radius: 15px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-  overflow: hidden;
+  overflow: hidden !important;
 }
 
 /* Desktop view */

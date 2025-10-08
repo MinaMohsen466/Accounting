@@ -100,8 +100,8 @@ const Invoices = () => {
         discountAmount: 0,
         discountType: 'amount',
         discountRate: 0,
-        // حقول اللون الجديدة
-        color: '',
+        // حقول اللون الجديدة - دائماً مخصص
+        color: 'custom',
         colorCode: '',
         colorPrice: 0,
         requiresColor: false,
@@ -192,8 +192,8 @@ const Invoices = () => {
           discountAmount: 0,
           discountType: 'amount',
           discountRate: 0,
-          // حقول اللون الجديدة
-          color: '',
+          // حقول اللون الجديدة - دائماً مخصص
+          color: 'custom',
           colorCode: '',
           colorPrice: 0,
           requiresColor: false,
@@ -320,8 +320,8 @@ const Invoices = () => {
         discountAmount: 0,
         discountType: 'amount',
         discountRate: 0,
-        // إضافة حقول جديدة للون والسعر الإضافي
-        color: '',
+        // إضافة حقول جديدة للون والسعر الإضافي - دائماً مخصص
+        color: 'custom',
         colorCode: '',
         colorPrice: 0,
         requiresColor: false,
@@ -408,8 +408,8 @@ const Invoices = () => {
     const quantity = parseFloat(newItems[itemIndex].quantity) || 1
     const discount = parseFloat(newItems[itemIndex].discount) || 0
     
-    // التحقق من نوع المنتج والحاجة للون
-    const requiresColor = ['interior_paint', 'exterior_paint', 'primer', 'varnish'].includes(product.category || product.productType)
+    // التحقق من نوع الوحدة والحاجة للون - الألوان مطلوبة للوحدات: لتر، كيلو، جالون، درام
+    const requiresColor = ['liter', 'kilogram', 'gallon', 'drum'].includes(product.unit)
     
     // Calculate total for this item
     const lineTotal = quantity * unitPrice
@@ -422,13 +422,13 @@ const Invoices = () => {
       itemName: product.name,
       unitPrice: unitPrice,
       total: total,
-      // إضافة خصائص اللون
+      // إضافة خصائص اللون - دائماً مخصص
       requiresColor: requiresColor,
       productType: product.category || product.productType || '',
-      color: '',
+      color: requiresColor ? 'custom' : '',
       colorCode: '',
       colorPrice: 0,
-      // مسح الألوان المخصصة عند تغيير المنتج
+      // خانات اللون المخصص
       customColorName: '',
       customColorCode: ''
     }
@@ -953,6 +953,23 @@ const Invoices = () => {
             line-height: 1.2;
           }
           
+          /* تنسيق عمود الرقم المسلسل في الطباعة */
+          .items-table th:first-child {
+            background: #333;
+            color: white;
+            text-align: center;
+            width: 40px;
+            font-weight: bold;
+          }
+          
+          .items-table td:first-child {
+            background: #f8f9fa;
+            color: #495057;
+            text-align: center;
+            font-weight: bold;
+            border-right: 2px solid #007bff;
+          }
+          
           .items-table td {
             padding: 6px 6px;
             border: 1px solid #ccc;
@@ -1271,6 +1288,7 @@ const Invoices = () => {
             <table class="items-table">
               <thead>
                 <tr>
+                  <th style="width: 40px; text-align: center;">#</th>
                   <th>${language === 'ar' ? 'العنصر | Item' : 'Item | العنصر'}</th>
                   <th>${language === 'ar' ? 'اللون | Color' : 'Color | اللون'}</th>
                   <th>${language === 'ar' ? 'الكمية | Qty' : 'Qty | الكمية'}</th>
@@ -1280,7 +1298,7 @@ const Invoices = () => {
                 </tr>
               </thead>
               <tbody>
-                ${invoice.items?.map(item => {
+                ${invoice.items?.map((item, index) => {
                   const discountAmount = item.discountAmount || 0;
                   const discountDisplay = discountAmount > 0 ? discountAmount.toFixed(2) : '-';
                   
@@ -1303,6 +1321,7 @@ const Invoices = () => {
                   
                   return `
                     <tr>
+                      <td style="text-align: center; font-weight: bold; background: #f8f9fa; color: #495057;">${index + 1}</td>
                       <td class="item-name">${item.itemName}</td>
                       <td class="color-cell">${colorDisplay}</td>
                       <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
@@ -1429,11 +1448,6 @@ const Invoices = () => {
     // Validation
     if (!formData.clientId) {
       showNotification(t('selectClientSupplier'), 'error')
-      return
-    }
-
-    if (!formData.description) {
-      showNotification(t('enterInvoiceDescription'), 'error')
       return
     }
 
@@ -1752,7 +1766,7 @@ const Invoices = () => {
       {/* Invoices Table */}
       <div className="table-container">
         {filteredInvoices.length > 0 ? (
-          <table>
+          <table className="invoices-table">
             <thead>
               <tr>
                 <th>{t('invoiceNum')}</th>
@@ -1871,19 +1885,20 @@ const Invoices = () => {
               <button className="close-btn" onClick={closeModal}>&times;</button>
             </div>
             
-            <form onSubmit={handleSubmit}>
-              {/* Invoice Header */}
-              <div className="invoice-header">
-                <div className="form-group">
-                  <label>{t('invoiceType')} *</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value, clientId: '', clientName: '' }))}
-                    disabled={editingInvoice}
-                  >
-                    <option value="sales">{t('salesInvoice')}</option>
-                    <option value="purchase">{t('purchaseInvoice')}</option>
-                  </select>
+            <div className="invoice-modal-body">
+              <form onSubmit={handleSubmit}>
+                {/* Invoice Header */}
+                <div className="invoice-header">
+                  <div className="form-group">
+                    <label>{t('invoiceType')} *</label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value, clientId: '', clientName: '' }))}
+                      disabled={editingInvoice}
+                    >
+                      <option value="sales">{t('salesInvoice')}</option>
+                      <option value="purchase">{t('purchaseInvoice')}</option>
+                    </select>
                 </div>
 
                 <div className="form-group">
@@ -1936,13 +1951,12 @@ const Invoices = () => {
               </div>
 
               <div className="form-group">
-                <label>{t('invoiceDescription')} *</label>
+                <label>{t('invoiceDescription')}</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   placeholder={t('invoiceDescriptionPlaceholder')}
                   rows="2"
-                  required
                 />
               </div>
 
@@ -1959,6 +1973,7 @@ const Invoices = () => {
                   <table className="items-table">
                     <thead>
                       <tr>
+                        <th style={{width: '50px', textAlign: 'center'}}>#</th>
                         <th>{t('products')}</th>
                         <th>{language === 'ar' ? 'اللون' : 'Color'}</th>
                         <th>{t('quantity')}</th>
@@ -1971,10 +1986,14 @@ const Invoices = () => {
                     <tbody>
                       {formData.items.map((item, index) => (
                         <tr key={index}>
+                          <td style={{textAlign: 'center', fontWeight: 'bold', backgroundColor: '#f8f9fa'}}>
+                            {index + 1}
+                          </td>
                           <td>
                             <div 
                               className="product-select-container"
                               ref={el => dropdownRefs.current[index] = el}
+                              style={{ position: 'relative' }}
                             >
                               <div className="product-search-wrapper">
                                 <input
@@ -1987,123 +2006,35 @@ const Invoices = () => {
                                   required
                                 />
                               </div>
-                              {searchResults[index] && (
-                                <div 
-                                  className="product-dropdown"
-                                  style={getDropdownStyle(index)}
-                                >
-                                  {searchResults[index].length > 0 ? (
-                                    searchResults[index].map(product => (
-                                      <div
-                                        key={product.id}
-                                        className="product-option"
-                                        onClick={() => selectProduct(index, product)}
-                                      >
-                                        <div className="product-header">
-                                          <span className="product-name">{product.name}</span>
-                                          {product.category && (
-                                            <span className="product-category">{product.category}</span>
-                                          )}
-                                        </div>
-                                        <div className="product-details">
-                                          <div className="product-info">
-                                            <span className="product-sku">
-                                              <strong>SKU:</strong> {product.sku}
-                                            </span>
-                                            {product.quantity !== undefined && (
-                                              product.quantity > 0 ? (
-                                                <span className="stock-available"> • {t('available')}: {product.quantity}</span>
-                                              ) : (
-                                                <span className="stock-out"> • {t('notAvailable')}</span>
-                                              )
-                                            )}
-                                          </div>
-                                          <span className="product-price">
-                                            {(product.price || product.unitPrice || 0).toFixed(3)} {t('kwd')}
-                                          </span>
-                                        </div>
-                                        {product.description && (
-                                          <div className="product-description">
-                                            {product.description}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <div className="product-dropdown-empty">
-                                      🔍 {t('noProductsFound')}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
                             </div>
                           </td>
                           {/* Color Selection Column */}
                           <td>
                             {item.requiresColor ? (
                               <div className="color-select-container">
-                                <select
-                                  value={item.color === 'custom' ? 'custom' : item.color}
-                                  onChange={(e) => {
-                                    const selectedColorName = e.target.value
-                                    if (selectedColorName === 'custom') {
-                                      updateItem(index, 'color', 'custom')
-                                      updateItem(index, 'colorCode', '')
-                                      updateItem(index, 'colorPrice', 0)
-                                    } else if (selectedColorName) {
-                                      const colors = JSON.parse(localStorage.getItem('paintColors') || '[]')
-                                      const selectedColor = colors.find(color => color.name === selectedColorName)
-                                      
-                                      updateItem(index, 'color', selectedColorName)
-                                      if (selectedColor) {
-                                        updateItem(index, 'colorCode', selectedColor.code)
-                                        updateItem(index, 'colorPrice', selectedColor.additionalCost || 0)
-                                      }
-                                    } else {
-                                      // مسح جميع بيانات اللون عند اختيار "بدون لون"
-                                      updateItem(index, 'color', '')
-                                      updateItem(index, 'colorCode', '')
-                                      updateItem(index, 'colorPrice', 0)
-                                      updateItem(index, 'customColorName', '')
-                                      updateItem(index, 'customColorCode', '')
-                                    }
-                                  }}
-                                  className="color-select compact"
-                                >
-                                  <option value="">{language === 'ar' ? 'بدون لون' : 'No Color'}</option>
-                                  {JSON.parse(localStorage.getItem('paintColors') || '[]').map(color => (
-                                    <option key={color.id} value={color.name}>
-                                      {color.name} {color.additionalCost > 0 && `+${color.additionalCost}`}
-                                    </option>
-                                  ))}
-                                  <option value="custom">{language === 'ar' ? 'مخصص' : 'Custom'}</option>
-                                </select>
+                                {/* Custom Color Input - Always Visible */}
+                                <div className="custom-color-compact">
+                                  <input
+                                    type="text"
+                                    value={item.customColorName || ''}
+                                    onChange={(e) => updateItem(index, 'customColorName', e.target.value)}
+                                    placeholder={language === 'ar' ? 'اسم اللون' : 'Color name'}
+                                    className="custom-input-compact"
+                                  />
+                                  <input
+                                    type="number"
+                                    value={item.colorPrice || 0}
+                                    onChange={(e) => updateItem(index, 'colorPrice', parseFloat(e.target.value) || 0)}
+                                    placeholder={language === 'ar' ? 'سعر إضافي' : 'Extra cost'}
+                                    min="0"
+                                    step="0.25"
+                                    className="custom-price-compact"
+                                    title={language === 'ar' ? 'سعر إضافي للون' : 'Additional color cost'}
+                                  />
+                                </div>
                                 
-                                {/* Compact Custom Color Input - Single Line */}
-                                {item.color === 'custom' && (
-                                  <div className="custom-color-compact">
-                                    <input
-                                      type="text"
-                                      value={item.customColorName || ''}
-                                      onChange={(e) => updateItem(index, 'customColorName', e.target.value)}
-                                      placeholder={language === 'ar' ? 'اسم اللون' : 'Color name'}
-                                      className="custom-input-compact"
-                                    />
-                                    <input
-                                      type="number"
-                                      value={item.colorPrice || 0}
-                                      onChange={(e) => updateItem(index, 'colorPrice', parseFloat(e.target.value) || 0)}
-                                      placeholder={language === 'ar' ? 'سعر إضافي' : 'Extra cost'}
-                                      min="0"
-                                      step="0.25"
-                                      className="custom-price-compact"
-                                      title={language === 'ar' ? 'سعر إضافي للون' : 'Additional color cost'}
-                                    />
-                                  </div>
-                                )}
-                                
-                                {/* Compact Color Display */}
-                                {((item.color && item.color !== 'custom') || (item.color === 'custom' && item.customColorName)) && item.colorPrice > 0 && (
+                                {/* Color Price Display */}
+                                {item.customColorName && item.colorPrice > 0 && (
                                   <div className="color-price-compact">
                                     +{item.colorPrice} {t('currency')}
                                   </div>
@@ -2181,21 +2112,84 @@ const Invoices = () => {
                             </div>
                           </td>
                           <td>
-                            {formData.items.length > 1 && (
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-sm"
-                                onClick={() => removeItem(index)}
-                              >
-                                {t('delete')}
-                              </button>
-                            )}
+                            <div className="action-buttons">
+                              {formData.items.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => removeItem(index)}
+                                >
+                                  {t('delete')}
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Product Search Dropdowns - خارج الجدول للظهور فوق كل شيء */}
+                {Object.keys(searchResults).map(itemIndex => (
+                  searchResults[itemIndex] && (
+                    <div
+                      key={itemIndex}
+                      className="product-dropdown-overlay"
+                      style={{
+                        position: 'fixed',
+                        top: getDropdownStyle(parseInt(itemIndex)).top || '50%',
+                        left: getDropdownStyle(parseInt(itemIndex)).left || '50%',
+                        width: getDropdownStyle(parseInt(itemIndex)).width || '300px',
+                        backgroundColor: 'white',
+                        border: '2px solid #007bff',
+                        borderRadius: '8px',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                        zIndex: 999999,
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        marginTop: '2px'
+                      }}
+                      ref={el => dropdownRefs.current[itemIndex] = el}
+                    >
+                      {searchResults[itemIndex].length > 0 ? (
+                        searchResults[itemIndex].map(product => (
+                          <div
+                            key={product.id}
+                            className="product-option"
+                            onClick={() => selectProduct(parseInt(itemIndex), product)}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #eee',
+                              backgroundColor: 'white'
+                            }}
+                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                          >
+                            <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '4px' }}>
+                              {product.name}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#666' }}>
+                              SKU: {product.sku} • {(product.price || product.unitPrice || 0).toFixed(3)} {t('kwd')}
+                              {product.quantity !== undefined && (
+                                product.quantity > 0 ? (
+                                  <span style={{ color: 'green' }}> • متوفر: {product.quantity}</span>
+                                ) : (
+                                  <span style={{ color: 'red' }}> • غير متوفر</span>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: '12px 16px', color: '#666', textAlign: 'center' }}>
+                          🔍 لا توجد منتجات
+                        </div>
+                      )}
+                    </div>
+                  )
+                ))}
 
                 {/* Invoice Totals */}
                 <div className="invoice-totals">
@@ -2296,6 +2290,7 @@ const Invoices = () => {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

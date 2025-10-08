@@ -439,6 +439,7 @@
 .actions-container {
   position: relative;
   overflow: hidden;
+  padding: 10px;
 }
 
 .actions-grid {
@@ -454,7 +455,7 @@
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
   border: 2px solid #e9ecef;
   border-radius: 12px;
-  padding: 25px;
+  padding: 16px;
   text-align: center;
   transition: all 0.3s ease;
   cursor: pointer;
