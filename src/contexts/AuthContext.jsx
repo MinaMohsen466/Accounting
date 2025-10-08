@@ -313,6 +313,10 @@ export const AuthProvider = ({ children }) => {
       
       setUser(userData)
       localStorage.setItem('auth_user', JSON.stringify(userData))
+      
+      // Reset current view to dashboard on login
+      localStorage.setItem('current_view', 'dashboard')
+      
       return { success: true }
     }
     
@@ -326,6 +330,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null)
     localStorage.removeItem('auth_user')
+    localStorage.removeItem('current_view')
   }
 
   const changePassword = (currentPassword, newPassword) => {

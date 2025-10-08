@@ -100,8 +100,8 @@ const Invoices = () => {
         discountAmount: 0,
         discountType: 'amount',
         discountRate: 0,
-        // حقول اللون الجديدة
-        color: '',
+        // حقول اللون الجديدة - دائماً مخصص
+        color: 'custom',
         colorCode: '',
         colorPrice: 0,
         requiresColor: false,
@@ -192,8 +192,8 @@ const Invoices = () => {
           discountAmount: 0,
           discountType: 'amount',
           discountRate: 0,
-          // حقول اللون الجديدة
-          color: '',
+          // حقول اللون الجديدة - دائماً مخصص
+          color: 'custom',
           colorCode: '',
           colorPrice: 0,
           requiresColor: false,
@@ -320,8 +320,8 @@ const Invoices = () => {
         discountAmount: 0,
         discountType: 'amount',
         discountRate: 0,
-        // إضافة حقول جديدة للون والسعر الإضافي
-        color: '',
+        // إضافة حقول جديدة للون والسعر الإضافي - دائماً مخصص
+        color: 'custom',
         colorCode: '',
         colorPrice: 0,
         requiresColor: false,
@@ -408,8 +408,8 @@ const Invoices = () => {
     const quantity = parseFloat(newItems[itemIndex].quantity) || 1
     const discount = parseFloat(newItems[itemIndex].discount) || 0
     
-    // التحقق من نوع المنتج والحاجة للون
-    const requiresColor = ['interior_paint', 'exterior_paint', 'primer', 'varnish'].includes(product.category || product.productType)
+    // التحقق من نوع الوحدة والحاجة للون - الألوان مطلوبة للوحدات: لتر، كيلو، جالون، درام
+    const requiresColor = ['liter', 'kilogram', 'gallon', 'drum'].includes(product.unit)
     
     // Calculate total for this item
     const lineTotal = quantity * unitPrice
@@ -422,13 +422,13 @@ const Invoices = () => {
       itemName: product.name,
       unitPrice: unitPrice,
       total: total,
-      // إضافة خصائص اللون
+      // إضافة خصائص اللون - دائماً مخصص
       requiresColor: requiresColor,
       productType: product.category || product.productType || '',
-      color: '',
+      color: requiresColor ? 'custom' : '',
       colorCode: '',
       colorPrice: 0,
-      // مسح الألوان المخصصة عند تغيير المنتج
+      // خانات اللون المخصص
       customColorName: '',
       customColorCode: ''
     }
@@ -2012,68 +2012,29 @@ const Invoices = () => {
                           <td>
                             {item.requiresColor ? (
                               <div className="color-select-container">
-                                <select
-                                  value={item.color === 'custom' ? 'custom' : item.color}
-                                  onChange={(e) => {
-                                    const selectedColorName = e.target.value
-                                    if (selectedColorName === 'custom') {
-                                      updateItem(index, 'color', 'custom')
-                                      updateItem(index, 'colorCode', '')
-                                      updateItem(index, 'colorPrice', 0)
-                                    } else if (selectedColorName) {
-                                      const colors = JSON.parse(localStorage.getItem('paintColors') || '[]')
-                                      const selectedColor = colors.find(color => color.name === selectedColorName)
-                                      
-                                      updateItem(index, 'color', selectedColorName)
-                                      if (selectedColor) {
-                                        updateItem(index, 'colorCode', selectedColor.code)
-                                        updateItem(index, 'colorPrice', selectedColor.additionalCost || 0)
-                                      }
-                                    } else {
-                                      // مسح جميع بيانات اللون عند اختيار "بدون لون"
-                                      updateItem(index, 'color', '')
-                                      updateItem(index, 'colorCode', '')
-                                      updateItem(index, 'colorPrice', 0)
-                                      updateItem(index, 'customColorName', '')
-                                      updateItem(index, 'customColorCode', '')
-                                    }
-                                  }}
-                                  className="color-select compact"
-                                >
-                                  <option value="">{language === 'ar' ? 'بدون لون' : 'No Color'}</option>
-                                  {JSON.parse(localStorage.getItem('paintColors') || '[]').map(color => (
-                                    <option key={color.id} value={color.name}>
-                                      {color.name} {color.additionalCost > 0 && `+${color.additionalCost}`}
-                                    </option>
-                                  ))}
-                                  <option value="custom">{language === 'ar' ? 'مخصص' : 'Custom'}</option>
-                                </select>
+                                {/* Custom Color Input - Always Visible */}
+                                <div className="custom-color-compact">
+                                  <input
+                                    type="text"
+                                    value={item.customColorName || ''}
+                                    onChange={(e) => updateItem(index, 'customColorName', e.target.value)}
+                                    placeholder={language === 'ar' ? 'اسم اللون' : 'Color name'}
+                                    className="custom-input-compact"
+                                  />
+                                  <input
+                                    type="number"
+                                    value={item.colorPrice || 0}
+                                    onChange={(e) => updateItem(index, 'colorPrice', parseFloat(e.target.value) || 0)}
+                                    placeholder={language === 'ar' ? 'سعر إضافي' : 'Extra cost'}
+                                    min="0"
+                                    step="0.25"
+                                    className="custom-price-compact"
+                                    title={language === 'ar' ? 'سعر إضافي للون' : 'Additional color cost'}
+                                  />
+                                </div>
                                 
-                                {/* Compact Custom Color Input - Single Line */}
-                                {item.color === 'custom' && (
-                                  <div className="custom-color-compact">
-                                    <input
-                                      type="text"
-                                      value={item.customColorName || ''}
-                                      onChange={(e) => updateItem(index, 'customColorName', e.target.value)}
-                                      placeholder={language === 'ar' ? 'اسم اللون' : 'Color name'}
-                                      className="custom-input-compact"
-                                    />
-                                    <input
-                                      type="number"
-                                      value={item.colorPrice || 0}
-                                      onChange={(e) => updateItem(index, 'colorPrice', parseFloat(e.target.value) || 0)}
-                                      placeholder={language === 'ar' ? 'سعر إضافي' : 'Extra cost'}
-                                      min="0"
-                                      step="0.25"
-                                      className="custom-price-compact"
-                                      title={language === 'ar' ? 'سعر إضافي للون' : 'Additional color cost'}
-                                    />
-                                  </div>
-                                )}
-                                
-                                {/* Compact Color Display */}
-                                {((item.color && item.color !== 'custom') || (item.color === 'custom' && item.customColorName)) && item.colorPrice > 0 && (
+                                {/* Color Price Display */}
+                                {item.customColorName && item.colorPrice > 0 && (
                                   <div className="color-price-compact">
                                     +{item.colorPrice} {t('currency')}
                                   </div>

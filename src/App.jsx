@@ -27,6 +27,13 @@ const AppContent = () => {
     document.body.className = direction === 'rtl' ? 'rtl' : 'ltr'
   }, [direction])
 
+  // Reset to dashboard when user logs in
+  useEffect(() => {
+    if (isAuthenticated) {
+      setCurrentView('dashboard')
+    }
+  }, [isAuthenticated])
+
   const renderContent = () => {
     switch (currentView) {
       case 'accounts':

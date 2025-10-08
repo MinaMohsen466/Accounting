@@ -12,6 +12,7 @@ const LoginOverlay = () => {
   })
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
 
   const handleChange = (e) => {
     setFormData({
@@ -19,6 +20,7 @@ const LoginOverlay = () => {
       [e.target.name]: e.target.value
     })
     if (error) setError('')
+    if (success) setSuccess(false)
   }
 
   const handleSubmit = async (e) => {
@@ -35,8 +37,14 @@ const LoginOverlay = () => {
     setTimeout(() => {
       const result = login(formData.username, formData.password)
       
-      if (!result.success) {
+      if (result.success) {
+        setSuccess(true)
+        setError('')
+        // Clear form on successful login
+        setFormData({ username: '', password: '' })
+      } else {
         setError(result.error)
+        setSuccess(false)
       }
       
       setIsLoading(false)
@@ -54,6 +62,12 @@ const LoginOverlay = () => {
         {error && (
           <div className="login-error">
             {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="login-success">
+            {language === 'ar' ? 'تم تسجيل الدخول بنجاح! جارٍ التوجه للصفحة الرئيسية...' : 'Login successful! Redirecting to dashboard...'}
           </div>
         )}
 
