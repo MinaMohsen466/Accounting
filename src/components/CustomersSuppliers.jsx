@@ -400,7 +400,7 @@ const CustomersSuppliers = () => {
       <div className="page-header">
         <h1>{t('customersAndSuppliers')}</h1>
         <div className="header-actions">
-          <div className="export-import-buttons">
+          {/* <div className="export-import-buttons">
             <button 
               className="btn btn-success btn-sm"
               onClick={handleExport}
@@ -417,7 +417,7 @@ const CustomersSuppliers = () => {
                 style={{ display: 'none' }}
               />
             </label>
-          </div>
+          </div> */}
           {hasPermission('create_customers_suppliers') && (
             <button className="btn btn-primary" onClick={() => openModal()}>
               {activeTab === 'customers' ? t('addNewCustomer') : t('addNewSupplier')}

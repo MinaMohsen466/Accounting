@@ -126,7 +126,6 @@
 /* User Info Styles */
 .user-info {
   flex: 0 !important;
-  padding: 12px;
   border-bottom: 1px solid #f3f4f6;
   position: relative;
 }
