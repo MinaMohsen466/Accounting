@@ -1901,64 +1901,57 @@ const Invoices = () => {
                     </select>
                 </div>
 
-                <div className="form-group">
-                  <label>{formData.type === 'sales' ? t('client') : t('supplier')} *</label>
-                  <select
-                    value={formData.clientId}
-                    onChange={(e) => handleClientChange(e.target.value)}
-                    required
-                  >
-                    <option value="">{formData.type === 'sales' ? t('selectClient') : t('selectSupplier')}</option>
-                    {(formData.type === 'sales' ? customers : suppliers).map(client => (
-                      <option key={client.id} value={client.id}>
-                        {client.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="form-group">
+                    <label>{formData.type === 'sales' ? t('client') : t('supplier')} *</label>
+                    <select
+                      value={formData.clientId}
+                      onChange={(e) => handleClientChange(e.target.value)}
+                      required
+                    >
+                      <option value="">{formData.type === 'sales' ? t('selectClient') : t('selectSupplier')}</option>
+                      {(formData.type === 'sales' ? customers : suppliers).map(client => (
+                        <option key={client.id} value={client.id}>
+                          {client.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label>{t('invoiceDate')} *</label>
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                    required
-                  />
-                </div>
+                {/* Date and Payment Row */}
+                <div className="date-payment-row">
+                  <div className="form-group">
+                    <label>{t('invoiceDate')} *</label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                      required
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label>{t('dueDate')}</label>
-                  <input
-                    type="date"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                  />
-                </div>
+                  <div className="form-group">
+                    <label>{t('dueDate')}</label>
+                    <input
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label>{t('paymentStatus')} *</label>
-                  <select
-                    value={formData.paymentStatus}
-                    onChange={(e) => setFormData(prev => ({ ...prev, paymentStatus: e.target.value }))}
-                    required
-                  >
-                    <option value="paid">{t('paid')}</option>
-                    <option value="pending">{t('pending')}</option>
-                    <option value="overdue">{t('overdue')}</option>
-                  </select>
+                  <div className="form-group">
+                    <label>{t('paymentStatus')} *</label>
+                    <select
+                      value={formData.paymentStatus}
+                      onChange={(e) => setFormData(prev => ({ ...prev, paymentStatus: e.target.value }))}
+                      required
+                    >
+                      <option value="paid">{t('paid')}</option>
+                      <option value="pending">{t('pending')}</option>
+                      <option value="overdue">{t('overdue')}</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label>{t('invoiceDescription')}</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder={t('invoiceDescriptionPlaceholder')}
-                  rows="2"
-                />
-              </div>
 
               {/* Invoice Items */}
               <div className="invoice-items">
@@ -2257,6 +2250,17 @@ const Invoices = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Invoice Description - At the end */}
+              <div className="form-group">
+                <label>{t('invoiceDescription')}</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder={t('invoiceDescriptionPlaceholder')}
+                  rows="2"
+                />
               </div>
 
               {!editingInvoice && (
