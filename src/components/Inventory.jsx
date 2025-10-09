@@ -9,7 +9,6 @@ import {
   UNIT_DETAILS,
   PaintProductService 
 } from '../services/PaintProductService'
-import ColorManager from './ColorManager'
 import UnitConverter from './UnitConverter'
 import PermissionDenied from './PermissionDenied'
 import './Inventory.css'
@@ -51,8 +50,6 @@ const Inventory = () => {
   const [filterCategory, setFilterCategory] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [sortOrder, setSortOrder] = useState('asc')
-  const [showColorManager, setShowColorManager] = useState(false)
-  const [selectedColor, setSelectedColor] = useState(null)
   const [showUnitConverter, setShowUnitConverter] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -67,12 +64,6 @@ const Inventory = () => {
     purchasePrice: 0,
     minStockLevel: 10,
     expiryDate: '',
-    
-    // Color properties
-    colorCode: '',
-    colorName: '',
-    colorSystem: '',
-    colorFormula: '',
     
     // Additional properties
     manufacturer: '',
@@ -103,12 +94,6 @@ const Inventory = () => {
         minStockLevel: item.minStockLevel || 10,
         expiryDate: item.expiryDate || '',
         
-        // Color properties
-        colorCode: item.colorCode || '',
-        colorName: item.colorName || '',
-        colorSystem: item.colorSystem || '',
-        colorFormula: item.colorFormula || '',
-        
         // Additional properties
         manufacturer: item.manufacturer || '',
         batchNumber: item.batchNumber || '',
@@ -130,12 +115,6 @@ const Inventory = () => {
         minStockLevel: 10,
         expiryDate: '',
         
-        // Color properties
-        colorCode: '',
-        colorName: '',
-        colorSystem: '',
-        colorFormula: '',
-        
         // Additional properties
         manufacturer: '',
         batchNumber: '',
@@ -149,7 +128,6 @@ const Inventory = () => {
   const closeModal = () => {
     setShowModal(false)
     setEditingItem(null)
-    setSelectedColor(null)
     setFormData({
       name: '',
       sku: '',
@@ -163,12 +141,6 @@ const Inventory = () => {
       purchasePrice: 0,
       minStockLevel: 10,
       expiryDate: '',
-      
-      // Color properties
-      colorCode: '',
-      colorName: '',
-      colorSystem: '',
-      colorFormula: '',
       
       // Additional properties
       manufacturer: '',
@@ -191,19 +163,6 @@ const Inventory = () => {
       setFormData(prev => ({ ...prev, customCategoryName: '' }))
     }
   }, [formData.category])
-
-  // Handle color selection
-  const handleColorSelect = (color) => {
-    setSelectedColor(color)
-    setFormData(prev => ({
-      ...prev,
-      colorCode: color.code,
-      colorName: color.name,
-      colorSystem: color.system,
-      colorFormula: color.formula || ''
-    }))
-    setShowColorManager(false)
-  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -430,12 +389,6 @@ const Inventory = () => {
                   <td>
                     <div className="product-info">
                       <span className="product-name">{item.name}</span>
-                      {item.colorCode && (
-                        <span className="color-info">
-                          <span className="color-badge">{item.colorCode}</span>
-                          {item.colorName && <small>{item.colorName}</small>}
-                        </span>
-                      )}
                     </div>
                   </td>
                   <td>
@@ -678,66 +631,6 @@ const Inventory = () => {
                   </div>
                 </div>
 
-                {/* حقول الألوان */}
-                <div className="color-selection-section">
-                  <div className="color-header">
-                    <h4>{t('colorInformation')} ({language === 'ar' ? 'اختياري' : 'Optional'})</h4>
-                    <button 
-                      type="button"
-                      className="btn btn-info btn-sm"
-                      onClick={() => setShowColorManager(true)}
-                    >
-                      🎨 {t('chooseColor')}
-                    </button>
-                  </div>
-                  
-                  {selectedColor && (
-                    <div className="selected-color-preview">
-                      <div 
-                        className="color-swatch"
-                        style={{ backgroundColor: selectedColor.hexValue }}
-                      ></div>
-                      <div className="color-details">
-                        <span className="color-name">{selectedColor.name}</span>
-                        <span className="color-code">{selectedColor.code}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>{t('colorCode')}</label>
-                    <input
-                      type="text"
-                      value={formData.colorCode}
-                      onChange={(e) => setFormData(prev => ({ ...prev, colorCode: e.target.value }))}
-                      placeholder="RAL 9010"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>{t('colorName')}</label>
-                    <input
-                      type="text"
-                      value={formData.colorName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, colorName: e.target.value }))}
-                      placeholder={t('colorName')}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>{t('colorFormula')}</label>
-                    <textarea
-                      value={formData.colorFormula}
-                      onChange={(e) => setFormData(prev => ({ ...prev, colorFormula: e.target.value }))}
-                      placeholder={t('colorFormulaPlaceholder')}
-                      rows="2"
-                    />
-                  </div>
-                </div>
-
                 <div className="form-row">
                   <div className="form-group">
                     <label>{t('manufacturer')}</label>
@@ -793,14 +686,6 @@ const Inventory = () => {
           </div>
         </div>
       )}
-
-      {/* Color Manager Modal */}
-      <ColorManager
-        showModal={showColorManager}
-        onClose={() => setShowColorManager(false)}
-        onColorSelect={handleColorSelect}
-        selectedColor={selectedColor}
-      />
 
       {/* Unit Converter Modal */}
       <UnitConverter
