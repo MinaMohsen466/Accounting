@@ -38,6 +38,7 @@ const Invoices = () => {
   const [editingInvoice, setEditingInvoice] = useState(null)
   const [activeTab, setActiveTab] = useState('all')
   const [notification, setNotification] = useState(null)
+  const [modalError, setModalError] = useState(null) // رسالة خطأ داخل المودال
   const [searchResults, setSearchResults] = useState({})
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -108,7 +109,9 @@ const Invoices = () => {
         productType: '',
         // حقول اللون المخصص
         customColorName: '',
-        customColorCode: ''
+        customColorCode: '',
+        // تاريخ انتهاء الصلاحية للشحنة الجديدة
+        expiryDate: ''
       }
     ],
     subtotal: 0,
@@ -200,7 +203,9 @@ const Invoices = () => {
           productType: '',
           // حقول اللون المخصص
           customColorName: '',
-          customColorCode: ''
+          customColorCode: '',
+          // تاريخ انتهاء الصلاحية
+          expiryDate: ''
         }
       ],
       subtotal: 0,
@@ -239,7 +244,9 @@ const Invoices = () => {
         productType: it.productType || '',
         // حقول اللون المخصص
         customColorName: it.customColorName || '',
-        customColorCode: it.customColorCode || ''
+        customColorCode: it.customColorCode || '',
+        // تاريخ انتهاء الصلاحية
+        expiryDate: it.expiryDate || ''
       }))
 
       const populated = {
@@ -268,7 +275,9 @@ const Invoices = () => {
           productType: '',
           // حقول اللون المخصص
           customColorName: '',
-          customColorCode: ''
+          customColorCode: '',
+          // تاريخ انتهاء الصلاحية
+          expiryDate: ''
         }],
         subtotal: parseFloat(invoice.subtotal) || 0,
         discount: parseFloat(invoice.discount) || 0,
@@ -296,6 +305,8 @@ const Invoices = () => {
     resetForm()
     // Clear search results when closing modal
     setSearchResults({})
+    // Clear modal error message
+    setModalError(null)
   }
 
   // Force data refresh to ensure all components reflect latest changes
@@ -328,7 +339,9 @@ const Invoices = () => {
         productType: '',
         // حقول اللون المخصص
         customColorName: '',
-        customColorCode: ''
+        customColorCode: '',
+        // تاريخ انتهاء الصلاحية للشحنة الجديدة
+        expiryDate: ''
       }]
     }))
   }
@@ -404,7 +417,17 @@ const Invoices = () => {
   // Handle product selection from dropdown
   const selectProduct = (itemIndex, product) => {
     const newItems = [...formData.items]
-    const unitPrice = product.price || product.unitPrice || 0
+    
+    // تحديد السعر المناسب حسب نوع الفاتورة
+    let unitPrice = 0
+    if (formData.type === 'purchase') {
+      // للمشتريات: استخدم سعر الشراء أو سعر البيع كقيمة افتراضية
+      unitPrice = product.purchasePrice || product.price || product.unitPrice || 0
+    } else {
+      // للمبيعات: استخدم سعر البيع
+      unitPrice = product.price || product.unitPrice || 0
+    }
+    
     const quantity = parseFloat(newItems[itemIndex].quantity) || 1
     const discount = parseFloat(newItems[itemIndex].discount) || 0
     
@@ -430,7 +453,9 @@ const Invoices = () => {
       colorPrice: 0,
       // خانات اللون المخصص
       customColorName: '',
-      customColorCode: ''
+      customColorCode: '',
+      // تاريخ انتهاء الصلاحية - فارغ دائماً للمنتجات الجديدة
+      expiryDate: ''
     }
     
     setFormData(prev => calculateTotals({ ...prev, items: newItems }))
@@ -569,13 +594,23 @@ const Invoices = () => {
 
   // Function to update inventory when selling products
   const updateInventoryForSale = (items) => {
+    // جمع الكميات للمنتجات المكررة
+    const productQuantities = {}
     items.forEach(item => {
+      if (productQuantities[item.itemName]) {
+        productQuantities[item.itemName] += parseFloat(item.quantity) || 0
+      } else {
+        productQuantities[item.itemName] = parseFloat(item.quantity) || 0
+      }
+    })
+    
+    // تحديث المخزون بناءً على إجمالي الكميات
+    Object.entries(productQuantities).forEach(([productName, totalQuantity]) => {
       const inventoryItems = getInventoryItems() // Get fresh data each time
-      const inventoryItem = inventoryItems.find(inv => inv.name === item.itemName)
+      const inventoryItem = inventoryItems.find(inv => inv.name === productName)
       if (inventoryItem) {
         const currentQty = parseFloat(inventoryItem.quantity) || 0
-        const delta = parseFloat(item.quantity) || 0
-        const newQuantity = Math.max(0, currentQty - delta)
+        const newQuantity = Math.max(0, currentQty - totalQuantity)
         updateInventoryItem(inventoryItem.id, {
           ...inventoryItem,
           quantity: newQuantity
@@ -586,123 +621,159 @@ const Invoices = () => {
 
   // Function to update inventory when purchasing products (increase stock)
   const updateInventoryForPurchase = (items) => {
+    // جمع الكميات والأسعار للمنتجات المكررة
+    const productData = {}
     items.forEach(item => {
+      const productName = item.itemName
+      const quantity = parseFloat(item.quantity) || 0
+      const price = parseFloat(item.unitPrice) || 0
+      
+      if (productData[productName]) {
+        // جمع الكميات وحساب متوسط السعر المرجح
+        const existingQty = productData[productName].totalQuantity
+        const existingValue = productData[productName].totalValue
+        const newValue = quantity * price
+        
+        productData[productName].totalQuantity += quantity
+        productData[productName].totalValue += newValue
+        productData[productName].weightedPrice = productData[productName].totalValue / productData[productName].totalQuantity
+        
+        // استخدام آخر تاريخ انتهاء صلاحية محدد
+        if (item.expiryDate) {
+          productData[productName].expiryDate = item.expiryDate
+        }
+      } else {
+        productData[productName] = {
+          totalQuantity: quantity,
+          totalValue: quantity * price,
+          weightedPrice: price,
+          expiryDate: item.expiryDate || ''
+        }
+      }
+    })
+    
+    // تحديث المخزون بناءً على البيانات المجمعة
+    Object.entries(productData).forEach(([productName, data]) => {
       const inventoryItems = getInventoryItems() // Get fresh data each time
-      const inventoryItem = inventoryItems.find(inv => inv.name === item.itemName)
+      const inventoryItem = inventoryItems.find(inv => inv.name === productName)
       if (inventoryItem) {
         const currentQty = parseFloat(inventoryItem.quantity) || 0
-        const addQty = parseFloat(item.quantity) || 0
+        const addQty = data.totalQuantity
         const newQuantity = currentQty + addQty
         
-        // Calculate new cost price (no discount on items now)
-        const newCostPrice = parseFloat(item.unitPrice) || 0
+        // Calculate new purchase price (weighted average)
+        const newPurchasePrice = data.weightedPrice
         
-        // Calculate weighted average price if there's existing inventory
-        let finalPrice = newCostPrice
+        // Calculate weighted average purchase price with existing inventory
+        let finalPurchasePrice = newPurchasePrice
         if (currentQty > 0) {
-          const currentPrice = parseFloat(inventoryItem.price || inventoryItem.unitPrice) || 0
-          const currentValue = currentQty * currentPrice
-          const newValue = addQty * newCostPrice
+          const currentPurchasePrice = parseFloat(inventoryItem.purchasePrice) || 0
+          const currentValue = currentQty * currentPurchasePrice
+          const newValue = addQty * newPurchasePrice
           const totalValue = currentValue + newValue
           const totalQuantity = currentQty + addQty
-          finalPrice = totalQuantity > 0 ? totalValue / totalQuantity : newCostPrice
+          finalPurchasePrice = totalQuantity > 0 ? totalValue / totalQuantity : newPurchasePrice
+        }
+        
+        // Handle expiry date logic
+        let finalExpiryDate = inventoryItem.expiryDate
+        
+        // If the invoice item has an expiry date, use it (highest priority)
+        if (data.expiryDate) {
+          finalExpiryDate = data.expiryDate
+        } else {
+          // If no expiry date provided in invoice, keep current expiry date
+          // Only update if current stock is expired/expiring and we have substantial new stock
+          if (inventoryItem.expiryDate && addQty > currentQty * 0.5) {
+            const expiryDate = new Date(inventoryItem.expiryDate)
+            const today = new Date()
+            const daysDifference = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24))
+            
+            // Only update expiry if current stock is significantly expired/expiring
+            if (daysDifference <= 15) {
+              // Set new expiry date to 2 years from now
+              const newExpiryDate = new Date()
+              newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 2)
+              finalExpiryDate = newExpiryDate.toISOString().split('T')[0]
+            }
+          }
+          // If no current expiry date and adding new stock without specifying expiry,
+          // set a default expiry date
+          else if (!inventoryItem.expiryDate && addQty > 0) {
+            const newExpiryDate = new Date()
+            newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 2)
+            finalExpiryDate = newExpiryDate.toISOString().split('T')[0]
+          }
         }
         
         updateInventoryItem(inventoryItem.id, {
           ...inventoryItem,
           quantity: newQuantity,
-          price: finalPrice,
-          unitPrice: finalPrice, // Ensure both fields are updated
-          lastPurchasePrice: newCostPrice,
+          purchasePrice: finalPurchasePrice, // Update purchase price (weighted average)
+          lastPurchasePrice: newPurchasePrice, // Keep track of last purchase price
+          expiryDate: finalExpiryDate, // Update expiry date based on logical rules
           lastUpdated: new Date().toISOString()
+          // Keep selling price (price/unitPrice) unchanged
         })
       }
     })
   }
 
-  // Updated inventory reconciliation - deduct products in all payment statuses
+  // Updated inventory reconciliation - aggregate per-product adjustments
   const reconcileInventoryOnEdit = (oldInvoice, newItems, newPaymentStatus) => {
     if (!oldInvoice) return
-    
-    // Get fresh inventory data
+
+    // Aggregate totals per product for old and new invoice
+    const oldTotals = {}
+    ;(oldInvoice.items || []).forEach(i => {
+      oldTotals[i.itemName] = (oldTotals[i.itemName] || 0) + (parseFloat(i.quantity) || 0)
+    })
+
+    const newTotals = {}
+    ;(newItems || []).forEach(i => {
+      newTotals[i.itemName] = (newTotals[i.itemName] || 0) + (parseFloat(i.quantity) || 0)
+    })
+
+    // 1) Undo old totals once per product
     let currentInventory = getInventoryItems()
-
-    // Create maps for old and new quantities
-    const oldMap = {}
-    oldInvoice.items.forEach(item => {
-      oldMap[item.itemName] = (oldMap[item.itemName] || 0) + (parseFloat(item.quantity) || 0)
-    })
-
-    const newMap = {}
-    newItems.forEach(item => {
-      newMap[item.itemName] = (newMap[item.itemName] || 0) + (parseFloat(item.quantity) || 0)
-    })
-
-    // First, undo the old invoice effects completely
-    oldInvoice.items.forEach(oldItem => {
-      const inv = currentInventory.find(i => i.name === oldItem.itemName)
+    Object.entries(oldTotals).forEach(([name, qty]) => {
+      const inv = currentInventory.find(x => x.name === name)
       if (!inv) return
       const invQty = parseFloat(inv.quantity) || 0
-      const oldQty = parseFloat(oldItem.quantity) || 0
-      
       if (oldInvoice.type === 'sales') {
-        // Return stock back (undo previous sale deduction)
-        const newQty = invQty + oldQty
-        const result = updateInventoryItem(inv.id, { ...inv, quantity: newQty })
-        if (result.success) {
-          inv.quantity = newQty
-        }
+        const restored = invQty + qty
+        const res = updateInventoryItem(inv.id, { ...inv, quantity: restored })
+        if (res.success) inv.quantity = restored
       } else if (oldInvoice.type === 'purchase') {
-        // Remove previously added stock (undo previous purchase addition)
-        const adjusted = Math.max(0, invQty - oldQty)
-        const result = updateInventoryItem(inv.id, { ...inv, quantity: adjusted })
-        if (result.success) {
-          inv.quantity = adjusted
-        }
+        const adjusted = Math.max(0, invQty - qty)
+        const res = updateInventoryItem(inv.id, { ...inv, quantity: adjusted })
+        if (res.success) inv.quantity = adjusted
       }
     })
 
-    // Refresh inventory after undoing old effects
+    // Refresh inventory snapshot
     currentInventory = getInventoryItems()
 
-    // Now apply the new invoice effects regardless of payment status
-    // This means products are always deducted/added regardless of paid/pending/overdue status
-    newItems.forEach(newItem => {
-      const inv = currentInventory.find(i => i.name === newItem.itemName)
+    // 2) Apply new totals once per product
+    Object.entries(newTotals).forEach(([name, qty]) => {
+      const inv = currentInventory.find(x => x.name === name)
       if (!inv) return
       const invQty = parseFloat(inv.quantity) || 0
-      const newQty = parseFloat(newItem.quantity) || 0
-      
       if (oldInvoice.type === 'sales') {
-        // Deduct from inventory for sales (regardless of payment status)
-        const updatedQty = Math.max(0, invQty - newQty)
+        const updatedQty = Math.max(0, invQty - qty)
         updateInventoryItem(inv.id, { ...inv, quantity: updatedQty })
       } else if (oldInvoice.type === 'purchase') {
-        // Add to inventory for purchases (regardless of payment status)  
-        const updatedQty = invQty + newQty
-        
-        // Calculate new cost price (no discount on items now)
-        const newCostPrice = parseFloat(newItem.unitPrice) || 0
-        
-        // Calculate weighted average price if there's existing inventory
+        const updatedQty = invQty + qty
+        const unit = (newItems.find(i => i.itemName === name) || {}).unitPrice || 0
+        const newCostPrice = parseFloat(unit) || 0
         let finalPrice = newCostPrice
         if (invQty > 0) {
           const currentPrice = parseFloat(inv.price || inv.unitPrice) || 0
-          const currentValue = invQty * currentPrice
-          const newValue = newQty * newCostPrice
-          const totalValue = currentValue + newValue
-          const totalQuantity = invQty + newQty
+          const totalValue = (invQty * currentPrice) + (qty * newCostPrice)
+          const totalQuantity = invQty + qty
           finalPrice = totalQuantity > 0 ? totalValue / totalQuantity : newCostPrice
         }
-        
-        updateInventoryItem(inv.id, { 
-          ...inv, 
-          quantity: updatedQty,
-          price: finalPrice,
-          unitPrice: finalPrice,
-          lastPurchasePrice: newCostPrice,
-          lastUpdated: new Date().toISOString()
-        })
+        updateInventoryItem(inv.id, { ...inv, quantity: updatedQty, price: finalPrice })
       }
     })
   }
@@ -1457,18 +1528,78 @@ const Invoices = () => {
     )
 
     if (validItems.length === 0) {
-      showNotification(t('addAtLeastOneItem'), 'error')
+      setModalError(t('addAtLeastOneItem'))
       return
     }
+
+    // Clear any previous error
+    setModalError(null)
 
     // Check inventory for sales invoices
     if (formData.type === 'sales') {
       const inventoryItems = getInventoryItems()
-      for (const item of validItems) {
-        const inventoryItem = inventoryItems.find(inv => inv.name === item.itemName)
-        if (inventoryItem && inventoryItem.quantity < item.quantity) {
-          showNotification(`الكمية المطلوبة من ${item.itemName} غير متوفرة في المخزون (المتوفر: ${inventoryItem.quantity})`, 'error')
-          return
+      
+      // جمع الكميات للمنتجات المكررة في نفس الفاتورة الجديدة
+      const productQuantities = {}
+      validItems.forEach(item => {
+        if (productQuantities[item.itemName]) {
+          productQuantities[item.itemName] += parseFloat(item.quantity) || 0
+        } else {
+          productQuantities[item.itemName] = parseFloat(item.quantity) || 0
+        }
+      })
+      
+      // إذا كان هذا تعديل فاتورة، احسب الفرق في الاستهلاك فقط
+      if (editingInvoice && editingInvoice.type === 'sales') {
+        // جمع كميات المنتجات من الفاتورة الأصلية
+        const originalProductQuantities = {}
+        editingInvoice.items.forEach(item => {
+          if (originalProductQuantities[item.itemName]) {
+            originalProductQuantities[item.itemName] += parseFloat(item.quantity) || 0
+          } else {
+            originalProductQuantities[item.itemName] = parseFloat(item.quantity) || 0
+          }
+        })
+        
+        // التحقق من المخزون بناءً على الفرق في الاستهلاك لكل منتج
+        for (const [productName, newQuantity] of Object.entries(productQuantities)) {
+          const originalQuantity = originalProductQuantities[productName] || 0
+          const quantityDifference = newQuantity - originalQuantity // الفرق في الاستهلاك
+          
+          const inventoryItem = inventoryItems.find(inv => inv.name === productName)
+          
+          if (!inventoryItem) {
+            setModalError(`المنتج ${productName} غير موجود في المخزون`)
+            return
+          }
+          
+          // إذا كان الفرق موجب (زيادة في الاستهلاك)، تحقق من توفر الكمية الإضافية
+          if (quantityDifference > 0) {
+            const currentQty = parseFloat(inventoryItem.quantity) || 0
+            if (currentQty < quantityDifference) {
+              setModalError(
+                `الكمية الإضافية المطلوبة من ${productName} غير متوفرة في المخزون\n` +
+                `الزيادة المطلوبة: ${quantityDifference} • المتوفر: ${currentQty}`
+              )
+              return
+            }
+          }
+          // إذا كان الفرق سالب أو صفر (تقليل أو بقاء نفس الكمية)، لا حاجة للتحقق
+        }
+      } else {
+        // فاتورة جديدة - التحقق العادي من المخزون
+        for (const [productName, totalQuantity] of Object.entries(productQuantities)) {
+          const inventoryItem = inventoryItems.find(inv => inv.name === productName)
+          if (inventoryItem && inventoryItem.quantity < totalQuantity) {
+            setModalError(
+              `الكمية الإجمالية المطلوبة من ${productName} غير متوفرة في المخزون\n` +
+              `المطلوب: ${totalQuantity} • المتوفر: ${inventoryItem.quantity}`
+            )
+            return
+          } else if (!inventoryItem) {
+            setModalError(`المنتج ${productName} غير موجود في المخزون`)
+            return
+          }
         }
       }
     }
@@ -1885,6 +2016,23 @@ const Invoices = () => {
               <button className="close-btn" onClick={closeModal}>&times;</button>
             </div>
             
+            {/* Error Message Display */}
+            {modalError && (
+              <div className="modal-error-message">
+                <div className="error-content">
+                  <i className="error-icon">⚠️</i>
+                  <span className="error-text">{modalError}</span>
+                  <button 
+                    className="error-close" 
+                    onClick={() => setModalError(null)}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+            
             <div className="invoice-modal-body">
               <form onSubmit={handleSubmit}>
                 {/* Invoice Header */}
@@ -1970,8 +2118,16 @@ const Invoices = () => {
                         <th>{t('products')}</th>
                         <th>{language === 'ar' ? 'اللون' : 'Color'}</th>
                         <th>{t('quantity')}</th>
-                        <th>{t('unitPrice')}</th>
+                        <th>
+                          {formData.type === 'purchase' 
+                            ? (language === 'ar' ? 'سعر الشراء' : 'Purchase Price')
+                            : (language === 'ar' ? 'سعر البيع' : 'Selling Price')
+                          }
+                        </th>
                         <th>{t('itemDiscount')}</th>
+                        {formData.type === 'purchase' && (
+                          <th>{language === 'ar' ? 'تاريخ انتهاء الصلاحية' : 'Expiry Date'}</th>
+                        )}
                         <th>{t('total')}</th>
                         <th>{t('actions')}</th>
                       </tr>
@@ -2094,6 +2250,17 @@ const Invoices = () => {
                               </select>
                             </div>
                           </td>
+                          {formData.type === 'purchase' && (
+                            <td>
+                              <input
+                                type="date"
+                                value={item.expiryDate || ''}
+                                onChange={(e) => updateItem(index, 'expiryDate', e.target.value)}
+                                className="expiry-date-input"
+                                title={language === 'ar' ? 'تاريخ انتهاء الصلاحية للشحنة الجديدة' : 'Expiry date for new batch'}
+                              />
+                            </td>
+                          )}
                           <td>
                             <div className="item-total-container">
                               <span className="item-total">{item.total.toFixed(3)} {t('kwd')}</span>
@@ -2164,7 +2331,31 @@ const Invoices = () => {
                               {product.name}
                             </div>
                             <div style={{ fontSize: '12px', color: '#666' }}>
-                              SKU: {product.sku} • {(product.price || product.unitPrice || 0).toFixed(3)} {t('kwd')}
+                              SKU: {product.sku}
+                              <br />
+                              {formData.type === 'purchase' ? (
+                                <>
+                                  <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>
+                                    شراء: {(product.purchasePrice || 0).toFixed(3)} {t('kwd')}
+                                  </span>
+                                  {product.price > 0 && (
+                                    <span style={{ color: '#7f8c8d', marginLeft: '10px' }}>
+                                      (بيع: {(product.price || product.unitPrice || 0).toFixed(3)})
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <span style={{ color: '#27ae60', fontWeight: 'bold' }}>
+                                    بيع: {(product.price || product.unitPrice || 0).toFixed(3)} {t('kwd')}
+                                  </span>
+                                  {product.purchasePrice > 0 && (
+                                    <span style={{ color: '#7f8c8d', marginLeft: '10px' }}>
+                                      (شراء: {(product.purchasePrice || 0).toFixed(3)})
+                                    </span>
+                                  )}
+                                </>
+                              )}
                               {product.quantity !== undefined && (
                                 product.quantity > 0 ? (
                                   <span style={{ color: 'green' }}> • متوفر: {product.quantity}</span>
