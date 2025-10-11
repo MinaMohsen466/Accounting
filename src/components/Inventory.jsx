@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -72,10 +72,14 @@ const Inventory = () => {
     properties: {}
   })
 
+
+
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3000)
   }
+
+
 
   const openModal = (item = null) => {
     setEditingItem(item)
@@ -359,6 +363,8 @@ const Inventory = () => {
           </div>
         )}
       </div>
+
+
 
       <div className="table-container">
         {displayedItems?.length > 0 ? (
