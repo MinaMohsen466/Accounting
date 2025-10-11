@@ -2,6 +2,7 @@ import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import InvoiceNotifications from './InvoiceNotifications'
+import { updateInvoicesStatus, getInvoiceNotifications } from '../utils/invoiceUtils'
 import ExpiryAlerts from './ExpiryAlerts'
 import StockAlerts from './StockAlerts'
 import './Dashboard.css'
@@ -13,6 +14,7 @@ const Dashboard = ({ onNavigate }) => {
     invoices, 
     customers, 
     suppliers,
+    inventoryItems,
     loading 
   } = useAccounting()
 
@@ -22,6 +24,27 @@ const Dashboard = ({ onNavigate }) => {
   if (loading) {
     return <div className="loading">{t('loading')}</div>
   }
+
+  // Prepare invoices and notifications for display
+  const invoicesForNotifications = updateInvoicesStatus(Array.isArray(invoices) ? invoices : [])
+  const notificationsSummary = getInvoiceNotifications(invoicesForNotifications)
+  const totalNotifCount = (notificationsSummary?.overdue?.count || 0) + (notificationsSummary?.dueToday?.count || 0) + (notificationsSummary?.dueSoon?.count || 0)
+
+  // Calculate low stock items
+  const lowStockItems = inventoryItems?.filter(item => {
+    const min = (item.minStockLevel != null) ? Number(item.minStockLevel) : null
+    return min !== null && Number(item.quantity) < min
+  }) || []
+
+  // Calculate expired items (within 30 days)
+  const expiredItems = inventoryItems?.filter(item => {
+    if (!item.expiryDate) return false
+    const today = new Date()
+    const expiry = new Date(item.expiryDate)
+    const diffTime = expiry - today
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays <= 30 && diffDays >= 0
+  }) || []
 
   // Calculate statistics
   const totalSalesInvoices = invoices.filter(inv => inv.type === 'sales').length
@@ -75,19 +98,124 @@ const Dashboard = ({ onNavigate }) => {
         <p>{t('dashboardSubtitle')}</p>
       </div>
 
-      {/* Invoice Notifications - Only show if notifications are enabled */}
-      {notificationsEnabled && (
-        <InvoiceNotifications 
-          invoices={invoices}
-          onInvoiceClick={() => onNavigate && onNavigate('invoices')}
-        />
+      {/* Modern Notifications Panel */}
+      {(notificationsEnabled || totalNotifCount > 0 || lowStockItems.length > 0 || expiredItems.length > 0) && (
+        <div className="modern-notifications-panel">
+          <div className="notifications-header">
+            <h2>🔔 التنبيهات والإشعارات</h2>
+            <span className="total-count">
+              {totalNotifCount + lowStockItems.length + expiredItems.length}
+            </span>
+          </div>
+          
+          <div className="notifications-grid">
+            {/* Invoice Notifications */}
+            {totalNotifCount > 0 && (
+              <div className="notification-card invoice-card">
+                <div className="card-header">
+                  <span className="card-icon">💳</span>
+                  <h3>الفواتير</h3>
+                  <span className="badge">{totalNotifCount}</span>
+                </div>
+                <div className="card-content">
+                  {notificationsSummary.overdue.count > 0 && (
+                    <div className="notification-item overdue">
+                      <span className="item-icon">🚨</span>
+                      <span className="item-text">{notificationsSummary.overdue.count} فاتورة متأخرة</span>
+                      <span className="item-amount">{notificationsSummary.overdue.amount.toFixed(2)} د.ك</span>
+                    </div>
+                  )}
+                  {notificationsSummary.dueToday.count > 0 && (
+                    <div className="notification-item due-today">
+                      <span className="item-icon">📅</span>
+                      <span className="item-text">{notificationsSummary.dueToday.count} مستحقة اليوم</span>
+                      <span className="item-amount">{notificationsSummary.dueToday.amount.toFixed(2)} د.ك</span>
+                    </div>
+                  )}
+                  {notificationsSummary.dueSoon.count > 0 && (
+                    <div className="notification-item due-soon">
+                      <span className="item-icon">⏰</span>
+                      <span className="item-text">{notificationsSummary.dueSoon.count} قريبة الاستحقاق</span>
+                      <span className="item-amount">{notificationsSummary.dueSoon.amount.toFixed(2)} د.ك</span>
+                    </div>
+                  )}
+                </div>
+                <div className="card-action">
+                  <button onClick={() => onNavigate && onNavigate('invoices')} className="action-btn">
+                    عرض الفواتير
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Stock Alerts */}
+            {lowStockItems.length > 0 && (
+              <div className="notification-card stock-card">
+                <div className="card-header">
+                  <span className="card-icon">📦</span>
+                  <h3>المخزون</h3>
+                  <span className="badge">{lowStockItems.length}</span>
+                </div>
+                <div className="card-content">
+                  <div className="notification-item low-stock">
+                    <span className="item-icon">⚠️</span>
+                    <span className="item-text">منتجات أقل من الحد الأدنى</span>
+                  </div>
+                  <div className="stock-items">
+                    {lowStockItems.slice(0, 3).map(item => (
+                      <div key={item.id} className="stock-item">
+                        <span className="item-name">{item.name}</span>
+                        <span className="item-quantity">{item.quantity} متبقي</span>
+                      </div>
+                    ))}
+                    {lowStockItems.length > 3 && (
+                      <div className="more-items">+{lowStockItems.length - 3} منتج آخر</div>
+                    )}
+                  </div>
+                </div>
+                <div className="card-action">
+                  <button onClick={() => onNavigate && onNavigate('inventory')} className="action-btn">
+                    عرض المخزون
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Expiry Alerts */}
+            {expiredItems.length > 0 && (
+              <div className="notification-card expiry-card">
+                <div className="card-header">
+                  <span className="card-icon">⏳</span>
+                  <h3>انتهاء الصلاحية</h3>
+                  <span className="badge">{expiredItems.length}</span>
+                </div>
+                <div className="card-content">
+                  <div className="notification-item expired">
+                    <span className="item-icon">🗓️</span>
+                    <span className="item-text">منتجات قريبة من انتهاء الصلاحية</span>
+                  </div>
+                  <div className="expiry-items">
+                    {expiredItems.slice(0, 3).map(item => (
+                      <div key={item.id} className="expiry-item">
+                        <span className="item-name">{item.name}</span>
+                        <span className="item-date">{new Date(item.expiryDate).toLocaleDateString('ar-EG')}</span>
+                      </div>
+                    ))}
+                    {expiredItems.length > 3 && (
+                      <div className="more-items">+{expiredItems.length - 3} منتج آخر</div>
+                    )}
+                  </div>
+                </div>
+                <div className="card-action">
+                  <button onClick={() => onNavigate && onNavigate('inventory')} className="action-btn">
+                    عرض المخزون
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
-
-      {/* Expiry Alerts - Only show if notifications are enabled */}
-      {notificationsEnabled && <ExpiryAlerts />}
-
-      {/* Stock Alerts - Only show if notifications are enabled */}
-      {notificationsEnabled && <StockAlerts />}
 
       {/* Main Statistics */}
       <div className="dashboard-stats">

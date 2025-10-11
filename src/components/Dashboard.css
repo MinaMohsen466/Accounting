@@ -852,3 +852,272 @@
     font-size: 0.8rem;
   }
 }
+
+/* Modern Notifications Panel */
+.modern-notifications-panel {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 30px;
+  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.modern-notifications-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  backdrop-filter: blur(10px);
+  z-index: 0;
+}
+
+.modern-notifications-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.notifications-header h2 {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.total-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.notifications-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.notification-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.notification-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-icon {
+  font-size: 1.5rem;
+  margin-right: 8px;
+}
+
+.badge {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}
+
+.card-content {
+  margin-bottom: 16px;
+}
+
+.notification-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.item-icon {
+  font-size: 1.2rem;
+}
+
+.item-text {
+  flex: 1;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.item-amount {
+  font-weight: 600;
+  color: #27ae60;
+  background: rgba(39, 174, 96, 0.1);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.stock-items, .expiry-items {
+  margin-top: 12px;
+}
+
+.stock-item, .expiry-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(52, 152, 219, 0.1);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.item-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.item-quantity, .item-date {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.more-items {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  font-style: italic;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+}
+
+.card-action {
+  text-align: center;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 12px;
+}
+
+.action-btn {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+/* Specific card styling */
+.invoice-card .badge {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.stock-card .badge {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+}
+
+.expiry-card .badge {
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+}
+
+/* Notification item colors */
+.notification-item.overdue .item-icon {
+  color: #e74c3c;
+}
+
+.notification-item.due-today .item-icon {
+  color: #f39c12;
+}
+
+.notification-item.due-soon .item-icon {
+  color: #3498db;
+}
+
+.notification-item.low-stock .item-icon {
+  color: #f39c12;
+}
+
+.notification-item.expired .item-icon {
+  color: #9b59b6;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .modern-notifications-panel {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  
+  .notifications-header h2 {
+    font-size: 1.2rem;
+  }
+  
+  .notifications-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .notification-card {
+    padding: 16px;
+  }
+  
+  .card-header h3 {
+    font-size: 1rem;
+  }
+  
+  .stock-item, .expiry-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
