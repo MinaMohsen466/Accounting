@@ -397,15 +397,19 @@
 }
 
 .items-table th:nth-child(6) { /* الخصم */
+  width: 9% !important;
+}
+
+.items-table th:nth-child(7) { /* تاريخ انتهاء الصلاحية - فقط للمشتريات */
   width: 10% !important;
 }
 
-.items-table th:nth-child(7) { /* المجموع */
-  width: 12% !important;
+.items-table th:nth-child(8) { /* المجموع */
+  width: 11% !important;
 }
 
-.items-table th:nth-child(8) { /* الإجراءات */
-  width: 21% !important;
+.items-table th:nth-child(9) { /* الإجراءات */
+  width: 18% !important;
 }
 
 /* تطبيق نفس العرض على TD */
@@ -433,18 +437,23 @@
 }
 
 .items-table td:nth-child(6) { /* الخصم */
+  width: 9% !important;
+  text-align: center;
+}
+
+.items-table td:nth-child(7) { /* تاريخ انتهاء الصلاحية - فقط للمشتريات */
   width: 10% !important;
   text-align: center;
 }
 
-.items-table td:nth-child(7) { /* المجموع */
-  width: 12% !important;
+.items-table td:nth-child(8) { /* المجموع */
+  width: 11% !important;
   text-align: center;
   font-weight: bold;
 }
 
-.items-table td:nth-child(8) { /* الإجراءات */
-  width: 21% !important;
+.items-table td:nth-child(9) { /* الإجراءات */
+  width: 18% !important;
   text-align: center;
 }
 
@@ -789,6 +798,49 @@
   border-radius: var(--radius-sm);
   text-align: center;
   font-size: 14px;
+}
+
+/* Expiry date input styling */
+.expiry-date-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 2px solid #e1e5e9;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #2c3e50;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  transition: all 0.3s ease;
+  text-align: center;
+  position: relative;
+}
+
+.expiry-date-input:focus {
+  outline: none;
+  border-color: #27ae60;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+  transform: translateY(-1px);
+}
+
+.expiry-date-input:hover {
+  border-color: #95a5a6;
+  background: white;
+}
+
+/* Optional expiry date indicator */
+.expiry-date-input:placeholder-shown {
+  border-color: #bdc3c7;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ecf0f1 100%);
+}
+
+.expiry-date-input:placeholder-shown::after {
+  content: "اختياري";
+  position: absolute;
+  top: -20px;
+  right: 5px;
+  font-size: 10px;
+  color: #7f8c8d;
+  font-style: italic;
 }
 
 .item-total {
@@ -1890,5 +1942,69 @@
   .items-table td:nth-child(4) {
     min-width: 70px;
     width: 4% !important; /* الحفاظ على النسبة المئوية حتى على الشاشات الصغيرة */
+  }
+}
+
+/* Modal Error Message Styling */
+.modal-error-message {
+  background: #ffe6e6;
+  border: 1px solid #ff6b6b;
+  border-radius: 8px;
+  margin: 15px 20px 0 20px;
+  padding: 0;
+  animation: slideDown 0.3s ease-out;
+}
+
+.error-content {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  gap: 10px;
+}
+
+.error-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.error-text {
+  flex: 1;
+  color: #d63031;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: pre-line; /* للسماح بفواصل الأسطر */
+}
+
+.error-close {
+  background: none;
+  border: none;
+  color: #d63031;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.error-close:hover {
+  background-color: rgba(214, 48, 49, 0.1);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
