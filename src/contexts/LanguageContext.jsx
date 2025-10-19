@@ -255,6 +255,7 @@ const translations = {
     trialBalance: 'ميزان المراجعة',
     incomeStatement: 'قائمة الدخل',
     balanceSheet: 'الميزانية العمومية',
+    accountStatement: 'كشف حساب',
     developingSoon: 'قيد التطوير قريباً...',
     
     // Inventory
@@ -719,6 +720,7 @@ const translations = {
     trialBalance: 'Trial Balance',
     incomeStatement: 'Income Statement',
     balanceSheet: 'Balance Sheet',
+    accountStatement: 'Account Statement',
     developingSoon: 'Developing soon...',
     
     // Inventory

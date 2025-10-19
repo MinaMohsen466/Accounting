@@ -458,6 +458,236 @@ export const useAccounting = () => {
     }
   }
 
+  // Get account statement for a specific account and date range
+  const getAccountStatement = (accountId, startDate, endDate) => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999) // Include the entire end date
+    
+    // Get all transactions for this account
+    const transactions = []
+    let openingBalance = 0
+    
+    // Process journal entries
+    journalEntries.forEach(entry => {
+      const entryDate = new Date(entry.date)
+      
+      entry.lines.forEach(line => {
+        if (line.accountId === accountId) {
+          const transaction = {
+            date: entry.date,
+            description: line.description || entry.description,
+            reference: entry.reference || '',
+            debit: parseFloat(line.debit) || 0,
+            credit: parseFloat(line.credit) || 0,
+            entryDate: entryDate
+          }
+          
+          // If before start date, add to opening balance
+          if (entryDate < start) {
+            openingBalance += transaction.debit - transaction.credit
+          } 
+          // If within date range, add to transactions
+          else if (entryDate >= start && entryDate <= end) {
+            transactions.push(transaction)
+          }
+        }
+      })
+    })
+    
+    // Sort transactions by date
+    transactions.sort((a, b) => a.entryDate - b.entryDate)
+    
+    // Calculate running balance
+    let runningBalance = openingBalance
+    const transactionsWithBalance = transactions.map(trans => {
+      runningBalance += trans.debit - trans.credit
+      return {
+        ...trans,
+        balance: runningBalance
+      }
+    })
+    
+    // Calculate totals
+    const totalDebit = transactions.reduce((sum, trans) => sum + trans.debit, 0)
+    const totalCredit = transactions.reduce((sum, trans) => sum + trans.credit, 0)
+    const closingBalance = openingBalance + totalDebit - totalCredit
+    
+    return {
+      accountId,
+      startDate,
+      endDate,
+      openingBalance,
+      transactions: transactionsWithBalance,
+      totalDebit,
+      totalCredit,
+      closingBalance
+    }
+  }
+
+  // Get customer or supplier statement
+  const getCustomerSupplierStatement = (entityId, entityType, startDate, endDate) => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999)
+    
+    // Get the entity (customer or supplier) to access their initial balance
+    const entity = entityType === 'customer' 
+      ? customers.find(c => c.id === entityId)
+      : suppliers.find(s => s.id === entityId)
+    
+    // Get all invoices for this customer/supplier
+    const entityInvoices = invoices.filter(invoice => {
+      if (entityType === 'customer') {
+        // Check both customerId and clientId for backward compatibility
+        return invoice.type === 'sales' && (invoice.customerId === entityId || invoice.clientId === entityId)
+      } else {
+        // Check both supplierId and clientId for backward compatibility
+        return invoice.type === 'purchase' && (invoice.supplierId === entityId || invoice.clientId === entityId)
+      }
+    })
+    
+    // Debug: log the filtering results
+    console.log('🔍 Statement Debug:', {
+      entityId,
+      entityType,
+      entityInitialBalance: entity?.balance || 0,
+      totalInvoices: invoices.length,
+      filteredInvoices: entityInvoices.length,
+      invoicesSample: invoices.slice(0, 2).map(inv => ({
+        id: inv.id,
+        type: inv.type,
+        clientId: inv.clientId,
+        customerId: inv.customerId,
+        supplierId: inv.supplierId
+      }))
+    })
+    
+    // Start with the entity's initial balance
+    let openingBalance = parseFloat(entity?.balance || 0)
+    const transactions = []
+    
+    // Process invoices
+    entityInvoices.forEach(invoice => {
+      const invoiceDate = new Date(invoice.date)
+      const total = parseFloat(invoice.total) || 0
+      
+      // For customers: invoice increases their balance (debit)
+      // For suppliers: invoice increases our liability to them (credit)
+      let debit = 0
+      let credit = 0
+      
+      if (entityType === 'customer') {
+        // Sales invoice - customer owes us (debit to customer)
+        debit = total
+        // If paid, also show credit (payment) in the same transaction
+        credit = invoice.paymentStatus === 'paid' ? total : 0
+      } else {
+        // Purchase invoice - we owe supplier (credit to supplier)
+        credit = total
+        // If paid, also show debit (payment) in the same transaction
+        debit = invoice.paymentStatus === 'paid' ? total : 0
+      }
+      
+      // Determine status label
+      let statusLabel = ''
+      if (invoice.paymentStatus === 'paid') {
+        statusLabel = ' - مدفوعة'
+      } else if (invoice.paymentStatus === 'overdue') {
+        statusLabel = ' - متأخرة'
+      } else if (invoice.paymentStatus === 'pending') {
+        statusLabel = ' - معلقة'
+      }
+      
+      const transaction = {
+        date: invoice.date,
+        invoiceNumber: invoice.invoiceNumber,
+        description: `${invoice.description || (invoice.type === 'sales' ? 'فاتورة مبيعات' : 'فاتورة مشتريات')} ${statusLabel}`,
+        debit: debit,
+        credit: credit,
+        invoiceDate: invoiceDate,
+        status: invoice.paymentStatus,
+        dueDate: invoice.dueDate,
+        isPaid: invoice.paymentStatus === 'paid'
+      }
+      
+      // If before start date, add to opening balance
+      if (invoiceDate < start) {
+        openingBalance += debit - credit
+      } 
+      // If within date range, add to transactions
+      else if (invoiceDate >= start && invoiceDate <= end) {
+        transactions.push(transaction)
+      }
+    })
+    
+    // Sort transactions by date
+    transactions.sort((a, b) => a.invoiceDate - b.invoiceDate)
+    
+    // Calculate running balance
+    let runningBalance = openingBalance
+    const transactionsWithBalance = transactions.map(trans => {
+      runningBalance += trans.debit - trans.credit
+      return {
+        ...trans,
+        balance: runningBalance
+      }
+    })
+    
+    // Calculate totals
+    const totalDebit = transactions.reduce((sum, trans) => sum + trans.debit, 0)
+    const totalCredit = transactions.reduce((sum, trans) => sum + trans.credit, 0)
+    const closingBalance = openingBalance + totalDebit - totalCredit
+    
+    // Debug: log calculation details
+    console.log('💰 Balance Calculation:', {
+      openingBalance,
+      totalDebit,
+      totalCredit,
+      calculation: `${openingBalance} + ${totalDebit} - ${totalCredit}`,
+      closingBalance,
+      transactionsCount: transactions.length
+    })
+    
+    // Calculate summary statistics
+    const paidInvoices = entityInvoices.filter(inv => inv.paymentStatus === 'paid').length
+    const pendingInvoices = entityInvoices.filter(inv => inv.paymentStatus === 'pending').length
+    const overdueInvoices = entityInvoices.filter(inv => inv.paymentStatus === 'overdue').length
+    
+    const totalPaidAmount = entityInvoices
+      .filter(inv => inv.paymentStatus === 'paid')
+      .reduce((sum, inv) => sum + (parseFloat(inv.total) || 0), 0)
+    
+    const totalPendingAmount = entityInvoices
+      .filter(inv => inv.paymentStatus === 'pending')
+      .reduce((sum, inv) => sum + (parseFloat(inv.total) || 0), 0)
+    
+    const totalOverdueAmount = entityInvoices
+      .filter(inv => inv.paymentStatus === 'overdue')
+      .reduce((sum, inv) => sum + (parseFloat(inv.total) || 0), 0)
+    
+    return {
+      entityId,
+      entityType,
+      startDate,
+      endDate,
+      openingBalance,
+      transactions: transactionsWithBalance,
+      totalDebit,
+      totalCredit,
+      closingBalance,
+      summary: {
+        totalInvoices: entityInvoices.length,
+        paidInvoices,
+        pendingInvoices,
+        overdueInvoices,
+        totalPaidAmount,
+        totalPendingAmount,
+        totalOverdueAmount
+      }
+    }
+  }
+
   return {
     // State
     accounts,
@@ -499,6 +729,10 @@ export const useAccounting = () => {
     updateInventoryItem,
     deleteInventoryItem,
     getInventoryItems: () => DataService.getInventoryItems(),
+    
+    // Reports
+    getAccountStatement,
+    getCustomerSupplierStatement,
     
     // Utility
     setError

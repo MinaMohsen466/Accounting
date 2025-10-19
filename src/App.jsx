@@ -13,6 +13,7 @@ import Invoices from './components/Invoices'
 import CustomersSuppliers from './components/CustomersSuppliers'
 import Inventory from './components/Inventory'
 import Reports from './components/Reports'
+import AccountStatement from './components/AccountStatement'
 import DataManagement from './components/DataManagement'
 import Settings from './components/Settings'
 import LoginOverlay from './components/LoginOverlay'
@@ -48,6 +49,8 @@ const AppContent = () => {
         return <Inventory />
       case 'reports':
         return <Reports />
+      case 'accountStatement':
+        return <AccountStatement />
       case 'dataManagement':
         return <DataManagement />
       case 'settings':
