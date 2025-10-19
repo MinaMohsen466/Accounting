@@ -24,6 +24,15 @@ const Settings = () => {
     return saved || 'light'
   })
 
+  const [editInvoicePin, setEditInvoicePin] = useState(() => {
+    const saved = localStorage.getItem('app_editInvoicePin')
+    return saved || ''
+  })
+
+  const [newPin, setNewPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [pinError, setPinError] = useState('')
+
   const tabs = [
     {
       id: 'general',
@@ -82,6 +91,45 @@ const Settings = () => {
     document.documentElement.setAttribute('data-theme', newTheme)
   }
 
+  const handlePinChange = () => {
+    setPinError('')
+    
+    // Validate
+    if (!newPin) {
+      setPinError(language === 'ar' ? 'يرجى إدخال الرقم السري' : 'Please enter PIN')
+      return
+    }
+    
+    if (newPin.length < 4) {
+      setPinError(language === 'ar' ? 'الرقم السري يجب أن يكون 4 أرقام على الأقل' : 'PIN must be at least 4 digits')
+      return
+    }
+    
+    if (newPin !== confirmPin) {
+      setPinError(language === 'ar' ? 'الرقم السري غير متطابق' : 'PIN does not match')
+      return
+    }
+    
+    // Save PIN
+    localStorage.setItem('app_editInvoicePin', newPin)
+    setEditInvoicePin(newPin)
+    setNewPin('')
+    setConfirmPin('')
+    
+    // Show success message
+    alert(language === 'ar' ? 'تم حفظ الرقم السري بنجاح!' : 'PIN saved successfully!')
+  }
+
+  const handlePinRemove = () => {
+    if (window.confirm(language === 'ar' ? 'هل أنت متأكد من إزالة الرقم السري؟' : 'Are you sure you want to remove the PIN?')) {
+      localStorage.removeItem('app_editInvoicePin')
+      setEditInvoicePin('')
+      setNewPin('')
+      setConfirmPin('')
+      alert(language === 'ar' ? 'تم إزالة الرقم السري' : 'PIN removed')
+    }
+  }
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
@@ -134,6 +182,83 @@ const Settings = () => {
                 </label>
               </div>
             </div>
+
+            {/* PIN Security Setting - Admin Only */}
+            {hasPermission('system_maintenance') && (
+              <div className="settings-group" style={{ marginTop: '30px' }}>
+                <h4 style={{ marginBottom: '15px', color: '#6366f1' }}>
+                  🔐 {language === 'ar' ? 'حماية تعديل الفواتير' : 'Invoice Edit Protection'}
+                </h4>
+                
+                <div className="pin-security-section">
+                  <div className="setting-info" style={{ marginBottom: '15px' }}>
+                    <p>
+                      {language === 'ar' 
+                        ? 'قم بإنشاء رقم سري لحماية عملية تعديل الفواتير. سيطلب هذا الرقم عند محاولة تعديل أي فاتورة.' 
+                        : 'Create a PIN to protect invoice editing. This PIN will be required when attempting to edit any invoice.'}
+                    </p>
+                  </div>
+
+                  {editInvoicePin ? (
+                    <div className="pin-status-box">
+                      <div className="pin-active-indicator">
+                        <span style={{ fontSize: '24px' }}>✅</span>
+                        <span style={{ marginLeft: '10px', fontWeight: 'bold', color: '#22c55e' }}>
+                          {language === 'ar' ? 'الرقم السري مفعّل' : 'PIN is Active'}
+                        </span>
+                      </div>
+                      <button 
+                        className="btn-danger"
+                        onClick={handlePinRemove}
+                        style={{ marginTop: '10px' }}
+                      >
+                        {language === 'ar' ? 'إزالة الرقم السري' : 'Remove PIN'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="pin-setup-box">
+                      <div className="form-group">
+                        <label>{language === 'ar' ? 'الرقم السري الجديد (4 أرقام على الأقل)' : 'New PIN (min 4 digits)'}</label>
+                        <input
+                          type="password"
+                          className="form-control"
+                          value={newPin}
+                          onChange={(e) => setNewPin(e.target.value)}
+                          placeholder={language === 'ar' ? 'أدخل الرقم السري' : 'Enter PIN'}
+                          maxLength="8"
+                        />
+                      </div>
+                      
+                      <div className="form-group" style={{ marginTop: '10px' }}>
+                        <label>{language === 'ar' ? 'تأكيد الرقم السري' : 'Confirm PIN'}</label>
+                        <input
+                          type="password"
+                          className="form-control"
+                          value={confirmPin}
+                          onChange={(e) => setConfirmPin(e.target.value)}
+                          placeholder={language === 'ar' ? 'أعد إدخال الرقم السري' : 'Re-enter PIN'}
+                          maxLength="8"
+                        />
+                      </div>
+
+                      {pinError && (
+                        <div className="error-message" style={{ marginTop: '10px', color: '#ef4444' }}>
+                          {pinError}
+                        </div>
+                      )}
+
+                      <button 
+                        className="btn-primary"
+                        onClick={handlePinChange}
+                        style={{ marginTop: '15px' }}
+                      >
+                        {language === 'ar' ? 'حفظ الرقم السري' : 'Save PIN'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )
       

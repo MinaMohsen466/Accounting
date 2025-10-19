@@ -674,3 +674,33 @@ table tr:hover {
   margin-bottom: 20px;
   font-size: 1rem;
 }
+ 
+ 
+/* Print styles for entire app */
+@media print {
+  /* Hide sidebar and navigation */
+  .sidebar,
+  .app-sidebar,
+  nav,
+  header:not(.report-header),
+  footer,
+  .app-header,
+  .menu,
+  .navigation {
+    display: none !important;
+  }
+
+  /* Full width for content */
+  .app-container,
+  .main-content,
+  .content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Ensure white background */
+  body {
+    background: white !important;
+  }
+}
