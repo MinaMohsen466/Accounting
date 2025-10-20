@@ -29,6 +29,13 @@ const JournalEntries = () => {
   const [showModal, setShowModal] = useState(false)
   const [editingEntry, setEditingEntry] = useState(null)
   const [notification, setNotification] = useState(null)
+  
+  // PIN verification states
+  const [showPinModal, setShowPinModal] = useState(false)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState('')
+  const [pendingEditEntry, setPendingEditEntry] = useState(null)
+  
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     description: '',
@@ -58,6 +65,26 @@ const JournalEntries = () => {
   }
 
   const openModal = (entry = null) => {
+    // Check if editing and PIN is required
+    if (entry) {
+      const savedPin = localStorage.getItem('app_editInvoicePin')
+      const pinSettings = JSON.parse(localStorage.getItem('app_pinProtectionSettings') || '{"journalEntries": true}')
+      
+      if (savedPin && pinSettings.journalEntries) {
+        // PIN is set and protection is enabled, show PIN modal first
+        setPendingEditEntry(entry)
+        setShowPinModal(true)
+        setPinInput('')
+        setPinError('')
+        return
+      }
+    }
+    
+    // No PIN required or creating new entry
+    proceedToEdit(entry)
+  }
+
+  const proceedToEdit = (entry = null) => {
     if (entry) {
       setFormData({
         date: entry.date,
@@ -73,6 +100,29 @@ const JournalEntries = () => {
       resetForm()
     }
     setShowModal(true)
+  }
+
+  const handlePinVerification = () => {
+    const savedPin = localStorage.getItem('app_editInvoicePin')
+    
+    if (pinInput === savedPin) {
+      // PIN correct, proceed to edit
+      setShowPinModal(false)
+      setPinInput('')
+      setPinError('')
+      proceedToEdit(pendingEditEntry)
+      setPendingEditEntry(null)
+    } else {
+      // PIN incorrect
+      setPinError(language === 'ar' ? 'الرقم السري غير صحيح' : 'Incorrect PIN')
+    }
+  }
+
+  const closePinModal = () => {
+    setShowPinModal(false)
+    setPinInput('')
+    setPinError('')
+    setPendingEditEntry(null)
   }
 
   const closeModal = () => {
@@ -431,6 +481,74 @@ const JournalEntries = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PIN Verification Modal */}
+      {showPinModal && (
+        <div className="modal-overlay" onClick={closePinModal}>
+          <div className="modal-content pin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>🔐 {language === 'ar' ? 'التحقق من الرقم السري' : 'PIN Verification'}</h2>
+              <button className="close-btn" onClick={closePinModal}>&times;</button>
+            </div>
+            
+            <div className="modal-body">
+              <p style={{ marginBottom: '20px', color: '#64748b', textAlign: 'center' }}>
+                {language === 'ar' 
+                  ? 'يرجى إدخال الرقم السري للموافقة على تعديل القيد اليومي' 
+                  : 'Please enter PIN to authorize journal entry editing'}
+              </p>
+              
+              <div className="form-group">
+                <label>{language === 'ar' ? 'الرقم السري' : 'PIN'}</label>
+                <input
+                  type="password"
+                  className="form-control pin-input"
+                  value={pinInput}
+                  onChange={(e) => {
+                    setPinInput(e.target.value)
+                    setPinError('')
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handlePinVerification()
+                    }
+                  }}
+                  placeholder={language === 'ar' ? 'أدخل الرقم السري' : 'Enter PIN'}
+                  autoFocus
+                  maxLength="8"
+                />
+              </div>
+
+              {pinError && (
+                <div className="error-message" style={{ 
+                  color: '#ef4444', 
+                  marginTop: '10px', 
+                  textAlign: 'center',
+                  fontWeight: 'bold'
+                }}>
+                  ❌ {pinError}
+                </div>
+              )}
+
+              <div className="modal-actions" style={{ marginTop: '20px' }}>
+                <button 
+                  className="btn btn-primary"
+                  onClick={handlePinVerification}
+                  disabled={!pinInput}
+                >
+                  {language === 'ar' ? 'تأكيد' : 'Verify'}
+                </button>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={closePinModal}
+                >
+                  {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

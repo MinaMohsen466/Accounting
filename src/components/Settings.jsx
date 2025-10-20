@@ -29,6 +29,18 @@ const Settings = () => {
     return saved || ''
   })
 
+  // PIN protection settings for different modules
+  const [pinProtectionSettings, setPinProtectionSettings] = useState(() => {
+    const saved = localStorage.getItem('app_pinProtectionSettings')
+    return saved ? JSON.parse(saved) : {
+      invoices: true,
+      inventory: true,
+      customers: true,
+      journalEntries: true,
+      chartOfAccounts: true
+    }
+  })
+
   const [newPin, setNewPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
   const [pinError, setPinError] = useState('')
@@ -130,6 +142,15 @@ const Settings = () => {
     }
   }
 
+  const handlePinProtectionToggle = (section, enabled) => {
+    const newSettings = {
+      ...pinProtectionSettings,
+      [section]: enabled
+    }
+    setPinProtectionSettings(newSettings)
+    localStorage.setItem('app_pinProtectionSettings', JSON.stringify(newSettings))
+  }
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
@@ -187,15 +208,15 @@ const Settings = () => {
             {hasPermission('system_maintenance') && (
               <div className="settings-group" style={{ marginTop: '30px' }}>
                 <h4 style={{ marginBottom: '15px', color: '#6366f1' }}>
-                  🔐 {language === 'ar' ? 'حماية تعديل الفواتير' : 'Invoice Edit Protection'}
+                  🔐 {language === 'ar' ? 'حماية التعديلات بالرقم السري' : 'Edit Protection with PIN'}
                 </h4>
                 
                 <div className="pin-security-section">
                   <div className="setting-info" style={{ marginBottom: '15px' }}>
                     <p>
                       {language === 'ar' 
-                        ? 'قم بإنشاء رقم سري لحماية عملية تعديل الفواتير. سيطلب هذا الرقم عند محاولة تعديل أي فاتورة.' 
-                        : 'Create a PIN to protect invoice editing. This PIN will be required when attempting to edit any invoice.'}
+                        ? 'قم بإنشاء رقم سري لحماية عمليات التعديل. يمكنك التحكم في الأقسام التي تتطلب رقم سري.' 
+                        : 'Create a PIN to protect editing operations. You can control which sections require a PIN.'}
                     </p>
                   </div>
 
@@ -207,10 +228,113 @@ const Settings = () => {
                           {language === 'ar' ? 'الرقم السري مفعّل' : 'PIN is Active'}
                         </span>
                       </div>
+
+                      {/* PIN Protection Toggles */}
+                      <div style={{ marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+                        <h5 style={{ marginBottom: '15px', fontSize: '14px', color: '#495057' }}>
+                          {language === 'ar' ? 'تفعيل الحماية للأقسام:' : 'Enable Protection for Sections:'}
+                        </h5>
+                        
+                        <div className="setting-item" style={{ marginBottom: '10px' }}>
+                          <div className="setting-info">
+                            <h4 style={{ fontSize: '13px', margin: 0 }}>
+                              📄 {language === 'ar' ? 'الفواتير' : 'Invoices'}
+                            </h4>
+                            <p style={{ fontSize: '11px', margin: 0, color: '#6c757d' }}>
+                              {language === 'ar' ? 'طلب رقم سري عند تعديل الفواتير' : 'Require PIN when editing invoices'}
+                            </p>
+                          </div>
+                          <label className="switch">
+                            <input 
+                              type="checkbox" 
+                              checked={pinProtectionSettings.invoices}
+                              onChange={(e) => handlePinProtectionToggle('invoices', e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </label>
+                        </div>
+
+                        <div className="setting-item" style={{ marginBottom: '10px' }}>
+                          <div className="setting-info">
+                            <h4 style={{ fontSize: '13px', margin: 0 }}>
+                              📦 {language === 'ar' ? 'المنتجات' : 'Products'}
+                            </h4>
+                            <p style={{ fontSize: '11px', margin: 0, color: '#6c757d' }}>
+                              {language === 'ar' ? 'طلب رقم سري عند تعديل المنتجات' : 'Require PIN when editing products'}
+                            </p>
+                          </div>
+                          <label className="switch">
+                            <input 
+                              type="checkbox" 
+                              checked={pinProtectionSettings.inventory}
+                              onChange={(e) => handlePinProtectionToggle('inventory', e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </label>
+                        </div>
+
+                        <div className="setting-item" style={{ marginBottom: '10px' }}>
+                          <div className="setting-info">
+                            <h4 style={{ fontSize: '13px', margin: 0 }}>
+                              👥 {language === 'ar' ? 'العملاء والموردين' : 'Customers & Suppliers'}
+                            </h4>
+                            <p style={{ fontSize: '11px', margin: 0, color: '#6c757d' }}>
+                              {language === 'ar' ? 'طلب رقم سري عند تعديل العملاء والموردين' : 'Require PIN when editing customers/suppliers'}
+                            </p>
+                          </div>
+                          <label className="switch">
+                            <input 
+                              type="checkbox" 
+                              checked={pinProtectionSettings.customers}
+                              onChange={(e) => handlePinProtectionToggle('customers', e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </label>
+                        </div>
+
+                        <div className="setting-item" style={{ marginBottom: '10px' }}>
+                          <div className="setting-info">
+                            <h4 style={{ fontSize: '13px', margin: 0 }}>
+                              📒 {language === 'ar' ? 'القيود اليومية' : 'Journal Entries'}
+                            </h4>
+                            <p style={{ fontSize: '11px', margin: 0, color: '#6c757d' }}>
+                              {language === 'ar' ? 'طلب رقم سري عند تعديل القيود اليومية' : 'Require PIN when editing journal entries'}
+                            </p>
+                          </div>
+                          <label className="switch">
+                            <input 
+                              type="checkbox" 
+                              checked={pinProtectionSettings.journalEntries}
+                              onChange={(e) => handlePinProtectionToggle('journalEntries', e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </label>
+                        </div>
+
+                        <div className="setting-item" style={{ marginBottom: '0' }}>
+                          <div className="setting-info">
+                            <h4 style={{ fontSize: '13px', margin: 0 }}>
+                              📊 {language === 'ar' ? 'دليل الحسابات' : 'Chart of Accounts'}
+                            </h4>
+                            <p style={{ fontSize: '11px', margin: 0, color: '#6c757d' }}>
+                              {language === 'ar' ? 'طلب رقم سري عند تعديل الحسابات' : 'Require PIN when editing accounts'}
+                            </p>
+                          </div>
+                          <label className="switch">
+                            <input 
+                              type="checkbox" 
+                              checked={pinProtectionSettings.chartOfAccounts}
+                              onChange={(e) => handlePinProtectionToggle('chartOfAccounts', e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </label>
+                        </div>
+                      </div>
+
                       <button 
                         className="btn-danger"
                         onClick={handlePinRemove}
-                        style={{ marginTop: '10px' }}
+                        style={{ marginTop: '15px' }}
                       >
                         {language === 'ar' ? 'إزالة الرقم السري' : 'Remove PIN'}
                       </button>
