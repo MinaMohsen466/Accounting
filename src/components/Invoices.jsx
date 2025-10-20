@@ -233,8 +233,10 @@ const Invoices = () => {
     // Check if editing and PIN is required
     if (invoice) {
       const savedPin = localStorage.getItem('app_editInvoicePin')
-      if (savedPin) {
-        // PIN is set, show PIN modal first
+      const pinSettings = JSON.parse(localStorage.getItem('app_pinProtectionSettings') || '{"invoices": true}')
+      
+      if (savedPin && pinSettings.invoices) {
+        // PIN is set and protection is enabled, show PIN modal first
         setPendingEditInvoice(invoice)
         setShowPinModal(true)
         setPinInput('')

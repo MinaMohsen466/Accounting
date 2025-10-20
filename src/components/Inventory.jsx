@@ -51,6 +51,12 @@ const Inventory = () => {
   const [sortBy, setSortBy] = useState('name')
   const [sortOrder, setSortOrder] = useState('asc')
   const [showUnitConverter, setShowUnitConverter] = useState(false)
+  
+  // PIN verification states
+  const [showPinModal, setShowPinModal] = useState(false)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState('')
+  const [pendingEditItem, setPendingEditItem] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -82,6 +88,26 @@ const Inventory = () => {
 
 
   const openModal = (item = null) => {
+    // Check if editing and PIN is required
+    if (item) {
+      const savedPin = localStorage.getItem('app_editInvoicePin')
+      const pinSettings = JSON.parse(localStorage.getItem('app_pinProtectionSettings') || '{"inventory": true}')
+      
+      if (savedPin && pinSettings.inventory) {
+        // PIN is set and protection is enabled, show PIN modal first
+        setPendingEditItem(item)
+        setShowPinModal(true)
+        setPinInput('')
+        setPinError('')
+        return
+      }
+    }
+    
+    // No PIN required or creating new item
+    proceedToEdit(item)
+  }
+
+  const proceedToEdit = (item = null) => {
     setEditingItem(item)
     if (item) {
       setFormData({
@@ -127,6 +153,29 @@ const Inventory = () => {
       })
     }
     setShowModal(true)
+  }
+
+  const handlePinVerification = () => {
+    const savedPin = localStorage.getItem('app_editInvoicePin')
+    
+    if (pinInput === savedPin) {
+      // PIN correct, proceed to edit
+      setShowPinModal(false)
+      setPinInput('')
+      setPinError('')
+      proceedToEdit(pendingEditItem)
+      setPendingEditItem(null)
+    } else {
+      // PIN incorrect
+      setPinError(language === 'ar' ? 'الرقم السري غير صحيح' : 'Incorrect PIN')
+    }
+  }
+
+  const closePinModal = () => {
+    setShowPinModal(false)
+    setPinInput('')
+    setPinError('')
+    setPendingEditItem(null)
   }
 
   const closeModal = () => {
@@ -376,7 +425,6 @@ const Inventory = () => {
                 <th>{t('category')}</th>
                 <th>{t('unit')}</th>
                 <th>{t('quantity')}</th>
-                <th>{t('purchasePrice')}</th>
                 <th>{t('unitPrice')}</th>
                 <th>{t('totalValue')}</th>
                 <th>{t('actions')}</th>
@@ -437,7 +485,6 @@ const Inventory = () => {
                       )}
                     </div>
                   </td>
-                  <td className="purchase-price">{(item.purchasePrice || 0).toFixed(3)} {t('kwd')}</td>
                   <td className="selling-price">{(item.price || item.unitPrice || 0).toFixed(3)} {t('kwd')}</td>
                   <td className="total-value">{(item.quantity * (item.price || item.unitPrice || 0)).toFixed(3)} {t('kwd')}</td>
                   <td>
@@ -698,6 +745,74 @@ const Inventory = () => {
         showModal={showUnitConverter}
         onClose={() => setShowUnitConverter(false)}
       />
+
+      {/* PIN Verification Modal */}
+      {showPinModal && (
+        <div className="modal-overlay" onClick={closePinModal}>
+          <div className="modal-content pin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>🔐 {language === 'ar' ? 'التحقق من الرقم السري' : 'PIN Verification'}</h2>
+              <button className="close-btn" onClick={closePinModal}>&times;</button>
+            </div>
+            
+            <div className="modal-body">
+              <p style={{ marginBottom: '20px', color: '#64748b', textAlign: 'center' }}>
+                {language === 'ar' 
+                  ? 'يرجى إدخال الرقم السري للموافقة على تعديل المنتج' 
+                  : 'Please enter PIN to authorize product editing'}
+              </p>
+              
+              <div className="form-group">
+                <label>{language === 'ar' ? 'الرقم السري' : 'PIN'}</label>
+                <input
+                  type="password"
+                  className="form-control pin-input"
+                  value={pinInput}
+                  onChange={(e) => {
+                    setPinInput(e.target.value)
+                    setPinError('')
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handlePinVerification()
+                    }
+                  }}
+                  placeholder={language === 'ar' ? 'أدخل الرقم السري' : 'Enter PIN'}
+                  autoFocus
+                  maxLength="8"
+                />
+              </div>
+
+              {pinError && (
+                <div className="error-message" style={{ 
+                  color: '#ef4444', 
+                  marginTop: '10px', 
+                  textAlign: 'center',
+                  fontWeight: 'bold'
+                }}>
+                  ❌ {pinError}
+                </div>
+              )}
+
+              <div className="modal-actions" style={{ marginTop: '20px' }}>
+                <button 
+                  className="btn btn-primary"
+                  onClick={handlePinVerification}
+                  disabled={!pinInput}
+                >
+                  {language === 'ar' ? 'تأكيد' : 'Verify'}
+                </button>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={closePinModal}
+                >
+                  {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
