@@ -339,6 +339,75 @@
   font-size: 1.2rem;
 }
 
+/* Modal styles (reused pattern from other components) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999; /* high but reasonable */
+  pointer-events: auto;
+}
+
+.modal-content.invoice-modal {
+  background: white;
+  width: 95%;
+  max-width: 920px;
+  max-height: 90vh;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  margin: 20px; /* give some breathing room on mobile */
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modal-body-scrollable {
+  padding: 12px 16px;
+  overflow-y: auto;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.invoice-items {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.invoice-items th,
+.invoice-items td {
+  padding: 8px 10px;
+  border: 1px solid #eaeaea;
+  text-align: left;
+}
+
+.modal-actions {
+  padding: 12px 16px;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

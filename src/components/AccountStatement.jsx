@@ -13,19 +13,9 @@ const AccountStatement = () => {
     invoices,
     getCustomerSupplierStatement 
   } = useAccounting()
-  const { t, language } = useLanguage()
+  const { language } = useLanguage()
   const { hasPermission } = useAuth()
   const { brandSettings } = useBrand()
-
-  // Check if user has permission to view account statements
-  if (!hasPermission('view_customers_suppliers')) {
-    return (
-      <PermissionDenied 
-        message="ليس لديك صلاحية لعرض كشوف الحسابات"
-        description="تحتاج إلى صلاحية 'عرض العملاء والموردين' للوصول إلى هذه الصفحة"
-      />
-    )
-  }
 
   const [entityType, setEntityType] = useState('customer') // customer or supplier
   const [selectedEntityId, setSelectedEntityId] = useState('')
@@ -33,6 +23,127 @@ const AccountStatement = () => {
   const [endDate, setEndDate] = useState('')
   const [statementData, setStatementData] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  // Keep the actual invoice object in state so the modal renders reliably
+  const [openInvoice, setOpenInvoice] = useState(null)
+  const openInvoiceModal = (invoiceOrId) => {
+    // If caller passed the full invoice object (preferred), use it directly
+    if (typeof invoiceOrId === 'object' && invoiceOrId !== null) {
+      const inv = invoiceOrId
+      setOpenInvoice(inv)
+      try { document.body.style.overflow = 'hidden' } catch(_e){}
+      // debug marker to confirm modal open code ran
+      try {
+        let m = document.getElementById('debug-modal-marker')
+        if (!m) {
+          m = document.createElement('div')
+          m.id = 'debug-modal-marker'
+          m.textContent = 'MODAL OPEN'
+          Object.assign(m.style, {
+            position: 'fixed',
+            top: '8px',
+            right: '8px',
+            background: 'red',
+            color: 'white',
+            padding: '6px 8px',
+            zIndex: 2147483647,
+            borderRadius: '4px',
+            fontWeight: 'bold'
+          })
+          document.body.appendChild(m)
+        }
+      } catch (e) {}
+      return
+    }
+
+    // otherwise try to find the invoice object from invoices list by number or id
+    const invoiceId = invoiceOrId
+    const found = invoices.find(inv => String(inv.invoiceNumber) === String(invoiceId) || String(inv.id) === String(invoiceId))
+    if (found) {
+      setOpenInvoice(found)
+      try { document.body.style.overflow = 'hidden' } catch(_e){}
+      try {
+        let m = document.getElementById('debug-modal-marker')
+        if (!m) {
+          m = document.createElement('div')
+          m.id = 'debug-modal-marker'
+          m.textContent = 'MODAL OPEN'
+          Object.assign(m.style, {
+            position: 'fixed',
+            top: '8px',
+            right: '8px',
+            background: 'red',
+            color: 'white',
+            padding: '6px 8px',
+            zIndex: 2147483647,
+            borderRadius: '4px',
+            fontWeight: 'bold'
+          })
+          document.body.appendChild(m)
+        }
+      } catch (_e) {}
+    } else {
+      // fallback: set id only (we keep the id in openInvoice when possible)
+      setOpenInvoice(null)
+    }
+  }
+
+  // Preferred flow: navigate to Invoices page and request it to open the invoice
+  const navigateToInvoicesAndOpen = (invoiceOrId) => {
+    try {
+      const detail = {}
+      // Prefer sending a simple identifier so the Invoices component can
+      // lookup the complete invoice record from its `invoices` list.
+      if (typeof invoiceOrId === 'object' && invoiceOrId !== null) {
+        detail.invoiceId = invoiceOrId.id || invoiceOrId.invoiceNumber || null
+      } else {
+        detail.invoiceId = invoiceOrId
+      }
+      detail.view = 'invoices'
+      window.dispatchEvent(new CustomEvent('navigateTo', { detail }))
+    } catch (e) {
+      // fallback to local modal
+      openInvoiceModal(invoiceOrId)
+    }
+  }
+
+  const closeInvoiceModal = () => {
+    setOpenInvoice(null)
+    try { document.body.style.overflow = '' } catch(e){}
+    try { const mm = document.getElementById('debug-modal-marker'); if (mm) mm.remove() } catch(_e){}
+  }
+
+  const _printInvoice = (invoice) => {
+    if (!invoice) return
+    const company = brandSettings?.companyName || (language === 'ar' ? 'اسم الشركة' : 'Company Name')
+    const itemsHtml = (invoice.items || []).map(it => `
+      <tr>
+        <td>${it.name}</td>
+        <td style="text-align:center">${it.quantity}</td>
+        <td style="text-align:right">${Number(it.price).toFixed(3)}</td>
+        <td style="text-align:right">${(Number(it.quantity) * Number(it.price)).toFixed(3)}</td>
+      </tr>
+    `).join('')
+
+    const html = `<!doctype html><html lang="${language === 'ar' ? 'ar' : 'en'}"><head><meta charset="utf-8"><title>Invoice ${invoice.invoiceNumber}</title>
+      <style>body{font-family:Arial,Segoe UI,Helvetica;font-size:12px;color:#000;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px}</style>
+      </head><body>
+      <h2>${company}</h2>
+      <h3>${language === 'ar' ? 'فاتورة' : 'Invoice'}: ${invoice.invoiceNumber}</h3>
+      <p>${language === 'ar' ? 'التاريخ' : 'Date'}: ${new Date(invoice.date).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}</p>
+      <table>
+        <thead><tr><th>${language === 'ar' ? 'المنتج' : 'Product'}</th><th>${language === 'ar' ? 'الكمية' : 'Qty'}</th><th>${language === 'ar' ? 'السعر' : 'Price'}</th><th>${language === 'ar' ? 'الإجمالي' : 'Total'}</th></tr></thead>
+        <tbody>${itemsHtml}</tbody>
+      </table>
+      <p style="text-align:right;margin-top:12px"><strong>${language === 'ar' ? 'الإجمالي' : 'Total'}: ${Number(invoice.total || 0).toFixed(3)}</strong></p>
+      </body></html>`
+
+    const w = window.open('', '_blank', 'width=800,height=600')
+    if (!w) return alert(language === 'ar' ? 'يرجى السماح بفتح النوافذ المنبثقة' : 'Please allow popups to print')
+    w.document.write(html)
+    w.document.close()
+    w.focus()
+    w.print()
+  }
 
   // Set default dates (first day of current month to today)
   useEffect(() => {
@@ -40,6 +151,29 @@ const AccountStatement = () => {
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
     setStartDate(firstDay.toISOString().split('T')[0])
     setEndDate(today.toISOString().split('T')[0])
+  }, [])
+
+  // Restore last generated statement from sessionStorage (if any)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('accountStatement:last')
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      // Basic validation and expiry (10 minutes)
+      const now = Date.now()
+      if (parsed && parsed.timestamp && (now - parsed.timestamp) < 1000 * 60 * 10) {
+        if (parsed.entityType) setEntityType(parsed.entityType)
+        if (parsed.selectedEntityId) setSelectedEntityId(parsed.selectedEntityId)
+        if (parsed.startDate) setStartDate(parsed.startDate)
+        if (parsed.endDate) setEndDate(parsed.endDate)
+        if (parsed.statementData) setStatementData(parsed.statementData)
+      } else {
+        // expired
+        sessionStorage.removeItem('accountStatement:last')
+      }
+    } catch (e) {
+      // ignore
+    }
   }, [])
 
   // Get current entities based on type
@@ -70,6 +204,19 @@ const AccountStatement = () => {
     const statement = getCustomerSupplierStatement(selectedEntityId, entityType, startDate, endDate)
     console.log('📋 Statement result:', statement)
     setStatementData(statement)
+    try {
+      const payload = {
+        timestamp: Date.now(),
+        entityType,
+        selectedEntityId,
+        startDate,
+        endDate,
+        statementData: statement
+      }
+      sessionStorage.setItem('accountStatement:last', JSON.stringify(payload))
+    } catch (e) {
+      // ignore storage errors
+    }
   }
 
   const printStatement = () => {
@@ -534,7 +681,7 @@ const AccountStatement = () => {
                 return `
                   <tr class="${rowClass}">
                     <td>${new Date(trans.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
-                    <td>${trans.invoiceNumber}</td>
+                    <td><a href="#" data-invoice-id="${trans.invoiceNumber}" class="statement-invoice-link">${trans.invoiceNumber}</a></td>
                     <td>${trans.description}</td>
                     <td><span class="type-badge">${typeText}</span></td>
                     <td>${trans.debit > 0 ? trans.debit.toFixed(3) : '-'}</td>
@@ -553,6 +700,8 @@ const AccountStatement = () => {
               </tr>
             </tbody>
           </table>
+
+          <!-- Invoice modal omitted from print output -->
           
           <!-- Summary -->
           <div class="summary-section">
@@ -863,7 +1012,22 @@ const AccountStatement = () => {
                   return (
                     <tr key={index} className={trans.isPaid ? 'paid-row' : trans.status === 'overdue' ? 'overdue-row' : ''}>
                       <td>{new Date(trans.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
-                      <td>{trans.invoiceNumber}</td>
+                      <td>
+                        <a
+                          href="#"
+                          role="button"
+                          tabIndex="0"
+                          className="invoice-link"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            // navigate to Invoices page and open this invoice there
+                            navigateToInvoicesAndOpen(trans)
+                          }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigateToInvoicesAndOpen(trans) } }}
+                        >
+                          {trans.invoiceNumber}
+                        </a>
+                      </td>
                       <td>{trans.description}</td>
                       <td>
                         {isBothRow ? (

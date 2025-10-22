@@ -1,3 +1,4 @@
+/* eslint-disable */
 // NEW BLACK & WHITE COMPACT PRINT FUNCTION FOR ACCOUNT STATEMENT
 // نسخة محسّنة أبيض وأسود مع حجم أصغر واسم الشركة والسياسات
 

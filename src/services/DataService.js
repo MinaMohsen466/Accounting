@@ -11,17 +11,6 @@ const STORAGE_KEYS = {
 }
 
 class DataService {
-  // Remove color-related fields from an inventory item (migration/sanitization)
-  static sanitizeInventoryItem(item) {
-    if (!item || typeof item !== 'object') return item
-    const cleaned = { ...item }
-    // Remove color system fields that may remain from older versions
-    delete cleaned.colorCode
-    delete cleaned.colorName
-    delete cleaned.colorSystem
-    delete cleaned.colorFormula
-    return cleaned
-  }
   // Generic methods for localStorage operations
   static get(key) {
     try {
@@ -266,31 +255,16 @@ class DataService {
 
   // Inventory Management
   static getInventoryItems() {
-    const raw = this.get(STORAGE_KEYS.INVENTORY) || []
-    // sanitize items on read (migration) and persist cleaned result if changed
-    const cleaned = raw.map(item => this.sanitizeInventoryItem(item))
-    try {
-      const rawStr = JSON.stringify(raw)
-      const cleanedStr = JSON.stringify(cleaned)
-      if (rawStr !== cleanedStr) {
-        // persist cleaned items to localStorage to remove stale color fields
-        this.saveInventoryItems(cleaned)
-      }
-    } catch (err) {
-      // ignore stringify errors and just return cleaned
-    }
-    return cleaned
+    return this.get(STORAGE_KEYS.INVENTORY) || []
   }
 
   static saveInventoryItems(items) {
-    // sanitize before saving to ensure no color fields are stored
-    const sanitized = (items || []).map(item => this.sanitizeInventoryItem(item))
-    return this.set(STORAGE_KEYS.INVENTORY, sanitized)
+    return this.set(STORAGE_KEYS.INVENTORY, items)
   }
 
   static addInventoryItem(item) {
     const items = this.getInventoryItems()
-    const newItem = this.sanitizeInventoryItem({
+    const newItem = {
       ...item,
       id: this.generateId(),
       quantity: item.quantity || 0,
@@ -303,6 +277,12 @@ class DataService {
       minStockLevel: item.minStockLevel || 10,
       expiryDate: item.expiryDate || null,
       
+      // نظام الألوان والرموز
+      colorCode: item.colorCode || null,
+      colorName: item.colorName || null,
+      colorSystem: item.colorSystem || null,
+      colorFormula: item.colorFormula || null,
+      
       // خصائص إضافية
       properties: item.properties || {},
       manufacturer: item.manufacturer || '',
@@ -313,7 +293,7 @@ class DataService {
       lastPurchasePrice: item.lastPurchasePrice || null,
       
       createdAt: new Date().toISOString()
-    })
+    }
     items.push(newItem)
     return this.saveInventoryItems(items) ? newItem : null
   }
@@ -322,9 +302,7 @@ class DataService {
     const items = this.getInventoryItems()
     const index = items.findIndex(item => item.id === id)
     if (index !== -1) {
-      // sanitize incoming update to strip any color fields
-      const cleanedUpdate = this.sanitizeInventoryItem(updatedItem)
-      items[index] = { ...items[index], ...cleanedUpdate, updatedAt: new Date().toISOString() }
+      items[index] = { ...items[index], ...updatedItem, updatedAt: new Date().toISOString() }
       return this.saveInventoryItems(items) ? items[index] : null
     }
     return null
