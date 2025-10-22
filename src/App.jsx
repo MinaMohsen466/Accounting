@@ -35,6 +35,34 @@ const AppContent = () => {
     }
   }, [isAuthenticated])
 
+  // Listen for programmatic navigation requests from other components
+  useEffect(() => {
+    const handler = (e) => {
+      const detail = (e && e.detail) || {}
+      const view = detail.view
+      const invoiceId = detail.invoiceId
+      const invoice = detail.invoice
+
+      if (view) setCurrentView(view)
+
+      // If caller also requested opening an invoice on the Invoices page,
+      // dispatch an `openInvoice` event after a short delay so the Invoices
+      // component has a chance to mount and register its listener.
+      if (view === 'invoices' && (invoiceId || invoice)) {
+        setTimeout(() => {
+          try {
+            window.dispatchEvent(new CustomEvent('openInvoice', { detail: { invoiceId, invoice } }))
+          } catch (err) {
+            // ignore
+          }
+        }, 60)
+      }
+    }
+
+    window.addEventListener('navigateTo', handler)
+    return () => window.removeEventListener('navigateTo', handler)
+  }, [])
+
   const renderContent = () => {
     switch (currentView) {
       case 'accounts':

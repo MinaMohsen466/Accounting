@@ -141,7 +141,29 @@ export const useAccounting = () => {
   // Invoice operations
   const addInvoice = (invoiceData) => {
     try {
-      const newInvoice = DataService.addInvoice(invoiceData)
+      // If the form provided only a date (YYYY-MM-DD) it will be interpreted
+      // as midnight UTC which can display as a shifted time (e.g. 03:00) in local TZ.
+      // Combine the selected date with the current local time so the stored
+      // invoice.date reflects the creation time the user expects.
+      const invoiceToSave = { ...invoiceData }
+      try {
+        const dateOnlyMatch = /^\d{4}-\d{2}-\d{2}$/.test(String(invoiceData.date))
+        if (dateOnlyMatch) {
+          const parts = invoiceData.date.split('-').map(Number)
+          const now = new Date()
+          const combined = new Date()
+          combined.setFullYear(parts[0], parts[1] - 1, parts[2])
+          combined.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds())
+          invoiceToSave.date = combined.toISOString()
+        } else if (!invoiceData.date) {
+          invoiceToSave.date = new Date().toISOString()
+        }
+      } catch (err) {
+        // fallback to current timestamp if anything goes wrong
+        invoiceToSave.date = new Date().toISOString()
+      }
+
+      const newInvoice = DataService.addInvoice(invoiceToSave)
       if (newInvoice) {
         setInvoices(prev => [...prev, newInvoice])
         

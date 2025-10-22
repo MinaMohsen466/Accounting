@@ -162,12 +162,18 @@
   color: white;
 }
 
-.invoice-type {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
+.invoice-time {
+  display: inline-block;
+  margin-left: 6px;
+  color: #6c757d;
+  font-size: 0.75rem;
+}
+
+.invoice-datetime {
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: embed;
 }
 
 /* Invoice Number Styles */
@@ -1344,6 +1350,35 @@
   color: var(--text-primary);
 }
 
+.search-suggestions {
+  position: absolute;
+  background: white;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  z-index: 10000;
+  width: calc(100% - 30px);
+  margin-top: 6px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.suggestion-item:hover {
+  background: #f8f9fa;
+}
+
+.suggestion-type {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
 .invoice-controls .search-input:focus {
   outline: none;
   border-color: var(--primary-color);
@@ -1667,6 +1702,13 @@
   .no-print {
     display: none !important;
   }
+  
+/* Hide time next to dates when printing */
+@media print {
+  .invoice-time {
+    display: none !important;
+  }
+}
 }
 
 /* Color Selection Styles - Compact Version */

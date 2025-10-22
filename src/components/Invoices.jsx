@@ -24,6 +24,33 @@ const Invoices = () => {
   const { hasPermission } = useAuth()
   const { brandSettings } = useBrand()
 
+  // Hook and ref declarations MUST run on every render. Move them above
+  // any early returns (permission checks) so React Hooks order stays stable.
+  const [showModal, setShowModal] = useState(false)
+  const [editingInvoice, setEditingInvoice] = useState(null)
+  const [activeTab, setActiveTab] = useState('all')
+  const [notification, setNotification] = useState(null)
+  const [modalError, setModalError] = useState(null) // رسالة خطأ داخل المودال
+  const [searchResults, setSearchResults] = useState({})
+  const [searchTerm, setSearchTerm] = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState(null)
+  const [suppressSuggestions, setSuppressSuggestions] = useState(false)
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterType, setFilterType] = useState('all')
+  const [sortBy, setSortBy] = useState('date')
+  const [sortOrder, setSortOrder] = useState('desc')
+
+  // PIN verification states
+  const [showPinModal, setShowPinModal] = useState(false)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState('')
+  const [pendingEditInvoice, setPendingEditInvoice] = useState(null)
+
+  // Refs for dropdown management
+  const dropdownRefs = useRef({})
+  const inputRefs = useRef({})
+
   // Check if user has permission to view invoices
   if (!hasPermission('view_invoices')) {
     return (
@@ -33,28 +60,6 @@ const Invoices = () => {
       />
     )
   }
-
-  const [showModal, setShowModal] = useState(false)
-  const [editingInvoice, setEditingInvoice] = useState(null)
-  const [activeTab, setActiveTab] = useState('all')
-  const [notification, setNotification] = useState(null)
-  const [modalError, setModalError] = useState(null) // رسالة خطأ داخل المودال
-  const [searchResults, setSearchResults] = useState({})
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [filterType, setFilterType] = useState('all')
-  const [sortBy, setSortBy] = useState('date')
-  const [sortOrder, setSortOrder] = useState('desc')
-  
-  // PIN verification states
-  const [showPinModal, setShowPinModal] = useState(false)
-  const [pinInput, setPinInput] = useState('')
-  const [pinError, setPinError] = useState('')
-  const [pendingEditInvoice, setPendingEditInvoice] = useState(null)
-  
-  // Refs for dropdown management
-  const dropdownRefs = useRef({})
-  const inputRefs = useRef({})
 
   // Function to calculate dropdown position
   const getDropdownStyle = (index) => {
@@ -87,6 +92,31 @@ const Invoices = () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [searchResults])
+
+  // Build client/supplier suggestions from search term
+  useEffect(() => {
+    if (suppressSuggestions) {
+      // clear suppression shortly after selection so typing can reopen suggestions
+      const timer = setTimeout(() => setSuppressSuggestions(false), 600)
+      setSuggestions([])
+      return () => clearTimeout(timer)
+    }
+
+    const term = (searchTerm || '').trim().toLowerCase()
+    if (!term) {
+      setSuggestions([])
+      setSelectedCounterpartyId(null)
+      return
+    }
+
+    const pool = [
+      ...customers.map(c => ({ ...c, type: 'customer' })),
+      ...suppliers.map(s => ({ ...s, type: 'supplier' }))
+    ]
+
+    const matches = pool.filter(p => p.name && p.name.toLowerCase().includes(term)).slice(0, 6)
+    setSuggestions(matches)
+  }, [searchTerm, customers, suppliers])
   
   const [formData, setFormData] = useState({
     type: 'sales', // sales or purchase
@@ -366,6 +396,40 @@ const Invoices = () => {
       window.dispatchEvent(new CustomEvent('accountingDataUpdated'))
     }
   }
+
+  // Listen for external requests to open a specific invoice (from AccountStatement)
+  useEffect(() => {
+    const handler = (e) => {
+      const d = (e && e.detail) || {}
+      const { invoiceId, invoice } = d
+      if (invoice) {
+        openModal(invoice)
+        return
+      }
+
+      if (invoiceId) {
+        // First try exact id match
+        let found = invoices.find(inv => String(inv.id) === String(invoiceId))
+        // Fallback: maybe the caller sent the invoiceNumber (S0001 etc.)
+        if (!found) {
+          found = invoices.find(inv => String(inv.invoiceNumber) === String(invoiceId))
+        }
+
+        if (found) {
+          openModal(found)
+        } else {
+          // If not found yet, wait a tick — invoices may refresh — then try again
+          setTimeout(() => {
+            const retry = invoices.find(inv => String(inv.id) === String(invoiceId) || String(inv.invoiceNumber) === String(invoiceId))
+            if (retry) openModal(retry)
+          }, 100)
+        }
+      }
+    }
+
+    window.addEventListener('openInvoice', handler)
+    return () => window.removeEventListener('openInvoice', handler)
+  }, [invoices])
 
   const addItem = () => {
     setFormData(prev => calculateTotals({
@@ -977,7 +1041,10 @@ const Invoices = () => {
             width: ${logoStyle.width === '100px' ? '60px' : logoStyle.width === '80px' ? '50px' : '40px'};
             height: ${logoStyle.height === '100px' ? '60px' : logoStyle.height === '80px' ? '50px' : '40px'};
             object-fit: contain;
-            border: 1px solid #666;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+            padding: 0 !important;
           }
           
           .company-info h1 {
@@ -1550,7 +1617,7 @@ const Invoices = () => {
               </div>
             </div>
             
-            <div class="footer-date">${new Date().toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</div>
+            <!-- Footer date removed per request -->
           </div>
         </div>
       </body>
@@ -1766,6 +1833,9 @@ const Invoices = () => {
         invoice.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         invoice.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(invoice.total || 0).includes(searchTerm)
+
+      // If a client/supplier was selected from suggestions, filter by their id
+      const matchesSelectedCounterparty = !selectedCounterpartyId || invoice.clientId === selectedCounterpartyId
       
       // Status filter
       const matchesStatus = filterStatus === 'all' || 
@@ -1774,7 +1844,7 @@ const Invoices = () => {
       // Type filter
       const matchesType = filterType === 'all' || invoice.type === filterType
       
-      return matchesTab && matchesSearch && matchesStatus && matchesType
+      return matchesTab && matchesSearch && matchesStatus && matchesType && matchesSelectedCounterparty
     })
 
     // Sort the filtered invoices
@@ -1881,6 +1951,26 @@ const Invoices = () => {
               className="search-input"
             />
             <span className="search-icon">🔍</span>
+            {/* Suggestions dropdown for clients/suppliers */}
+            {suggestions.length > 0 && (
+              <div className="search-suggestions">
+                {suggestions.map(s => (
+                  <div
+                    key={s.id}
+                    className="suggestion-item"
+                    onClick={() => {
+                      setSearchTerm(s.name)
+                      setSelectedCounterpartyId(s.id)
+                      setSuggestions([])
+                      // prevent the suggestions effect from immediately repopulating
+                      setSuppressSuggestions(true)
+                    }}
+                  >
+                    <strong>{s.name}</strong> <span className="suggestion-type">{s.type === 'customer' ? t('client') : t('supplier')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
           <div className="filter-controls">
@@ -1978,7 +2068,14 @@ const Invoices = () => {
                     </span>
                   </td>
                   <td>{invoice.clientName}</td>
-                  <td>{new Date(invoice.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
+                  <td>
+                    <span className="invoice-datetime" dir="ltr">
+                      {new Date(invoice.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}
+                      <small className="invoice-time">
+                        {new Date(invoice.date).toLocaleTimeString(language === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                      </small>
+                    </span>
+                  </td>
                   <td>
                     {invoice.dueDate ? (
                       <div className="due-date-cell">
