@@ -57,6 +57,9 @@ const Inventory = () => {
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState('')
   const [pendingEditItem, setPendingEditItem] = useState(null)
+  // text-backed inputs for prices (use empty string initially so field is blank)
+  const [priceInput, setPriceInput] = useState('')
+  const [purchasePriceInput, setPurchasePriceInput] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -130,6 +133,9 @@ const Inventory = () => {
         description: item.description || '',
         properties: item.properties || {}
       })
+  // populate inputs from numeric values (as strings) or leave blank
+  setPriceInput(item.price != null ? String(item.price) : (item.unitPrice != null ? String(item.unitPrice) : ''))
+  setPurchasePriceInput(item.purchasePrice != null ? String(item.purchasePrice) : '')
     } else {
       setFormData({
         name: '',
@@ -151,6 +157,8 @@ const Inventory = () => {
         description: '',
         properties: {}
       })
+  setPriceInput('')
+  setPurchasePriceInput('')
     }
     setShowModal(true)
   }
@@ -201,6 +209,9 @@ const Inventory = () => {
       description: '',
       properties: {}
     })
+    // reset textual inputs to empty so fields show blank
+    setPriceInput('')
+    setPurchasePriceInput('')
   }
 
   // Clear custom unit name when unit changes from custom
@@ -219,14 +230,17 @@ const Inventory = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    
-    if (!formData.name || !formData.sku || formData.quantity < 0 || formData.price < 0 || formData.purchasePrice < 0) {
+    // parse prices from inputs
+    const parsedPrice = parseFloat(priceInput)
+    const parsedPurchase = parseFloat(purchasePriceInput)
+
+    if (!formData.name || !formData.sku || formData.quantity < 0 || isNaN(parsedPrice) || parsedPrice < 0 || isNaN(parsedPurchase) || parsedPurchase < 0) {
       showNotification(t('fillRequiredFields'), 'error')
       return
     }
 
     // Handle custom category
-    const finalFormData = { ...formData }
+  const finalFormData = { ...formData, price: parsedPrice, purchasePrice: parsedPurchase }
     if (formData.category === 'custom' && formData.customCategoryName) {
       finalFormData.category = formData.customCategoryName
       finalFormData.productType = formData.customCategoryName
@@ -642,10 +656,14 @@ const Inventory = () => {
                       type="number"
                       min="0"
                       step="0.001"
-                      value={formData.purchasePrice}
-                      onChange={(e) => setFormData(prev => ({ ...prev, purchasePrice: parseFloat(e.target.value) || 0 }))}
+                      value={purchasePriceInput}
+                      onChange={(e) => {
+                        setPurchasePriceInput(e.target.value)
+                        const v = parseFloat(e.target.value)
+                        setFormData(prev => ({ ...prev, purchasePrice: isNaN(v) ? prev.purchasePrice : v }))
+                      }}
                       required
-                      placeholder="0.000"
+                      placeholder=""
                     />
                   </div>
                   <div className="form-group">
@@ -654,10 +672,14 @@ const Inventory = () => {
                       type="number"
                       min="0"
                       step="0.001"
-                      value={formData.price}
-                      onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                      value={priceInput}
+                      onChange={(e) => {
+                        setPriceInput(e.target.value)
+                        const v = parseFloat(e.target.value)
+                        setFormData(prev => ({ ...prev, price: isNaN(v) ? prev.price : v }))
+                      }}
                       required
-                      placeholder="0.000"
+                      placeholder=""
                     />
                   </div>
                 </div>
@@ -707,14 +729,25 @@ const Inventory = () => {
 
                 <div className="profit-indicator">
                   <span className="profit-label">{t('expectedProfit')}: </span>
-                  <span className={`profit-value ${(formData.price - formData.purchasePrice) >= 0 ? 'positive' : 'negative'}`}>
-                    {(formData.price - formData.purchasePrice).toFixed(3)} {t('kwd')}
-                  </span>
-                  {formData.purchasePrice > 0 && (
-                    <span className="profit-percentage">
-                      ({(((formData.price - formData.purchasePrice) / formData.purchasePrice) * 100).toFixed(1)}%)
-                    </span>
-                  )}
+                  {(() => {
+                    const p = parseFloat(priceInput)
+                    const pp = parseFloat(purchasePriceInput)
+                    if (isNaN(p) || isNaN(pp)) {
+                      return <span className="profit-value">—</span>
+                    }
+                    const profit = p - pp
+                    const pct = pp === 0 ? NaN : ((profit / pp) * 100)
+                    return (
+                      <>
+                        <span className={`profit-value ${(profit >= 0) ? 'positive' : 'negative'}`}>
+                          {profit.toFixed(3)} {t('kwd')}
+                        </span>
+                        {isFinite(pct) && (
+                          <span className="profit-percentage">({pct.toFixed(1)}%)</span>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
 
                 <div className="form-group">
