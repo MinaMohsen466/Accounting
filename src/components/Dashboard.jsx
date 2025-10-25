@@ -56,6 +56,45 @@ const Dashboard = ({ onNavigate }) => {
     .filter(inv => inv.type === 'purchase')
     .reduce((sum, inv) => sum + parseFloat(inv.total || 0), 0)
 
+  // Banking calculations
+  const bankAccounts = accounts.filter(a => 
+    a && (a.type === 'bank' || a.type === 'cash' || /bank|خزينة|بنك|نقدية/i.test(a.name || ''))
+  )
+
+  const computeAccountBalance = (accountId) => {
+    let debitTotal = 0
+    let creditTotal = 0
+    journalEntries.forEach(entry => {
+      (entry.lines || []).forEach(line => {
+        if (String(line.accountId) === String(accountId)) {
+          debitTotal += parseFloat(line.debit || 0)
+          creditTotal += parseFloat(line.credit || 0)
+        }
+      })
+    })
+    return debitTotal - creditTotal
+  }
+
+  const totalBankBalance = bankAccounts.reduce((sum, acc) => sum + computeAccountBalance(acc.id), 0)
+
+  // Available from sales: heuristic — sum bank debits from entries that look like sales/deposits
+  const bankAccountIds = new Set(bankAccounts.map(a => a.id))
+  const availableFromSales = journalEntries.reduce((sum, entry) => {
+    const isSalesLike = 
+      (entry.type === 'receipt' || entry.type === 'sales_receipt' || entry.type === 'deposit') ||
+      (entry.reference && /^S\d+|INV|فاتورة|تحصيل/i.test(entry.reference)) ||
+      /تحصيل|مبيعات|sales|receipt|deposit/i.test(entry.description || '')
+    
+    if (!isSalesLike) return sum;
+    
+    (entry.lines || []).forEach(line => {
+      if (bankAccountIds.has(line.accountId) && parseFloat(line.debit || 0) > 0) {
+        sum += parseFloat(line.debit || 0)
+      }
+    })
+    return sum
+  }, 0)
+
   // Recent activities (last 5 items)
   const recentEntries = journalEntries
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -259,6 +298,23 @@ const Dashboard = ({ onNavigate }) => {
               <h3>{t('clientsCount')}</h3>
               <p>{customers.length + suppliers.length}</p>
               <span>{t('clientsAndSuppliers')}</span>
+            </div>
+          </div>
+        )}
+
+        {(hasPermission('view_banking') || hasPermission('view_financial_reports')) && (
+          <div className="stat-card banking-card">
+            <div className="stat-icon">🏦</div>
+            <div className="stat-info">
+              <h3>{language === 'ar' ? 'الخزينة والبنوك' : 'Banking'}</h3>
+              <p>{totalBankBalance.toFixed(2)} {t('currency') || 'د.ك'}</p>
+              <span>{language === 'ar' ? 'إجمالي الرصيد' : 'Total Balance'}</span>
+              {availableFromSales > 0 && (
+                <div style={{ fontSize: '0.85em', marginTop: '5px', color: '#28a745' }}>
+                  💰 {language === 'ar' ? 'متاح من مبيعات: ' : 'From Sales: '}
+                  {availableFromSales.toFixed(2)} {t('currency') || 'د.ك'}
+                </div>
+              )}
             </div>
           </div>
         )}

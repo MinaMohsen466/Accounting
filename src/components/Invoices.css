@@ -406,10 +406,6 @@
   width: 9% !important;
 }
 
-.items-table th:nth-child(7) { /* تاريخ انتهاء الصلاحية - فقط للمشتريات */
-  width: 10% !important;
-}
-
 .items-table th:nth-child(8) { /* المجموع */
   width: 11% !important;
 }
@@ -447,10 +443,7 @@
   text-align: center;
 }
 
-.items-table td:nth-child(7) { /* تاريخ انتهاء الصلاحية - فقط للمشتريات */
-  width: 10% !important;
-  text-align: center;
-}
+/* Expiry date column removed */
 
 .items-table td:nth-child(8) { /* المجموع */
   width: 11% !important;
@@ -806,48 +799,7 @@
   font-size: 14px;
 }
 
-/* Expiry date input styling */
-.expiry-date-input {
-  width: 100%;
-  padding: 6px 8px;
-  border: 2px solid #e1e5e9;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #2c3e50;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  transition: all 0.3s ease;
-  text-align: center;
-  position: relative;
-}
-
-.expiry-date-input:focus {
-  outline: none;
-  border-color: #27ae60;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
-  transform: translateY(-1px);
-}
-
-.expiry-date-input:hover {
-  border-color: #95a5a6;
-  background: white;
-}
-
-/* Optional expiry date indicator */
-.expiry-date-input:placeholder-shown {
-  border-color: #bdc3c7;
-  background: linear-gradient(135deg, #f8f9fa 0%, #ecf0f1 100%);
-}
-
-.expiry-date-input:placeholder-shown::after {
-  content: "اختياري";
-  position: absolute;
-  top: -20px;
-  right: 5px;
-  font-size: 10px;
-  color: #7f8c8d;
-  font-style: italic;
-}
+/* Expiry date input removed from purchase invoice UI */
 
 .item-total {
   font-weight: bold;

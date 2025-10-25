@@ -12,6 +12,7 @@ import JournalEntries from './components/JournalEntries'
 import Invoices from './components/Invoices'
 import CustomersSuppliers from './components/CustomersSuppliers'
 import Inventory from './components/Inventory'
+import Banking from './components/Banking'
 import Reports from './components/Reports'
 import AccountStatement from './components/AccountStatement'
 import DataManagement from './components/DataManagement'
@@ -75,6 +76,8 @@ const AppContent = () => {
         return <CustomersSuppliers />
       case 'inventory':
         return <Inventory />
+      case 'banking':
+        return <Banking />
       case 'reports':
         return <Reports />
       case 'accountStatement':

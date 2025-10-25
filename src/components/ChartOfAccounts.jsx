@@ -44,7 +44,8 @@ const ChartOfAccounts = () => {
     name: '',
     type: 'asset',
     category: 'current',
-    description: ''
+    description: '',
+    parentAccount: '' // Parent account code for sub-accounts
   })
 
   // Account types and categories with translation support
@@ -53,7 +54,9 @@ const ChartOfAccounts = () => {
     liability: language === 'ar' ? 'خصوم' : 'Liabilities',
     equity: language === 'ar' ? 'حقوق الملكية' : 'Equity',
     revenue: language === 'ar' ? 'إيرادات' : 'Revenue',
-    expense: language === 'ar' ? 'مصاريف' : 'Expenses'
+    expense: language === 'ar' ? 'مصاريف' : 'Expenses',
+    bank: language === 'ar' ? '🏦 حساب بنكي' : '🏦 Bank Account',
+    cash: language === 'ar' ? '💰 خزينة نقدية' : '💰 Cash'
   }
 
   const accountCategories = {
@@ -75,7 +78,8 @@ const ChartOfAccounts = () => {
       name: '',
       type: 'asset',
       category: 'current',
-      description: ''
+      description: '',
+      parentAccount: ''
     })
     setEditingAccount(null)
   }
@@ -107,7 +111,8 @@ const ChartOfAccounts = () => {
         name: account.name,
         type: account.type,
         category: account.category,
-        description: account.description || ''
+        description: account.description || '',
+        parentAccount: account.parentAccount || ''
       })
       setEditingAccount(account)
     } else {
@@ -273,36 +278,49 @@ const ChartOfAccounts = () => {
                 <th>{t('accountName')}</th>
                 <th>{t('accountType')}</th>
                 <th>{t('accountCategory')}</th>
+                <th>{language === 'ar' ? 'الحساب الرئيسي' : 'Parent Account'}</th>
                 <th>{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
-              {filteredAccounts.map(account => (
-                <tr key={account.id}>
-                  <td>{account.code}</td>
-                  <td>{account.name}</td>
-                  <td>{accountTypes[account.type]}</td>
-                  <td>{accountCategories[account.category]}</td>
-                  <td>
-                    {hasPermission('edit_accounts') && (
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => openModal(account)}
-                      >
-                        {t('editAccount')}
-                      </button>
-                    )}
-                    {hasPermission('delete_accounts') && (
-                      <button 
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete(account)}
-                      >
-                        {t('deleteAccount')}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {filteredAccounts.map(account => {
+                const isSubAccount = account.parentAccount && account.parentAccount !== ''
+                return (
+                  <tr key={account.id} className={isSubAccount ? 'sub-account-row' : ''}>
+                    <td>{account.code}</td>
+                    <td>
+                      {isSubAccount && <span style={{ marginRight: language === 'ar' ? '20px' : '0', marginLeft: language === 'ar' ? '0' : '20px' }}>↳ </span>}
+                      {account.name}
+                    </td>
+                    <td>{accountTypes[account.type]}</td>
+                    <td>{accountCategories[account.category]}</td>
+                    <td>
+                      {account.parentAccount 
+                        ? `${account.parentAccount}`
+                        : (language === 'ar' ? '-' : '-')
+                      }
+                    </td>
+                    <td>
+                      {hasPermission('edit_accounts') && (
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => openModal(account)}
+                        >
+                          {t('editAccount')}
+                        </button>
+                      )}
+                      {hasPermission('delete_accounts') && (
+                        <button 
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(account)}
+                        >
+                          {t('deleteAccount')}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         ) : (
@@ -344,6 +362,30 @@ const ChartOfAccounts = () => {
                     required
                   />
                 </div>
+
+                <div className="form-group">
+                  <label>{language === 'ar' ? 'الحساب الرئيسي (اختياري)' : 'Parent Account (Optional)'}</label>
+                  <select
+                    value={formData.parentAccount}
+                    onChange={(e) => setFormData({...formData, parentAccount: e.target.value})}
+                  >
+                    <option value="">{language === 'ar' ? '-- لا يوجد (حساب رئيسي) --' : '-- None (Main Account) --'}</option>
+                    {accounts
+                      .filter(acc => !editingAccount || acc.id !== editingAccount.id) // Don't show self
+                      .filter(acc => formData.type ? acc.type === formData.type : true) // Filter by same type
+                      .map(acc => (
+                        <option key={acc.id} value={acc.code}>
+                          {acc.code} - {acc.name}
+                        </option>
+                      ))
+                    }
+                  </select>
+                  <small style={{ display: 'block', marginTop: '5px', color: '#64748b' }}>
+                    {language === 'ar' 
+                      ? 'اختر حساباً رئيسياً لإنشاء حساب فرعي تحته' 
+                      : 'Select a parent account to create a sub-account under it'}
+                  </small>
+                </div>
                 
                 <div className="form-group">
                   <label>{t('accountType')} *</label>
@@ -357,6 +399,8 @@ const ChartOfAccounts = () => {
                     <option value="equity">{accountTypes.equity}</option>
                     <option value="revenue">{accountTypes.revenue}</option>
                     <option value="expense">{accountTypes.expense}</option>
+                    <option value="bank">{accountTypes.bank}</option>
+                    <option value="cash">{accountTypes.cash}</option>
                   </select>
                 </div>
                 

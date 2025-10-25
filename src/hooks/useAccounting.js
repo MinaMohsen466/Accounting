@@ -158,7 +158,7 @@ export const useAccounting = () => {
         } else if (!invoiceData.date) {
           invoiceToSave.date = new Date().toISOString()
         }
-      } catch (err) {
+      } catch {
         // fallback to current timestamp if anything goes wrong
         invoiceToSave.date = new Date().toISOString()
       }
@@ -166,6 +166,10 @@ export const useAccounting = () => {
       const newInvoice = DataService.addInvoice(invoiceToSave)
       if (newInvoice) {
         setInvoices(prev => [...prev, newInvoice])
+        // Refresh customers/suppliers in case DataService adjusted balances
+        setCustomers(DataService.getCustomers())
+        setSuppliers(DataService.getSuppliers())
+        window.dispatchEvent(new Event('accountingDataUpdated'))
         
         // Create automatic journal entry for the invoice
         if (invoiceData.createJournalEntry) {
@@ -199,7 +203,12 @@ export const useAccounting = () => {
   const deleteInvoice = (id) => {
     try {
       if (DataService.deleteInvoice(id)) {
-        setInvoices(prev => prev.filter(inv => inv.id !== id))
+        // Refresh invoices and related entities so UI reflects updated opening balances
+        setInvoices(DataService.getInvoices())
+        setCustomers(DataService.getCustomers())
+        setSuppliers(DataService.getSuppliers())
+        // Notify any listeners that accounting data changed
+        window.dispatchEvent(new Event('accountingDataUpdated'))
         return { success: true }
       }
       return { success: false, error: 'فشل في حذف الفاتورة' }
@@ -212,10 +221,88 @@ export const useAccounting = () => {
   // Customer operations
   const addCustomer = (customerData) => {
     try {
+      // 1. إضافة العميل أولاً
       const newCustomer = DataService.addCustomer(customerData)
       if (newCustomer) {
+        // 2. إنشاء حساب محاسبي للعميل تلقائياً
+        const customerAccount = {
+          code: `1101-${newCustomer.id.slice(0, 8)}`,
+          name: `عميل: ${newCustomer.name}`,
+          nameEn: `Customer: ${newCustomer.name}`,
+          type: 'asset',
+          category: 'current_assets',
+          subcategory: 'accounts_receivable',
+          parentAccount: '1101',
+          description: `حساب العميل ${newCustomer.name}`,
+          linkedEntityType: 'customer',
+          linkedEntityId: newCustomer.id,
+          balance: 0
+        }
+        
+        const accountResult = addAccount(customerAccount)
+        
+        // 3. ربط الحساب بالعميل
+        if (accountResult.success) {
+          DataService.updateCustomer(newCustomer.id, {
+            accountId: accountResult.data.id
+          })
+          
+          // 4. تسجيل الرصيد الابتدائي إذا كان موجوداً
+          if (customerData.balance && parseFloat(customerData.balance) !== 0) {
+            const balance = parseFloat(customerData.balance)
+            const openingEntry = {
+              date: new Date().toISOString().split('T')[0],
+              description: `رصيد افتتاحي للعميل: ${newCustomer.name}`,
+              reference: `OP-CUST-${newCustomer.id.slice(0, 8)}`,
+              lines: balance > 0 
+                ? [
+                    // رصيد مدين (العميل مدين لنا)
+                    {
+                      accountCode: accountResult.data.code,
+                      accountName: accountResult.data.name,
+                      debit: Math.abs(balance),
+                      credit: 0,
+                      description: 'رصيد افتتاحي مدين'
+                    },
+                    {
+                      accountCode: '3101', // حساب رأس المال أو الأرباح المرحلة
+                      accountName: 'رأس المال',
+                      debit: 0,
+                      credit: Math.abs(balance),
+                      description: 'مقابل رصيد افتتاحي'
+                    }
+                  ]
+                : [
+                    // رصيد دائن (دفعنا للعميل مقدماً)
+                    {
+                      accountCode: accountResult.data.code,
+                      accountName: accountResult.data.name,
+                      debit: 0,
+                      credit: Math.abs(balance),
+                      description: 'رصيد افتتاحي دائن'
+                    },
+                    {
+                      accountCode: '3101',
+                      accountName: 'رأس المال',
+                      debit: Math.abs(balance),
+                      credit: 0,
+                      description: 'مقابل رصيد افتتاحي'
+                    }
+                  ]
+            }
+            
+            addJournalEntry(openingEntry)
+          }
+        }
+        
         setCustomers(prev => [...prev, newCustomer])
-        return { success: true, data: newCustomer }
+        window.dispatchEvent(new Event('accountingDataUpdated'))
+        
+        return { 
+          success: true, 
+          data: newCustomer, 
+          account: accountResult.success ? accountResult.data : null 
+        }
       }
       return { success: false, error: 'فشل في إضافة العميل' }
     } catch (err) {
@@ -254,8 +341,80 @@ export const useAccounting = () => {
   // Supplier operations
   const addSupplier = (supplierData) => {
     try {
+      // 1. إضافة المورد أولاً
       const newSupplier = DataService.addSupplier(supplierData)
       if (newSupplier) {
+        // 2. إنشاء حساب محاسبي للمورد تلقائياً
+        const supplierAccount = {
+          code: `2101-${newSupplier.id.slice(0, 8)}`,
+          name: `مورد: ${newSupplier.name}`,
+          nameEn: `Supplier: ${newSupplier.name}`,
+          type: 'liability',
+          category: 'current_liabilities',
+          subcategory: 'accounts_payable',
+          parentAccount: '2101',
+          description: `حساب المورد ${newSupplier.name}`,
+          linkedEntityType: 'supplier',
+          linkedEntityId: newSupplier.id,
+          balance: 0
+        }
+        
+        const accountResult = addAccount(supplierAccount)
+        
+        // 3. ربط الحساب بالمورد
+        if (accountResult.success) {
+          DataService.updateSupplier(newSupplier.id, {
+            accountId: accountResult.data.id
+          })
+          
+          // 4. تسجيل الرصيد الابتدائي إذا كان موجوداً
+          if (supplierData.balance && parseFloat(supplierData.balance) !== 0) {
+            const balance = parseFloat(supplierData.balance)
+            const openingEntry = {
+              date: new Date().toISOString().split('T')[0],
+              description: `رصيد افتتاحي للمورد: ${newSupplier.name}`,
+              reference: `OP-SUP-${newSupplier.id.slice(0, 8)}`,
+              lines: balance > 0 
+                ? [
+                    // رصيد دائن (علينا للمورد)
+                    {
+                      accountCode: accountResult.data.code,
+                      accountName: accountResult.data.name,
+                      debit: 0,
+                      credit: Math.abs(balance),
+                      description: 'رصيد افتتاحي دائن'
+                    },
+                    {
+                      accountCode: '3101', // حساب رأس المال أو الأرباح المرحلة
+                      accountName: 'رأس المال',
+                      debit: Math.abs(balance),
+                      credit: 0,
+                      description: 'مقابل رصيد افتتاحي'
+                    }
+                  ]
+                : [
+                    // رصيد مدين (للمورد علينا - دفعنا مقدماً)
+                    {
+                      accountCode: accountResult.data.code,
+                      accountName: accountResult.data.name,
+                      debit: Math.abs(balance),
+                      credit: 0,
+                      description: 'رصيد افتتاحي مدين'
+                    },
+                    {
+                      accountCode: '3101',
+                      accountName: 'رأس المال',
+                      debit: 0,
+                      credit: Math.abs(balance),
+                      description: 'مقابل رصيد افتتاحي'
+                    }
+                  ]
+            }
+            
+            addJournalEntry(openingEntry)
+          }
+        }
+        
         setSuppliers(prev => [...prev, newSupplier])
         return { success: true, data: newSupplier }
       }
@@ -340,11 +499,25 @@ export const useAccounting = () => {
     const lines = []
     
     if (invoice.type === 'sales') {
-      // Sales invoice: Debit Customer, Credit Sales, Handle Discount and VAT
-      const customersAccount = accounts.find(acc => acc.code === '1101') // العملاء
+      // Sales invoice: Debit Customer Account, Credit Sales, Handle Discount and VAT
+      
+      // البحث عن حساب العميل المحدد (إن وُجد)
+      let customerAccount = null
+      if (invoice.customerId) {
+        customerAccount = accounts.find(acc => 
+          acc.linkedEntityType === 'customer' && 
+          acc.linkedEntityId === invoice.customerId
+        )
+      }
+      
+      // إذا لم يُعثر على حساب خاص بالعميل، استخدم حساب العملاء العام
+      if (!customerAccount) {
+        customerAccount = accounts.find(acc => acc.code === '1101') // العملاء (الذمم المدينة)
+      }
+      
       const salesAccount = accounts.find(acc => acc.code === '4001') // المبيعات
-      const discountAccount = accounts.find(acc => acc.code === '5002') // خصم مسموح
-      const vatAccount = accounts.find(acc => acc.code === '2101') // ضريبة القيمة المضافة مستحقة
+      const discountAccount = accounts.find(acc => acc.code === '5201') // خصم مسموح
+      const vatAccount = accounts.find(acc => acc.code === '2102') // ضريبة القيمة المضافة مستحقة
       
       const subtotal = parseFloat(invoice.subtotal) || 0
       const invoiceDiscountAmount = parseFloat(invoice.discountAmount) || 0
@@ -363,11 +536,11 @@ export const useAccounting = () => {
       const vatAmount = parseFloat(invoice.vatAmount) || 0
       const total = parseFloat(invoice.total) || 0
       
-      if (customersAccount && salesAccount) {
+      if (customerAccount && salesAccount) {
         // Debit Customer for total amount (including VAT, minus discount)
         lines.push({
-          accountId: customersAccount.id,
-          accountName: customersAccount.name,
+          accountId: customerAccount.id,
+          accountName: customerAccount.name,
           debit: total,
           credit: 0,
           description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`

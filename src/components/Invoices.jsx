@@ -146,8 +146,7 @@ const Invoices = () => {
         // حقول اللون المخصص
         customColorName: '',
         customColorCode: '',
-        // تاريخ انتهاء الصلاحية للشحنة الجديدة
-        expiryDate: ''
+  // تاريخ انتهاء الصلاحية للشحنة الجديدة (محذوف من واجهة الفاتورة)
       }
     ],
     subtotal: 0,
@@ -160,8 +159,13 @@ const Invoices = () => {
     vatPercentage: 0, // calculated VAT percentage
     vatAmount: 0,
     total: 0,
-    createJournalEntry: true
+    createJournalEntry: true,
+    recordPaymentNow: false,
+    paymentBankAccountId: '',
+    deductFromBalance: false // خصم من الرصيد الابتدائي
   })
+  // show/hide compact payment options dropdown
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false)
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
@@ -254,7 +258,10 @@ const Invoices = () => {
       vatPercentage: 0,
       vatAmount: 0,
       total: 0,
-      createJournalEntry: true
+      createJournalEntry: true,
+      recordPaymentNow: true,
+      paymentBankAccountId: '',
+      deductFromBalance: false
     })
     setEditingInvoice(null)
   }
@@ -301,8 +308,7 @@ const Invoices = () => {
         // حقول اللون المخصص
         customColorName: it.customColorName || '',
         customColorCode: it.customColorCode || '',
-        // تاريخ انتهاء الصلاحية
-        expiryDate: it.expiryDate || ''
+  // (expiryDate removed from invoice UI; keep any stored value in item if present)
       }))
 
       const populated = {
@@ -332,8 +338,7 @@ const Invoices = () => {
           // حقول اللون المخصص
           customColorName: '',
           customColorCode: '',
-          // تاريخ انتهاء الصلاحية
-          expiryDate: ''
+          // (expiryDate removed from invoice UI)
         }],
         subtotal: parseFloat(invoice.subtotal) || 0,
         discount: parseFloat(invoice.discount) || 0,
@@ -347,8 +352,8 @@ const Invoices = () => {
         total: parseFloat(invoice.total) || 0,
         createJournalEntry: false
       }
-      // Recalculate to ensure consistency
-      setFormData(prev => calculateTotals(populated))
+  // Recalculate to ensure consistency
+  setFormData(() => calculateTotals(populated))
       setEditingInvoice(invoice)
     } else {
       resetForm()
@@ -1629,6 +1634,313 @@ const Invoices = () => {
     printWindow.print()
   }
 
+  // Record immediate payment when invoice is created
+  const recordImmediatePayment = (invoice) => {
+    try {
+      const bankAccount = JSON.parse(localStorage.getItem('accounts') || '[]')
+        .find(acc => acc.id === formData.paymentBankAccountId)
+      
+      if (!bankAccount) {
+        console.error('Bank account not found')
+        return
+      }
+
+      // Get customer account
+      let customerAccount = null
+      if (invoice.customerId) {
+        customerAccount = JSON.parse(localStorage.getItem('accounts') || '[]')
+          .find(acc => acc.linkedEntityType === 'customer' && acc.linkedEntityId === invoice.customerId)
+      }
+      
+      if (!customerAccount) {
+        customerAccount = JSON.parse(localStorage.getItem('accounts') || '[]')
+          .find(acc => acc.code === '1101')
+      }
+
+      if (!customerAccount) {
+        console.error('Customer account not found')
+        return
+      }
+
+      const amount = parseFloat(invoice.total) || 0
+      const description = `${invoice.type === 'sales' ? 'تحصيل' : 'دفع'} فاتورة رقم ${invoice.invoiceNumber}`
+
+      // Create journal entry for payment
+      const paymentEntry = {
+        date: new Date().toISOString(),
+        description,
+        lines: []
+      }
+
+      if (invoice.type === 'sales') {
+        // Sales: Debit Bank, Credit Customer
+        paymentEntry.lines.push({
+          accountId: bankAccount.id,
+          accountName: bankAccount.name,
+          debit: amount,
+          credit: 0,
+          description
+        })
+        paymentEntry.lines.push({
+          accountId: customerAccount.id,
+          accountName: customerAccount.name,
+          debit: 0,
+          credit: amount,
+          description
+        })
+      } else {
+        // Purchase: Debit Supplier, Credit Bank
+        let supplierAccount = null
+        if (invoice.supplierId) {
+          supplierAccount = JSON.parse(localStorage.getItem('accounts') || '[]')
+            .find(acc => acc.linkedEntityType === 'supplier' && acc.linkedEntityId === invoice.supplierId)
+        }
+        
+        if (!supplierAccount) {
+          supplierAccount = JSON.parse(localStorage.getItem('accounts') || '[]')
+            .find(acc => acc.code === '2101')
+        }
+
+        if (supplierAccount) {
+          paymentEntry.lines.push({
+            accountId: supplierAccount.id,
+            accountName: supplierAccount.name,
+            debit: amount,
+            credit: 0,
+            description
+          })
+          paymentEntry.lines.push({
+            accountId: bankAccount.id,
+            accountName: bankAccount.name,
+            debit: 0,
+            credit: amount,
+            description
+          })
+        }
+      }
+
+      // Save journal entry
+      if (paymentEntry.lines.length > 0) {
+        const journalEntries = JSON.parse(localStorage.getItem('journalEntries') || '[]')
+        const newEntry = {
+          id: Date.now().toString(),
+          ...paymentEntry
+        }
+        journalEntries.push(newEntry)
+        localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
+        
+        // Trigger storage event for other components
+        window.dispatchEvent(new Event('storage'))
+        
+        console.log('✅ Payment recorded successfully')
+      }
+    } catch (error) {
+      console.error('Error recording payment:', error)
+    }
+  }
+
+  // دالة خصم المبلغ من الرصيد الابتدائي للعميل/المورد
+  const deductFromBalance = (invoice) => {
+    console.log('🔵 بدء خصم من الرصيد...', {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      type: invoice.type,
+      clientId: invoice.clientId,
+      clientName: invoice.clientName,
+      customerId: invoice.customerId,
+      supplierId: invoice.supplierId,
+      total: invoice.total
+    })
+    
+    try {
+      const amount = parseFloat(invoice.total) || 0
+      
+      // استخدام clientId (الحقل الفعلي في الفاتورة)
+      const entityId = invoice.clientId || invoice.customerId || invoice.supplierId
+      
+      if (!entityId) {
+        console.error('❌ خطأ: لا يوجد clientId في الفاتورة!')
+        console.error('بيانات الفاتورة الكاملة:', invoice)
+        return
+      }
+      
+      if (invoice.type === 'sales') {
+        // فاتورة مبيعات: نخصم من رصيد العميل الدائن أو نضيف للمدين
+        const customers = JSON.parse(localStorage.getItem('customers') || '[]')
+        console.log('📊 قائمة العملاء:', customers.length, 'عميل')
+        
+        const customerIndex = customers.findIndex(c => c.id === entityId)
+        console.log('🔍 البحث عن العميل:', entityId, '→ الموقع:', customerIndex)
+        
+        if (customerIndex !== -1) {
+          const customer = customers[customerIndex]
+          
+          // التأكد من أن الرصيد رقم صحيح (القيمة الافتراضية صفر)
+          const currentBalance = parseFloat(customer.balance) || 0
+          
+          console.log('📋 بيانات العميل:', {
+            name: customer.name,
+            currentBalance: currentBalance,
+            invoiceAmount: amount
+          })
+          
+          /**
+           * المنطق:
+           * - رصيد سالب (-250) = العميل دائن لنا (نحن ندين له)
+           * - فاتورة مبيعات (+200) = العميل يشتري منا
+           * - نخصم من دينه: -250 + 200 = -50
+           * 
+           * - رصيد صفر (0) = لا يوجد رصيد
+           * - فاتورة مبيعات (+200) = العميل يشتري منا
+           * - يصبح مديناً: 0 + 200 = +200 (مدين لنا)
+           * 
+           * - رصيد موجب (+100) = العميل مدين لنا
+           * - فاتورة مبيعات (+200) = العميل يشتري منا
+           * - يزيد دينه: 100 + 200 = +300 (مدين لنا)
+           */
+          const newBalance = currentBalance + amount
+          
+          // تحديث الرصيد في القائمة
+          customers[customerIndex].balance = newBalance
+          
+          console.log(`📝 قبل الحفظ - الرصيد الجديد: ${newBalance}`)
+          
+          // حفظ القائمة المحدثة
+          const saveResult = localStorage.setItem('customers', JSON.stringify(customers))
+          console.log(`💾 نتيجة الحفظ:`, saveResult === undefined ? 'نجح' : 'فشل')
+          
+          console.log(`✅ تم حفظ الرصيد الجديد في localStorage`)
+          
+          // Verify the save
+          const verifyCustomers = JSON.parse(localStorage.getItem('customers') || '[]')
+          const verifyCustomer = verifyCustomers.find(c => c.id === entityId)
+          console.log('🔍 التحقق من الحفظ - الرصيد الآن:', verifyCustomer?.balance)
+          
+          // تسجيل قيد محاسبي للخصم من الرصيد
+          const customerAccount = JSON.parse(localStorage.getItem('accounts') || '[]')
+            .find(acc => acc.linkedEntityType === 'customer' && acc.linkedEntityId === entityId)
+          
+          if (customerAccount) {
+            const journalEntry = {
+              date: new Date().toISOString().split('T')[0],
+              description: `خصم من رصيد العميل - فاتورة رقم ${invoice.invoiceNumber}`,
+              reference: `BAL-DED-${invoice.invoiceNumber}`,
+              lines: [
+                {
+                  accountCode: customerAccount.code,
+                  accountName: customerAccount.name,
+                  debit: 0,
+                  credit: amount,
+                  description: 'خصم من رصيد العميل'
+                },
+                {
+                  accountCode: '1101',
+                  accountName: 'المذمم - العملاء',
+                  debit: amount,
+                  credit: 0,
+                  description: 'تسديد من الرصيد'
+                }
+              ]
+            }
+            
+            const journalEntries = JSON.parse(localStorage.getItem('journalEntries') || '[]')
+            const newEntry = {
+              id: Date.now().toString(),
+              entryNumber: journalEntries.length + 1,
+              createdAt: new Date().toISOString(),
+              ...journalEntry
+            }
+            journalEntries.push(newEntry)
+            localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
+          }
+          
+          console.log(`✅ تم تحديث رصيد العميل: ${currentBalance.toFixed(3)} → ${newBalance.toFixed(3)} د.ك`)
+          
+          // Trigger storage event immediately
+          window.dispatchEvent(new Event('storage'))
+          window.dispatchEvent(new Event('accountingDataUpdated'))
+        } else {
+          console.error('❌ لم يتم العثور على العميل في القائمة')
+        }
+      } else if (invoice.type === 'purchase') {
+        // فاتورة مشتريات: نخصم من رصيد المورد
+        const suppliers = JSON.parse(localStorage.getItem('suppliers') || '[]')
+        const supplierIndex = suppliers.findIndex(s => s.id === entityId)
+        
+        if (supplierIndex !== -1) {
+          const supplier = suppliers[supplierIndex]
+          
+          // التأكد من أن الرصيد رقم صحيح (القيمة الافتراضية صفر)
+          const currentBalance = parseFloat(supplier.balance) || 0
+          
+          /**
+           * المنطق:
+           * - رصيد موجب (+500) = المورد دائن لنا (نحن ندين له)
+           * - فاتورة مشتريات (-200) = نشتري منه
+           * - نخصم من دينه: 500 - 200 = 300
+           * 
+           * - رصيد صفر (0) = لا يوجد رصيد
+           * - فاتورة مشتريات (-200) = نشتري منه
+           * - يصبح دائناً: 0 - 200 = -200 (مدين لنا - حالة نادرة)
+           */
+          const newBalance = currentBalance - amount
+          
+          suppliers[supplierIndex].balance = newBalance
+          localStorage.setItem('suppliers', JSON.stringify(suppliers))
+          
+          // تسجيل قيد محاسبي للخصم من الرصيد
+          const supplierAccount = JSON.parse(localStorage.getItem('accounts') || '[]')
+            .find(acc => acc.linkedEntityType === 'supplier' && acc.linkedEntityId === entityId)
+          
+          if (supplierAccount) {
+            const journalEntry = {
+              date: new Date().toISOString().split('T')[0],
+              description: `خصم من رصيد المورد - فاتورة رقم ${invoice.invoiceNumber}`,
+              reference: `BAL-DED-${invoice.invoiceNumber}`,
+              lines: [
+                {
+                  accountCode: supplierAccount.code,
+                  accountName: supplierAccount.name,
+                  debit: amount,
+                  credit: 0,
+                  description: 'خصم من رصيد المورد'
+                },
+                {
+                  accountCode: '2101',
+                  accountName: 'الدائنون - الموردين',
+                  debit: 0,
+                  credit: amount,
+                  description: 'تسديد من الرصيد'
+                }
+              ]
+            }
+            
+            const journalEntries = JSON.parse(localStorage.getItem('journalEntries') || '[]')
+            const newEntry = {
+              id: Date.now().toString(),
+              entryNumber: journalEntries.length + 1,
+              createdAt: new Date().toISOString(),
+              ...journalEntry
+            }
+            journalEntries.push(newEntry)
+            localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
+          }
+          
+          console.log(`✅ تم تحديث رصيد المورد: ${currentBalance.toFixed(3)} → ${newBalance.toFixed(3)} د.ك`)
+          
+          // Trigger storage event immediately
+          window.dispatchEvent(new Event('storage'))
+          window.dispatchEvent(new Event('accountingDataUpdated'))
+        } else {
+          console.error('❌ لم يتم العثور على المورد في القائمة')
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ خطأ في خصم من الرصيد:', error)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     
@@ -1749,6 +2061,25 @@ const Invoices = () => {
             updateInventoryForSale(validItems)
           } else if (formData.type === 'purchase') {
             updateInventoryForPurchase(validItems)
+          }
+          
+          // Record immediate payment if requested
+          if (formData.recordPaymentNow && formData.paymentBankAccountId) {
+            console.log('💰 تسجيل الدفع فوراً...')
+            recordImmediatePayment(result.data)
+          }
+          
+          // Deduct from balance if requested
+          console.log('🔍 فحص خيار خصم من الرصيد:', {
+            deductFromBalance: formData.deductFromBalance,
+            invoiceData: result.data
+          })
+          
+          if (formData.deductFromBalance) {
+            console.log('💳 خصم من الرصيد الابتدائي...')
+            deductFromBalance(result.data)
+          } else {
+            console.log('⏭️ تخطي خصم من الرصيد - الخيار غير مفعل')
           }
         }
       }
@@ -2271,9 +2602,7 @@ const Invoices = () => {
                           }
                         </th>
                         <th>{t('itemDiscount')}</th>
-                        {formData.type === 'purchase' && (
-                          <th>{language === 'ar' ? 'تاريخ انتهاء الصلاحية' : 'Expiry Date'}</th>
-                        )}
+                        {/* Expiry Date column removed for purchase invoices */}
                         <th>{t('total')}</th>
                         <th>{t('actions')}</th>
                       </tr>
@@ -2355,7 +2684,7 @@ const Invoices = () => {
                                 type="number"
                                 value={(parseFloat(item.unitPrice) || 0) + (parseFloat(item.colorPrice) || 0)}
                                 min="0"
-                                step="0.001"
+                                step="0.25"
                                 placeholder="0"
                                 readOnly
                                 className="readonly-input price-input-main"
@@ -2382,7 +2711,7 @@ const Invoices = () => {
                                 value={item.discount || 0}
                                 onChange={(e) => updateItem(index, 'discount', e.target.value)}
                                 min="0"
-                                step="1"
+                                step="0.001"
                                 placeholder="0"
                                 className="discount-input"
                               />
@@ -2396,17 +2725,7 @@ const Invoices = () => {
                               </select>
                             </div>
                           </td>
-                          {formData.type === 'purchase' && (
-                            <td>
-                              <input
-                                type="date"
-                                value={item.expiryDate || ''}
-                                onChange={(e) => updateItem(index, 'expiryDate', e.target.value)}
-                                className="expiry-date-input"
-                                title={language === 'ar' ? 'تاريخ انتهاء الصلاحية للشحنة الجديدة' : 'Expiry date for new batch'}
-                              />
-                            </td>
-                          )}
+                          {/* expiry date column removed for purchase invoices */}
                           <td>
                             <div className="item-total-container">
                               <span className="item-total">{item.total.toFixed(3)} {t('kwd')}</span>
@@ -2537,7 +2856,7 @@ const Invoices = () => {
                           value={formData.discount}
                           onChange={(e) => updateInvoiceField('discount', e.target.value)}
                           min="0"
-                          step="0.1"
+                          step="0.25"
                           placeholder="0"
                           className="compact-input"
                         />
@@ -2601,16 +2920,163 @@ const Invoices = () => {
               </div>
 
               {!editingInvoice && (
-                <div className="form-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={formData.createJournalEntry}
-                      onChange={(e) => setFormData(prev => ({ ...prev, createJournalEntry: e.target.checked }))}
-                    />
-                    {t('createJournalEntry')}
-                  </label>
-                </div>
+                <>
+                  {/* Compact Payment Options Dropdown Header */}
+                  <div style={{ marginTop: '18px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentOptions(prev => !prev)}
+                      className="btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: '2px solid #5a67d8',
+                        background: 'linear-gradient(90deg,#6c5ce7,#a29bfe)',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                      aria-expanded={showPaymentOptions}
+                    >
+                      ⚠️ خيارات الدفع والقيود
+                      <span style={{ marginLeft: '6px', transform: showPaymentOptions ? 'rotate(180deg)' : 'none' }}>▾</span>
+                    </button>
+
+                    {/* Summary badges when collapsed to save space */}
+                    {!showPaymentOptions && (
+                      <div style={{ display: 'inline-block', marginLeft: '12px', verticalAlign: 'middle' }}>
+                        <span style={{ background: formData.recordPaymentNow ? '#2ecc71' : '#bdc3c7', color: 'white', padding: '6px 10px', borderRadius: '16px', fontWeight: 'bold', marginRight: '6px' }}>
+                          {formData.recordPaymentNow ? 'تسجيل الدفع فوراً: مفعل' : 'تسجيل الدفع فوراً: معطل'}
+                        </span>
+                        <span style={{ background: formData.deductFromBalance ? '#9b59b6' : '#bdc3c7', color: 'white', padding: '6px 10px', borderRadius: '16px', fontWeight: 'bold' }}>
+                          خصم من الرصيد: {formData.deductFromBalance ? 'نعم' : 'لا'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expanded content - replicates previous detailed panel but hidden when collapsed */}
+                  {showPaymentOptions && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '20px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      borderRadius: '12px',
+                      border: '3px solid #5a67d8',
+                      boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                    }}>
+                      <div style={{
+                        textAlign: 'center',
+                        marginBottom: '12px',
+                        color: 'white',
+                        fontSize: '15px',
+                        fontWeight: 'bold'
+                      }}>
+                        ⚠️ مهم: خيارات الدفع والقيود المحاسبية ⚠️
+                      </div>
+
+                      <div style={{ background: 'white', padding: '12px', borderRadius: '8px', marginBottom: '10px' }}>
+                        <div className="form-group" style={{ marginBottom: '8px' }}>
+                          <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', opacity: 0.8 }}>
+                            <input
+                              type="checkbox"
+                              checked={formData.createJournalEntry}
+                              onChange={(e) => setFormData(prev => ({ ...prev, createJournalEntry: e.target.checked }))}
+                              style={{ width: '18px', height: '18px' }}
+                              disabled={true}
+                              title="القيد المحاسبي إلزامي لكل فاتورة"
+                            />
+                            <span style={{ color: '#2c3e50', fontWeight: 'bold' }}>
+                              ✅ {t('createJournalEntry')} (إلزامي)
+                            </span>
+                          </label>
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: '8px' }}>
+                          <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px' }}>
+                            <input
+                              type="checkbox"
+                              checked={formData.recordPaymentNow}
+                              onChange={(e) => setFormData(prev => ({ 
+                                ...prev, 
+                                recordPaymentNow: e.target.checked,
+                                paymentBankAccountId: e.target.checked ? prev.paymentBankAccountId : ''
+                              }))}
+                              style={{ width: '18px', height: '18px' }}
+                            />
+                            <span style={{ color: formData.type === 'sales' ? '#27ae60' : '#e67e22', fontWeight: 'bold' }}>
+                              💰 {t('recordPaymentNow')}
+                            </span>
+                          </label>
+                          <small style={{ display: 'block', marginTop: '6px', marginLeft: '26px', color: '#e74c3c', fontWeight: 'bold', fontSize: '13px' }}>
+                            {formData.type === 'sales' 
+                              ? '⚠️ فعّل هذا الخيار لإضافة المبلغ للبنك/الخزينة فوراً!' 
+                              : '⚠️ فعّل هذا الخيار لخصم المبلغ من البنك/الخزينة فوراً!'}
+                          </small>
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: '6px' }}>
+                          <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px' }}>
+                            <input
+                              type="checkbox"
+                              checked={formData.deductFromBalance}
+                              onChange={(e) => setFormData(prev => ({ ...prev, deductFromBalance: e.target.checked }))}
+                              style={{ width: '18px', height: '18px' }}
+                            />
+                            <span style={{ color: '#9b59b6', fontWeight: 'bold' }}>
+                              💳 خصم من الرصيد الابتدائي
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {formData.recordPaymentNow && (
+                        <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: '8px', border: '2px solid #4caf50' }}>
+                          <div className="form-group">
+                            <label style={{ fontWeight: 'bold', color: '#2c3e50' }}>{t('selectBankAccount')} *</label>
+                            <select
+                              value={formData.paymentBankAccountId}
+                              onChange={(e) => setFormData(prev => ({ ...prev, paymentBankAccountId: e.target.value }))}
+                              required={formData.recordPaymentNow}
+                              style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '8px', border: '2px solid #4caf50', backgroundColor: 'white' }}
+                            >
+                              <option value="">-- {t('selectBankAccount')} --</option>
+                              {JSON.parse(localStorage.getItem('accounts') || '[]')
+                                .filter(acc => acc.type === 'bank' || acc.type === 'cash')
+                                .map(acc => (
+                                  <option key={acc.id} value={acc.id}>{acc.name} ({acc.code})</option>
+                                ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Explanation Box */}
+                      <div style={{ background: 'rgba(255,255,255,0.95)', padding: '12px', borderRadius: '8px', marginTop: '10px', border: '2px dashed #5a67d8' }}>
+                        <div style={{ fontSize: '13px', color: '#2c3e50', lineHeight: '1.7' }}>
+                          {formData.type === 'sales' ? (
+                            <>
+                              <div style={{ marginBottom: '6px', fontWeight: 'bold', color: '#27ae60' }}>📊 عند إنشاء فاتورة مبيعات:</div>
+                              <div style={{ marginBottom: '4px' }}>✅ <strong>القيد التلقائي:</strong> يُسجل المخزون (خصم) والعميل (دين) تلقائياً</div>
+                              <div style={{ marginBottom: '4px' }}>💰 <strong>تسجيل الدفع فوراً:</strong> يُضيف المبلغ للبنك/الخزينة ويخصم من حساب العميل</div>
+                              <div>💳 <strong>خصم من الرصيد:</strong> يخصم المبلغ من رصيد العميل الابتدائي</div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ marginBottom: '6px', fontWeight: 'bold', color: '#e67e22' }}>📦 عند إنشاء فاتورة مشتريات:</div>
+                              <div style={{ marginBottom: '4px' }}>✅ <strong>القيد التلقائي:</strong> يُسجل المخزون (إضافة) والمورد (دائن) تلقائياً</div>
+                              <div style={{ marginBottom: '4px' }}>💰 <strong>تسجيل الدفع فوراً:</strong> يخصم المبلغ من البنك/الخزينة ويُسدد دين المورد</div>
+                              <div>💳 <strong>خصم من الرصيد:</strong> يخصم المبلغ من رصيد المورد الابتدائي</div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
               
               <div className="modal-actions">

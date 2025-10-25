@@ -194,6 +194,8 @@ const translations = {
     vatType: 'نوع ض.ق.م',
     grandTotal: 'الإجمالي الكلي',
     createJournalEntry: 'إنشاء قيد محاسبي تلقائي',
+    recordPaymentNow: 'تسجيل الدفع فوراً (إضافة للبنك/الخزينة)',
+    selectBankAccount: 'اختر حساب البنك/الخزينة',
     createInvoiceBtn: 'إنشاء الفاتورة',
     saveChanges: 'حفظ التغييرات',
     kwd: 'د.ك',
@@ -377,6 +379,12 @@ const translations = {
     mediumRoom: 'غرفة متوسطة',
     largeRoom: 'غرفة كبيرة',
     exteriorHouse: 'منزل خارجي',
+    
+    // Inventory Purchase Payment
+    recordPurchasePayment: 'تسجيل دفع الشراء (خصم من البنك/الخزينة)',
+    selectPaymentAccount: 'اختر حساب الدفع',
+    purchasePaymentDescription: 'سيتم خصم قيمة الشراء من الحساب المختار وإنشاء قيد محاسبي تلقائياً',
+    totalPurchaseAmount: 'إجمالي قيمة الشراء',
     
     // Search and Filter
     searchInventory: 'البحث في المخزون...',
@@ -659,6 +667,8 @@ const translations = {
     vatType: 'VAT Type',
     grandTotal: 'Grand Total',
     createJournalEntry: 'Create automatic journal entry',
+    recordPaymentNow: 'Record payment immediately (Add to Bank/Cash)',
+    selectBankAccount: 'Select Bank/Cash Account',
     createInvoiceBtn: 'Create Invoice',
     saveChanges: 'Save Changes',
     kwd: 'KWD',
@@ -842,6 +852,12 @@ const translations = {
     mediumRoom: 'Medium Room',
     largeRoom: 'Large Room',
     exteriorHouse: 'Exterior House',
+    
+    // Inventory Purchase Payment
+    recordPurchasePayment: 'Record purchase payment (Deduct from Bank/Cash)',
+    selectPaymentAccount: 'Select payment account',
+    purchasePaymentDescription: 'The purchase amount will be deducted from the selected account and a journal entry will be created automatically',
+    totalPurchaseAmount: 'Total purchase amount',
     
     // Search and Filter
     searchInventory: 'Search inventory...',

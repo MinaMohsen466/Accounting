@@ -24,8 +24,10 @@ let VALID_USERS = {
       'view_invoices', 'create_invoices', 'edit_invoices',
       'view_customers_suppliers', 'create_customers_suppliers', 'edit_customers_suppliers',
       'view_inventory', 'create_inventory_items',
+      'view_account_statements', 'manage_account_statements',
       'view_financial_reports', 'export_reports',
-      'view_settings'
+      'view_settings',
+      'view_banking', 'manage_bank_accounts', 'record_payments', 'record_receipts', 'record_expenses'
     ]
   },
   'accountant': { 
@@ -41,7 +43,9 @@ let VALID_USERS = {
       'view_invoices', 'create_invoices',
       'view_customers_suppliers',
       'view_inventory',
-      'view_financial_reports'
+      'view_account_statements',
+      'view_financial_reports',
+      'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts'
     ]
   },
   'user': { 
@@ -54,7 +58,9 @@ let VALID_USERS = {
       'view_dashboard',
       'view_invoices',
       'view_customers_suppliers',
-      'view_inventory'
+      'view_inventory',
+      'view_account_statements',
+      'view_banking'
     ]
   }
 }
@@ -89,8 +95,10 @@ const loadUsersFromStorage = () => {
               'view_invoices', 'create_invoices', 'edit_invoices',
               'view_customers_suppliers', 'create_customers_suppliers', 'edit_customers_suppliers',
               'view_inventory', 'create_inventory_items',
+              'view_account_statements', 'manage_account_statements',
               'view_financial_reports', 'export_reports',
-              'view_settings'
+              'view_settings',
+              'view_banking', 'manage_bank_accounts', 'record_payments', 'record_receipts', 'record_expenses'
             ],
             accountant: [
               'view_dashboard',
@@ -99,13 +107,17 @@ const loadUsersFromStorage = () => {
               'view_invoices', 'create_invoices',
               'view_customers_suppliers',
               'view_inventory',
-              'view_financial_reports'
+              'view_account_statements',
+              'view_financial_reports',
+              'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts'
             ],
             user: [
               'view_dashboard',
               'view_invoices',
               'view_customers_suppliers',
-              'view_inventory'
+              'view_inventory',
+              'view_account_statements',
+              'view_banking'
             ]
           }
           
@@ -382,7 +394,9 @@ export const AuthProvider = ({ children }) => {
         'view_financial_reports', 'export_reports', 'print_reports',
         'import_data', 'export_data', 'backup_data', 'restore_data',
         'view_settings', 'edit_general_settings', 'edit_brand_settings', 'manage_users', 'view_user_logs',
-        'system_maintenance', 'view_system_logs', 'manage_system_backups'
+        'system_maintenance', 'view_system_logs', 'manage_system_backups',
+        'view_banking', 'manage_bank_accounts', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts', 'record_expenses', 'view_customer_accounts',
+        'view_account_statements', 'manage_account_statements'
       ]
     }
     

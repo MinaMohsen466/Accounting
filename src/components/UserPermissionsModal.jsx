@@ -44,6 +44,9 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
     'delete_inventory_items': 'حذف عناصر المخزون',
     'view_stock_alerts': 'عرض تنبيهات المخزون',
     'view_expiry_alerts': 'عرض تنبيهات انتهاء الصلاحية',
+  // Account Statements
+  'view_account_statements': 'عرض كشف الحساب',
+  'manage_account_statements': 'إدارة كشف الحساب',
     
     // Reports
     'view_financial_reports': 'عرض التقارير المالية',
@@ -80,6 +83,7 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
       'view_customers_suppliers', 'create_customers_suppliers', 'edit_customers_suppliers',
       'view_inventory', 'create_inventory_items', 'edit_inventory_items',
       'view_stock_alerts', 'view_expiry_alerts',
+  'view_account_statements', 'manage_account_statements',
       'view_financial_reports', 'export_reports', 'print_reports',
       'export_data', 'backup_data',
       'view_settings'
@@ -92,7 +96,8 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
       'view_customers_suppliers', 'create_customers_suppliers', 'edit_customers_suppliers',
       'view_inventory', 'create_inventory_items', 'edit_inventory_items',
       'view_stock_alerts', 'view_expiry_alerts',
-      'view_financial_reports', 'export_reports'
+  'view_account_statements',
+  'view_financial_reports', 'export_reports'
     ],
     user: [
       'view_dashboard',
@@ -101,6 +106,7 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
       'view_invoices',
       'view_customers_suppliers',
       'view_inventory',
+  'view_account_statements',
       'view_stock_alerts', 'view_expiry_alerts',
       'view_financial_reports'
     ]
@@ -159,6 +165,9 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
     'المخزون والتنبيهات': [
       'view_inventory', 'create_inventory_items', 'edit_inventory_items',
       'delete_inventory_items', 'view_stock_alerts', 'view_expiry_alerts'
+    ],
+    'كشوف الحساب والحسابات': [
+      'view_account_statements', 'manage_account_statements', 'view_customer_accounts'
     ],
     'التقارير': [
       'view_financial_reports', 'export_reports', 'print_reports'

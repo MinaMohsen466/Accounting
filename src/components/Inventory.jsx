@@ -78,7 +78,11 @@ const Inventory = () => {
     manufacturer: '',
     batchNumber: '',
     description: '',
-    properties: {}
+    properties: {},
+    
+    // Payment options (for new items only)
+    recordPayment: false,
+    paymentAccountId: ''
   })
 
 
@@ -86,6 +90,75 @@ const Inventory = () => {
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3000)
+  }
+
+  // Record payment for inventory purchase
+  const recordInventoryPurchasePayment = (item) => {
+    try {
+      const accounts = JSON.parse(localStorage.getItem('accounts') || '[]')
+      const paymentAccount = accounts.find(acc => acc.id === formData.paymentAccountId)
+      
+      if (!paymentAccount) {
+        console.error('Payment account not found')
+        return
+      }
+
+      // Find inventory asset account (1301) or create if not exists
+      let inventoryAccount = accounts.find(acc => acc.code === '1301')
+      if (!inventoryAccount) {
+        inventoryAccount = {
+          id: Date.now().toString(),
+          code: '1301',
+          name: 'المخزون',
+          nameEn: 'Inventory',
+          type: 'asset',
+          balance: 0
+        }
+        accounts.push(inventoryAccount)
+        localStorage.setItem('accounts', JSON.stringify(accounts))
+      }
+
+      const purchaseAmount = parseFloat(item.purchasePrice) * parseFloat(item.quantity)
+      const description = `شراء ${item.name} (${item.quantity} ${item.unit})`
+
+      // Create journal entry for purchase
+      const purchaseEntry = {
+        date: new Date().toISOString(),
+        description,
+        lines: [
+          {
+            accountId: inventoryAccount.id,
+            accountName: inventoryAccount.name,
+            debit: purchaseAmount,
+            credit: 0,
+            description
+          },
+          {
+            accountId: paymentAccount.id,
+            accountName: paymentAccount.name,
+            debit: 0,
+            credit: purchaseAmount,
+            description
+          }
+        ]
+      }
+
+      // Save journal entry
+      const journalEntries = JSON.parse(localStorage.getItem('journalEntries') || '[]')
+      const newEntry = {
+        id: Date.now().toString(),
+        ...purchaseEntry
+      }
+      journalEntries.push(newEntry)
+      localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
+      
+      // Trigger storage event for other components
+      window.dispatchEvent(new Event('storage'))
+      
+      console.log('✅ Purchase payment recorded successfully')
+    } catch (error) {
+      console.error('Error recording purchase payment:', error)
+    }
   }
 
 
@@ -207,7 +280,11 @@ const Inventory = () => {
       manufacturer: '',
       batchNumber: '',
       description: '',
-      properties: {}
+      properties: {},
+      
+      // Payment options
+      recordPayment: false,
+      paymentAccountId: ''
     })
     // reset textual inputs to empty so fields show blank
     setPriceInput('')
@@ -239,6 +316,12 @@ const Inventory = () => {
       return
     }
 
+    // Validate payment account if payment is being recorded
+    if (!editingItem && formData.recordPayment && !formData.paymentAccountId) {
+      showNotification('يجب اختيار حساب الدفع', 'error')
+      return
+    }
+
     // Handle custom category
   const finalFormData = { ...formData, price: parsedPrice, purchasePrice: parsedPurchase }
     if (formData.category === 'custom' && formData.customCategoryName) {
@@ -252,6 +335,11 @@ const Inventory = () => {
         result = updateInventoryItem(editingItem.id, finalFormData)
       } else {
         result = addInventoryItem(finalFormData)
+        
+        // Record purchase payment if requested
+        if (result.success && formData.recordPayment && formData.paymentAccountId) {
+          recordInventoryPurchasePayment(result.data)
+        }
       }
 
       if (result.success) {
@@ -758,6 +846,151 @@ const Inventory = () => {
                     rows="3"
                   />
                 </div>
+
+                {/* Purchase Payment Options (only for new items) - Enhanced Visibility */}
+                {!editingItem && (
+                  <div className="purchase-payment-section" style={{
+                    marginTop: '25px',
+                    padding: '20px',
+                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    borderRadius: '12px',
+                    border: '3px solid #e91e63',
+                    boxShadow: '0 4px 15px rgba(233, 30, 99, 0.4)'
+                  }}>
+                    <div style={{
+                      textAlign: 'center',
+                      marginBottom: '15px',
+                      color: 'white',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+                    }}>
+                      ⚠️ مهم: خيارات دفع الشراء ⚠️
+                    </div>
+
+                    <div style={{
+                      background: 'white',
+                      padding: '15px',
+                      borderRadius: '8px'
+                    }}>
+                      <div className="form-group">
+                        <label className="checkbox-label" style={{ 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          gap: '10px',
+                          fontSize: '15px'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={formData.recordPayment}
+                            onChange={(e) => setFormData(prev => ({ 
+                              ...prev, 
+                              recordPayment: e.target.checked,
+                              paymentAccountId: e.target.checked ? prev.paymentAccountId : ''
+                            }))}
+                            style={{ width: '20px', height: '20px' }}
+                          />
+                          <span style={{ color: '#e91e63', fontWeight: 'bold' }}>
+                            💰 {t('recordPurchasePayment')}
+                          </span>
+                        </label>
+                        <small style={{ 
+                          display: 'block', 
+                          marginTop: '5px',
+                          marginLeft: '30px',
+                          color: '#e74c3c',
+                          fontWeight: 'bold',
+                          fontSize: '0.9em'
+                        }}>
+                          ⚠️ فعّل هذا الخيار لخصم المبلغ من البنك/الخزينة فوراً!
+                        </small>
+                        <small style={{ 
+                          display: 'block', 
+                          marginTop: '5px',
+                          marginLeft: '30px',
+                          color: '#6c757d',
+                          fontSize: '0.85em'
+                        }}>
+                          {t('purchasePaymentDescription')}
+                        </small>
+                      </div>
+                    </div>
+
+                    {formData.recordPayment && (
+                      <>
+                        <div style={{
+                          background: '#fff3e0',
+                          padding: '15px',
+                          borderRadius: '8px',
+                          marginTop: '15px',
+                          border: '2px solid #ff9800'
+                        }}>
+                          <div className="form-group">
+                            <label style={{ fontWeight: 'bold', color: '#2c3e50' }}>
+                              {t('selectPaymentAccount')} *
+                            </label>
+                            <select
+                              value={formData.paymentAccountId}
+                              onChange={(e) => setFormData(prev => ({ ...prev, paymentAccountId: e.target.value }))}
+                              required={formData.recordPayment}
+                              style={{
+                                width: '100%',
+                                padding: '12px',
+                                border: '2px solid #ff9800',
+                                borderRadius: '6px',
+                                fontSize: '15px',
+                                backgroundColor: 'white',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              <option value="">-- {t('selectPaymentAccount')} --</option>
+                              {(() => {
+                                const accounts = JSON.parse(localStorage.getItem('accounts') || '[]')
+                                const bankCashAccounts = accounts.filter(acc => 
+                                  acc.type === 'bank' || acc.type === 'cash' || 
+                                  acc.code?.startsWith('100')
+                                )
+                                return bankCashAccounts.map(acc => (
+                                  <option key={acc.id} value={acc.id}>
+                                    {acc.name} ({acc.code})
+                                  </option>
+                                ))
+                              })()}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          marginTop: '15px',
+                          padding: '12px',
+                          background: '#e3f2fd',
+                          borderRadius: '6px',
+                          border: '2px solid #2196f3'
+                        }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontWeight: 'bold'
+                          }}>
+                            <span>{t('totalPurchaseAmount')}:</span>
+                            <span style={{ 
+                              fontSize: '1.2em',
+                              color: '#1976d2'
+                            }}>
+                              {(() => {
+                                const pp = parseFloat(purchasePriceInput)
+                                const qty = parseFloat(formData.quantity) || 0
+                                if (isNaN(pp)) return '0.000'
+                                return (pp * qty).toFixed(3)
+                              })()} {t('kwd')}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer">

@@ -158,7 +158,14 @@ class DataService {
       createdAt: new Date().toISOString()
     }
     invoices.push(newInvoice)
-    return this.saveInvoices(invoices) ? newInvoice : null
+    const saved = this.saveInvoices(invoices)
+
+    // NOTE: We do NOT mutate stored customers/suppliers opening balances here.
+    // Balances shown in statements are calculated from the entity's stored
+    // opening balance plus invoices/payments (see getCustomerSupplierStatement).
+    // Mutating the stored `balance` on invoice add/delete causes double-counting
+    // because statements also iterate invoices when computing running balances.
+    return saved ? newInvoice : null
   }
 
   static updateInvoice(id, updatedInvoice) {
@@ -173,8 +180,18 @@ class DataService {
 
   static deleteInvoice(id) {
     const invoices = this.getInvoices()
+    const invoiceToDelete = invoices.find(inv => inv.id === id)
+    if (!invoiceToDelete) return false
+
+    // Remove the invoice from storage
     const filteredInvoices = invoices.filter(inv => inv.id !== id)
-    return this.saveInvoices(filteredInvoices)
+    const invoicesSaved = this.saveInvoices(filteredInvoices)
+
+    // NOTE: We do NOT mutate stored customers/suppliers opening balances here.
+    // Deleting an invoice removes it from the invoices list. Statements will
+    // reflect the deletion because they compute balances from the stored
+    // opening balance plus the remaining invoices/payments.
+    return invoicesSaved
   }
 
   // Customers Management
@@ -335,7 +352,202 @@ class DataService {
   static initializeDefaultAccounts() {
     const existingAccounts = this.getAccounts()
     if (existingAccounts.length === 0) {
-      const defaultAccounts = []
+      const defaultAccounts = [
+        // الأصول المتداولة - النقدية والبنوك
+        {
+          code: '1001',
+          name: 'الخزينة الرئيسية',
+          nameEn: 'Main Cash',
+          type: 'cash',
+          category: 'current_assets',
+          description: 'الخزينة النقدية الرئيسية',
+          balance: 0
+        },
+        {
+          code: '1002',
+          name: 'البنك الوطني - الحساب الجاري',
+          nameEn: 'National Bank - Current Account',
+          type: 'bank',
+          category: 'current_assets',
+          description: 'حساب جاري في البنك الوطني',
+          balance: 0
+        },
+        {
+          code: '1003',
+          name: 'بنك الخليج - حساب التوفير',
+          nameEn: 'Gulf Bank - Savings Account',
+          type: 'bank',
+          category: 'current_assets',
+          description: 'حساب توفير في بنك الخليج',
+          balance: 0
+        },
+        
+        // الأصول المتداولة - الذمم المدينة
+        {
+          code: '1101',
+          name: 'العملاء (الذمم المدينة)',
+          nameEn: 'Accounts Receivable',
+          type: 'asset',
+          category: 'current_assets',
+          subcategory: 'accounts_receivable',
+          description: 'حساب العملاء والمستحقات',
+          balance: 0
+        },
+        
+        // الأصول المتداولة - المخزون
+        {
+          code: '1201',
+          name: 'المخزون',
+          nameEn: 'Inventory',
+          type: 'asset',
+          category: 'current_assets',
+          description: 'مخزون البضاعة',
+          balance: 0
+        },
+        
+        // الخصوم المتداولة - الذمم الدائنة
+        {
+          code: '2101',
+          name: 'الموردون (الذمم الدائنة)',
+          nameEn: 'Accounts Payable',
+          type: 'liability',
+          category: 'current_liabilities',
+          description: 'حساب الموردين والمستحقات',
+          balance: 0
+        },
+        {
+          code: '2102',
+          name: 'ضريبة القيمة المضافة مستحقة',
+          nameEn: 'VAT Payable',
+          type: 'liability',
+          category: 'current_liabilities',
+          description: 'ضريبة القيمة المضافة المستحقة للحكومة',
+          balance: 0
+        },
+        
+        // حقوق الملكية
+        {
+          code: '3001',
+          name: 'رأس المال',
+          nameEn: 'Capital',
+          type: 'equity',
+          category: 'equity',
+          description: 'رأس مال المشروع',
+          balance: 0
+        },
+        {
+          code: '3002',
+          name: 'الأرباح المحتجزة',
+          nameEn: 'Retained Earnings',
+          type: 'equity',
+          category: 'equity',
+          description: 'الأرباح المرحلة من سنوات سابقة',
+          balance: 0
+        },
+        
+        // الإيرادات
+        {
+          code: '4001',
+          name: 'المبيعات',
+          nameEn: 'Sales Revenue',
+          type: 'revenue',
+          category: 'operating_revenue',
+          description: 'إيرادات المبيعات',
+          balance: 0
+        },
+        {
+          code: '4002',
+          name: 'إيرادات أخرى',
+          nameEn: 'Other Income',
+          type: 'revenue',
+          category: 'other_revenue',
+          description: 'إيرادات متنوعة',
+          balance: 0
+        },
+        
+        // المصروفات التشغيلية
+        {
+          code: '5001',
+          name: 'تكلفة المبيعات',
+          nameEn: 'Cost of Sales',
+          type: 'expense',
+          category: 'cost_of_sales',
+          description: 'تكلفة البضاعة المباعة',
+          balance: 0
+        },
+        {
+          code: '5101',
+          name: 'مصروفات الرواتب',
+          nameEn: 'Salaries Expense',
+          type: 'expense',
+          category: 'operating_expenses',
+          description: 'رواتب ومكافآت الموظفين',
+          balance: 0
+        },
+        {
+          code: '5102',
+          name: 'مصروفات الإيجار',
+          nameEn: 'Rent Expense',
+          type: 'expense',
+          category: 'operating_expenses',
+          description: 'إيجار المحل أو المكتب',
+          balance: 0
+        },
+        {
+          code: '5103',
+          name: 'مصروفات الضيافة',
+          nameEn: 'Hospitality Expense',
+          type: 'expense',
+          category: 'operating_expenses',
+          description: 'مصروفات الضيافة والاستقبال',
+          balance: 0
+        },
+        {
+          code: '5104',
+          name: 'مصروفات الكهرباء والماء',
+          nameEn: 'Utilities Expense',
+          type: 'expense',
+          category: 'operating_expenses',
+          description: 'فواتير الكهرباء والماء',
+          balance: 0
+        },
+        {
+          code: '5105',
+          name: 'مصروفات الاتصالات',
+          nameEn: 'Communication Expense',
+          type: 'expense',
+          category: 'operating_expenses',
+          description: 'هاتف وإنترنت',
+          balance: 0
+        },
+        {
+          code: '5106',
+          name: 'مصروفات الصيانة',
+          nameEn: 'Maintenance Expense',
+          type: 'expense',
+          category: 'operating_expenses',
+          description: 'صيانة المعدات والمباني',
+          balance: 0
+        },
+        {
+          code: '5199',
+          name: 'مصروفات أخرى',
+          nameEn: 'Other Expenses',
+          type: 'expense',
+          category: 'operating_expenses',
+          description: 'مصروفات متفرقة',
+          balance: 0
+        },
+        {
+          code: '5201',
+          name: 'خصم مسموح به',
+          nameEn: 'Discounts Allowed',
+          type: 'expense',
+          category: 'selling_expenses',
+          description: 'الخصومات الممنوحة للعملاء',
+          balance: 0
+        }
+      ]
       
       defaultAccounts.forEach(account => {
         this.addAccount(account)

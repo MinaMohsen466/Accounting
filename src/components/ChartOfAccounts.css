@@ -75,6 +75,16 @@
   color: #3498db;
 }
 
+/* Sub-account styling */
+.sub-account-row {
+  background-color: #f8f9fa;
+}
+
+.sub-account-row td:nth-child(2) {
+  font-style: italic;
+  color: #64748b;
+}
+
 /* Account type badges */
 .account-type-badge {
   display: inline-block;
