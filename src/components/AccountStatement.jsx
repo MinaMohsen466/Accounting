@@ -11,13 +11,25 @@ const AccountStatement = () => {
     customers,
     suppliers,
     invoices,
+    accounts,
+    journalEntries,
     getCustomerSupplierStatement 
   } = useAccounting()
   const { language } = useLanguage()
   const { hasPermission } = useAuth()
   const { brandSettings } = useBrand()
 
-  const [entityType, setEntityType] = useState('customer') // customer or supplier
+  // Permission: viewing account statements
+  if (!hasPermission('view_account_statements')) {
+    return (
+      <PermissionDenied 
+        message="ليس لديك صلاحية لعرض كشوف الحساب"
+        description="تحتاج إلى صلاحية 'عرض كشف الحساب' للوصول إلى هذه الصفحة"
+      />
+    )
+  }
+
+  const [entityType, setEntityType] = useState('customer') // customer, supplier, or account
   const [selectedEntityId, setSelectedEntityId] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -177,17 +189,97 @@ const AccountStatement = () => {
   }, [])
 
   // Get current entities based on type
-  const currentEntities = entityType === 'customer' ? customers : suppliers
+  const currentEntities = entityType === 'customer' 
+    ? customers 
+    : entityType === 'supplier' 
+    ? suppliers 
+    : accounts
   
   // Filter entities based on search term
-  const filteredEntities = currentEntities.filter(entity => 
-    entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (entity.phone && entity.phone.includes(searchTerm))
-  )
+  const filteredEntities = currentEntities.filter(entity => {
+    if (entityType === 'account') {
+      return entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             entity.code.toLowerCase().includes(searchTerm.toLowerCase())
+    }
+    return entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           (entity.phone && entity.phone.includes(searchTerm))
+  })
+
+  // Generate account statement for general ledger accounts
+  const getAccountStatement = (accountId, startDate, endDate) => {
+    const account = accounts.find(acc => acc.id === accountId)
+    if (!account) return null
+
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999)
+
+    const transactions = []
+    let openingBalance = 0
+
+    // Process journal entries
+    journalEntries.forEach(entry => {
+      const entryDate = new Date(entry.date)
+
+      entry.lines?.forEach(line => {
+        if (line.accountId === accountId) {
+          const debit = parseFloat(line.debit) || 0
+          const credit = parseFloat(line.credit) || 0
+
+          if (entryDate < start) {
+            // Before period - add to opening balance
+            openingBalance += (debit - credit)
+          } else if (entryDate >= start && entryDate <= end) {
+            // Within period - add to transactions
+            transactions.push({
+              date: entry.date,
+              description: line.description || entry.description,
+              reference: entry.reference || '',
+              debit: debit,
+              credit: credit,
+              type: entry.type || 'manual'
+            })
+          }
+        }
+      })
+    })
+
+    // Sort by date
+    transactions.sort((a, b) => new Date(a.date) - new Date(b.date))
+
+    // Calculate running balance
+    let runningBalance = openingBalance
+    transactions.forEach(trans => {
+      runningBalance += (trans.debit - trans.credit)
+      trans.balance = runningBalance
+    })
+
+    const totalDebit = transactions.reduce((sum, t) => sum + t.debit, 0)
+    const totalCredit = transactions.reduce((sum, t) => sum + t.credit, 0)
+    const closingBalance = openingBalance + totalDebit - totalCredit
+
+    return {
+      entity: {
+        id: account.id,
+        name: account.name,
+        code: account.code,
+        type: account.type
+      },
+      openingBalance,
+      transactions,
+      totalDebit,
+      totalCredit,
+      closingBalance,
+      period: {
+        start: startDate,
+        end: endDate
+      }
+    }
+  }
 
   const generateStatement = () => {
     if (!selectedEntityId || !startDate || !endDate) {
-      alert(language === 'ar' ? 'يرجى اختيار العميل/المورد والفترة الزمنية' : 'Please select customer/supplier and date range')
+      alert(language === 'ar' ? 'يرجى اختيار العميل/المورد/الحساب والفترة الزمنية' : 'Please select customer/supplier/account and date range')
       return
     }
 
@@ -198,10 +290,17 @@ const AccountStatement = () => {
       endDate,
       totalInvoices: invoices.length,
       totalCustomers: customers.length,
-      totalSuppliers: suppliers.length
+      totalSuppliers: suppliers.length,
+      totalAccounts: accounts.length
     })
 
-    const statement = getCustomerSupplierStatement(selectedEntityId, entityType, startDate, endDate)
+    let statement
+    if (entityType === 'account') {
+      statement = getAccountStatement(selectedEntityId, startDate, endDate)
+    } else {
+      statement = getCustomerSupplierStatement(selectedEntityId, entityType, startDate, endDate)
+    }
+    
     console.log('📋 Statement result:', statement)
     setStatementData(statement)
     try {
@@ -866,6 +965,7 @@ const AccountStatement = () => {
             >
               <option value="customer">{language === 'ar' ? 'عميل' : 'Customer'}</option>
               <option value="supplier">{language === 'ar' ? 'مورد' : 'Supplier'}</option>
+              <option value="account">{language === 'ar' ? 'حساب محاسبي' : 'Ledger Account'}</option>
             </select>
           </div>
 
@@ -873,7 +973,11 @@ const AccountStatement = () => {
             <label>{language === 'ar' ? 'بحث' : 'Search'}</label>
             <input
               type="text"
-              placeholder={language === 'ar' ? 'ابحث بالاسم أو رقم الهاتف...' : 'Search by name or phone...'}
+              placeholder={
+                entityType === 'account'
+                  ? (language === 'ar' ? 'ابحث بالاسم أو الرمز...' : 'Search by name or code...')
+                  : (language === 'ar' ? 'ابحث بالاسم أو رقم الهاتف...' : 'Search by name or phone...')
+              }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -883,8 +987,8 @@ const AccountStatement = () => {
           <div className="form-group">
             <label>
               {language === 'ar' 
-                ? (entityType === 'customer' ? 'اختر العميل' : 'اختر المورد')
-                : (entityType === 'customer' ? 'Select Customer' : 'Select Supplier')
+                ? (entityType === 'customer' ? 'اختر العميل' : entityType === 'supplier' ? 'اختر المورد' : 'اختر الحساب')
+                : (entityType === 'customer' ? 'Select Customer' : entityType === 'supplier' ? 'Select Supplier' : 'Select Account')
               }
             </label>
             <select
@@ -897,7 +1001,10 @@ const AccountStatement = () => {
               </option>
               {filteredEntities.map(entity => (
                 <option key={entity.id} value={entity.id}>
-                  {entity.name} {entity.phone ? `- ${entity.phone}` : ''}
+                  {entityType === 'account' 
+                    ? `${entity.code} - ${entity.name}`
+                    : `${entity.name} ${entity.phone ? `- ${entity.phone}` : ''}`
+                  }
                 </option>
               ))}
             </select>
@@ -946,17 +1053,28 @@ const AccountStatement = () => {
               <h2>{language === 'ar' ? 'كشف حساب' : 'Account Statement'}</h2>
               <div className="entity-info">
                 <p>
-                  <strong>{language === 'ar' ? (entityType === 'customer' ? 'العميل:' : 'المورد:') : (entityType === 'customer' ? 'Customer:' : 'Supplier:')}</strong> 
-                  {selectedEntity?.name}
+                  <strong>
+                    {language === 'ar' 
+                      ? (entityType === 'customer' ? 'العميل:' : entityType === 'supplier' ? 'المورد:' : 'الحساب:')
+                      : (entityType === 'customer' ? 'Customer:' : entityType === 'supplier' ? 'Supplier:' : 'Account:')
+                    }
+                  </strong> 
+                  {entityType === 'account' 
+                    ? `${statementData.entity.code} - ${statementData.entity.name}`
+                    : selectedEntity?.name
+                  }
                 </p>
-                {selectedEntity?.phone && (
+                {selectedEntity?.phone && entityType !== 'account' && (
                   <p><strong>{language === 'ar' ? 'الهاتف:' : 'Phone:'}</strong> {selectedEntity.phone}</p>
                 )}
-                {selectedEntity?.email && (
+                {selectedEntity?.email && entityType !== 'account' && (
                   <p><strong>{language === 'ar' ? 'البريد:' : 'Email:'}</strong> {selectedEntity.email}</p>
                 )}
-                {selectedEntity?.address && (
+                {selectedEntity?.address && entityType !== 'account' && (
                   <p><strong>{language === 'ar' ? 'العنوان:' : 'Address:'}</strong> {selectedEntity.address}</p>
+                )}
+                {entityType === 'account' && statementData.entity.type && (
+                  <p><strong>{language === 'ar' ? 'نوع الحساب:' : 'Account Type:'}</strong> {statementData.entity.type}</p>
                 )}
               </div>
               <div className="date-range">
@@ -979,7 +1097,7 @@ const AccountStatement = () => {
             <thead>
               <tr>
                 <th>{language === 'ar' ? 'التاريخ' : 'Date'}</th>
-                <th>{language === 'ar' ? 'رقم الفاتورة' : 'Invoice #'}</th>
+                <th>{language === 'ar' ? (entityType === 'account' ? 'المرجع' : 'رقم الفاتورة') : (entityType === 'account' ? 'Reference' : 'Invoice #')}</th>
                 <th>{language === 'ar' ? 'الوصف' : 'Description'}</th>
                 <th>{language === 'ar' ? 'النوع' : 'Type'}</th>
                 <th className="amount-col">{language === 'ar' ? 'مدين' : 'Debit'}</th>
@@ -1013,20 +1131,23 @@ const AccountStatement = () => {
                     <tr key={index} className={trans.isPaid ? 'paid-row' : trans.status === 'overdue' ? 'overdue-row' : ''}>
                       <td>{new Date(trans.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
                       <td>
-                        <a
-                          href="#"
-                          role="button"
-                          tabIndex="0"
-                          className="invoice-link"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            // navigate to Invoices page and open this invoice there
-                            navigateToInvoicesAndOpen(trans)
-                          }}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigateToInvoicesAndOpen(trans) } }}
-                        >
-                          {trans.invoiceNumber}
-                        </a>
+                        {entityType === 'account' ? (
+                          trans.reference || '-'
+                        ) : (
+                          <a
+                            href="#"
+                            role="button"
+                            tabIndex="0"
+                            className="invoice-link"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              navigateToInvoicesAndOpen(trans)
+                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigateToInvoicesAndOpen(trans) } }}
+                          >
+                            {trans.invoiceNumber}
+                          </a>
+                        )}
                       </td>
                       <td>{trans.description}</td>
                       <td>

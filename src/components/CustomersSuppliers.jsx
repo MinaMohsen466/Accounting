@@ -966,8 +966,12 @@ const CustomersSuppliers = () => {
                     </div>
                     <small className="field-hint">
                       {language === 'ar' 
-                        ? 'الرصيد الابتدائي + الفواتير غير المدفوعة = الرصيد الإجمالي'
-                        : 'Initial Balance + Unpaid Invoices = Total Balance'
+                        ? activeTab === 'customers'
+                          ? '• موجب (+): العميل مدين لنا (له دين علينا) | سالب (-): العميل دائن لنا (دفعنا له مقدماً)'
+                          : '• موجب (+): المورد دائن لنا (نحن مدينون له) | سالب (-): المورد مدين لنا (دفعنا له مقدماً)'
+                        : activeTab === 'customers'
+                          ? '• Positive (+): Customer owes us | Negative (-): We owe customer (advance payment)'
+                          : '• Positive (+): We owe supplier | Negative (-): Supplier owes us (advance payment)'
                       }
                     </small>
                   </div>

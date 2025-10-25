@@ -18,7 +18,8 @@ const Sidebar = ({ currentView, setCurrentView }) => {
     { id: 'invoices', label: t('invoices'), icon: '🧾', permission: 'view_invoices' },
     { id: 'customers', label: t('customersSuppliers'), icon: '👥', permission: 'view_customers_suppliers' },
     { id: 'inventory', label: t('inventory'), icon: '📦', permission: 'view_inventory' },
-    { id: 'accountStatement', label: t('accountStatement'), icon: '📋', permission: 'view_customers_suppliers' },
+    { id: 'banking', label: language === 'ar' ? 'الخزينة والبنوك' : 'Banking', icon: '🏦', permission: 'view_banking' },
+  { id: 'accountStatement', label: t('accountStatement'), icon: '📋', permission: 'view_account_statements' },
     { id: 'reports', label: t('reports'), icon: '📈', permission: 'view_financial_reports' },
   ]
 

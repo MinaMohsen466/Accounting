@@ -1,0 +1,495 @@
+.banking-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.banking-header {
+  margin-bottom: 2rem;
+}
+
+.banking-header h1 {
+  font-size: 2rem;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.banking-header p {
+  color: #7f8c8d;
+  font-size: 1rem;
+}
+
+/* Summary Cards */
+.banking-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.summary-card.total {
+  border-left: 4px solid #3498db;
+}
+
+.summary-card.cash {
+  border-left: 4px solid #27ae60;
+}
+
+.summary-card.bank {
+  border-left: 4px solid #9b59b6;
+}
+
+.summary-card.sales {
+  border-left: 4px solid #e74c3c;
+}
+
+.summary-icon {
+  font-size: 2.5rem;
+  opacity: 0.8;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-content h3 {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.summary-content .amount {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 0.25rem;
+}
+
+.summary-content .label {
+  font-size: 0.85rem;
+  color: #95a5a6;
+}
+
+/* Controls */
+.banking-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.filter-group select,
+.search-group input {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.filter-group select:focus,
+.search-group input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.search-group {
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-group input {
+  width: 100%;
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Accounts List */
+.banking-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.account-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.account-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.account-header {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ecf0f1;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.account-icon {
+  font-size: 2.5rem;
+}
+
+.account-info h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+}
+
+.account-code {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.account-desc {
+  color: #95a5a6;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.account-balance {
+  text-align: right;
+}
+
+.balance-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-bottom: 0.5rem;
+}
+
+.balance-amount {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.balance-amount.positive {
+  color: #27ae60;
+}
+
+.balance-amount.negative {
+  color: #e74c3c;
+}
+
+/* Account Actions */
+.account-actions {
+  padding: 1rem 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: #f8f9fa;
+}
+
+.action-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+}
+
+.action-btn.deposit {
+  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+}
+
+.action-btn.withdrawal {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.action-btn.payment {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+}
+
+.action-btn.receipt {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Transactions Table */
+.account-transactions {
+  padding: 1.5rem;
+}
+
+.account-transactions h4 {
+  margin-bottom: 1rem;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.account-transactions table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.account-transactions thead {
+  background: #f8f9fa;
+}
+
+.account-transactions th,
+.account-transactions td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.account-transactions th {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.account-transactions td {
+  color: #34495e;
+  font-size: 0.9rem;
+}
+
+.amount-col {
+  text-align: right !important;
+  font-family: 'Courier New', monospace;
+}
+
+.amount-col.debit {
+  color: #27ae60;
+}
+
+.amount-col.credit {
+  color: #e74c3c;
+}
+
+.amount-col.balance {
+  font-weight: 600;
+}
+
+.description-col {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-col {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+}
+
+.view-all {
+  text-align: center;
+  padding: 1rem;
+  border-top: 1px solid #ecf0f1;
+}
+
+.view-all small {
+  color: #7f8c8d;
+}
+
+.view-all-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-all-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.view-all-btn:active {
+  transform: translateY(0);
+}
+
+.no-transactions {
+  padding: 2rem;
+  text-align: center;
+  color: #95a5a6;
+}
+
+/* Empty State */
+.empty-state {
+  background: white;
+  border-radius: 12px;
+  padding: 3rem;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state p {
+  font-size: 1.2rem;
+  color: #7f8c8d;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state small {
+  color: #95a5a6;
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 3rem;
+  font-size: 1.2rem;
+  color: #7f8c8d;
+}
+
+/* RTL Support */
+[dir="rtl"] .banking-page {
+  direction: rtl;
+}
+
+[dir="rtl"] .account-header {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .account-info {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .account-balance {
+  text-align: left;
+}
+
+[dir="rtl"] .account-transactions th,
+[dir="rtl"] .account-transactions td {
+  text-align: right;
+}
+
+[dir="rtl"] .amount-col {
+  text-align: left !important;
+}
+
+[dir="rtl"] .summary-card.total {
+  border-left: none;
+  border-right: 4px solid #3498db;
+}
+
+[dir="rtl"] .summary-card.cash {
+  border-left: none;
+  border-right: 4px solid #27ae60;
+}
+
+[dir="rtl"] .summary-card.bank {
+  border-left: none;
+  border-right: 4px solid #9b59b6;
+}
+
+[dir="rtl"] .summary-card.sales {
+  border-left: none;
+  border-right: 4px solid #e74c3c;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .banking-page {
+    padding: 1rem;
+  }
+
+  .banking-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .banking-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group,
+  .search-group {
+    width: 100%;
+  }
+
+  .account-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .account-balance {
+    width: 100%;
+  }
+
+  .account-transactions {
+    overflow-x: auto;
+  }
+
+  .account-transactions table {
+    min-width: 600px;
+  }
+
+  .summary-content .amount {
+    font-size: 1.5rem;
+  }
+}
