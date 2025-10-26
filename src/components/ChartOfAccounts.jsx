@@ -10,7 +10,8 @@ const ChartOfAccounts = () => {
     accounts, 
     addAccount, 
     updateAccount, 
-    deleteAccount, 
+    deleteAccount,
+    resetAccountsToDefaults, // 🆕 دالة إعادة التهيئة
     loading, 
     error 
   } = useAccounting()
@@ -70,6 +71,8 @@ const ChartOfAccounts = () => {
     cost_of_goods: language === 'ar' ? 'تكلفة البضاعة' : 'Cost of Goods',
     operating: language === 'ar' ? 'تشغيلية' : 'Operating',
     administrative: language === 'ar' ? 'إدارية' : 'Administrative'
+    ,
+    bank_cash: language === 'ar' ? 'بنكي / خزينة' : 'Bank / Cash'
   }
 
   const resetForm = () => {
@@ -221,11 +224,32 @@ const ChartOfAccounts = () => {
     <div className="chart-of-accounts">
       <div className="page-header">
         <h1>{t('chartOfAccounts')}</h1>
-        {hasPermission('create_accounts') && (
-          <button className="btn btn-primary" onClick={() => openModal()}>
-            {t('addNewAccount')}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {hasPermission('create_accounts') && (
+            <button className="btn btn-primary" onClick={() => openModal()}>
+              {t('addNewAccount')}
+            </button>
+          )}
+          {hasPermission('delete_accounts') && (
+            <button 
+              className="btn btn-warning" 
+              onClick={() => {
+                if (window.confirm('⚠️ هل أنت متأكد من حذف جميع الحسابات وإنشاء الحسابات الأساسية؟\n\nسيتم حذف:\n- جميع الحسابات الموجودة\n\nسيتم إنشاء:\n- 11 حساب أساسي فقط (خزينة، بنك، عملاء، موردين، مخزون، مبيعات، مشتريات، خصومات، ضريبة)\n\nلن يتم حذف: الفواتير والقيود اليومية')) {
+                  const result = resetAccountsToDefaults()
+                  if (result.success) {
+                    setNotification({ type: 'success', message: result.message })
+                  } else {
+                    setNotification({ type: 'error', message: result.error })
+                  }
+                  setTimeout(() => setNotification(null), 3000)
+                }
+              }}
+              style={{ backgroundColor: '#ff9800' }}
+            >
+              🔄 إعادة تهيئة الحسابات
+            </button>
+          )}
+        </div>
       </div>
 
       {notification && (
@@ -391,7 +415,12 @@ const ChartOfAccounts = () => {
                   <label>{t('accountType')} *</label>
                   <select
                     value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value, category: 'current'})}
+                    onChange={(e) => {
+                      const newType = e.target.value
+                      // Set a sensible default category depending on type
+                      const defaultCategory = (newType === 'bank' || newType === 'cash') ? 'bank_cash' : 'current'
+                      setFormData({...formData, type: newType, category: defaultCategory})
+                    }}
                     required
                   >
                     <option value="asset">{accountTypes.asset}</option>
@@ -411,6 +440,12 @@ const ChartOfAccounts = () => {
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
                     required
                   >
+                    {/* Bank/Cash accounts get a dedicated category to avoid empty select */}
+                    {(formData.type === 'bank' || formData.type === 'cash') && (
+                      <>
+                        <option value="bank_cash">{accountCategories.bank_cash}</option>
+                      </>
+                    )}
                     {formData.type === 'asset' && (
                       <>
                         <option value="current">{accountCategories.current}</option>

@@ -348,9 +348,219 @@ class DataService {
     return `${prefix}${number}`
   }
 
+  // Settings helpers
+  static getSettings() {
+    return this.get(STORAGE_KEYS.SETTINGS) || {}
+  }
+
+  static saveSettings(settings) {
+    return this.set(STORAGE_KEYS.SETTINGS, settings)
+  }
+
+  // Toggle to prevent automatic seeding of default accounts.
+  // Call this before intentionally clearing all accounts to keep them cleared.
+  static setSkipDefaultAccountsInitialization(skip = true) {
+    const settings = this.getSettings()
+    settings.skipDefaultAccountsInitialization = !!skip
+    return this.saveSettings(settings)
+  }
+
+  // إعادة تهيئة الحسابات بشكل كامل (حذف القديمة وإنشاء جديدة)
+  static resetAccountsToDefaults() {
+    console.log('🔄 إعادة تهيئة الحسابات...')
+    
+    // حذف جميع الحسابات الموجودة
+    this.saveAccounts([])
+    
+    // إلغاء علامة منع التهيئة التلقائية
+    const settings = this.getSettings()
+    settings.skipDefaultAccountsInitialization = false
+    this.saveSettings(settings)
+    
+    // إنشاء الحسابات الأساسية
+    this.createEssentialAccounts()
+    
+    console.log('✅ تم إعادة تهيئة الحسابات بنجاح')
+    return this.getAccounts()
+  }
+
+  // إنشاء الحسابات الأساسية فقط (اللازمة لعمل التطبيق)
+  static createEssentialAccounts() {
+    const essentialAccounts = [
+      // 1. النقدية - أساسي للدفع الفوري
+      {
+        code: '1001',
+        name: 'الخزينة',
+        nameEn: 'Cash',
+        type: 'cash',
+        category: 'current_assets',
+        description: 'الخزينة النقدية',
+        balance: 0
+      },
+      
+      // 2. البنك - أساسي للمعاملات البنكية
+      {
+        code: '1002',
+        name: 'البنك',
+        nameEn: 'Bank',
+        type: 'bank',
+        category: 'current_assets',
+        description: 'الحساب البنكي',
+        balance: 0
+      },
+      
+      // 3. العملاء - أساسي لفواتير المبيعات الآجلة
+      {
+        code: '1101',
+        name: 'العملاء',
+        nameEn: 'Customers',
+        type: 'asset',
+        category: 'current_assets',
+        subcategory: 'accounts_receivable',
+        description: 'حسابات العملاء',
+        balance: 0
+      },
+      
+      // 4. المخزون - أساسي لحساب تكلفة البضاعة
+      {
+        code: '1201',
+        name: 'المخزون',
+        nameEn: 'Inventory',
+        type: 'asset',
+        category: 'current_assets',
+        description: 'مخزون البضاعة',
+        balance: 0
+      },
+      
+      // 5. الموردون - أساسي لفواتير المشتريات الآجلة
+      {
+        code: '2001',
+        name: 'الموردون',
+        nameEn: 'Suppliers',
+        type: 'liability',
+        category: 'current_liabilities',
+        description: 'حسابات الموردين',
+        balance: 0
+      },
+      
+      // 6. ضريبة القيمة المضافة (مستحقة) - أساسي للمبيعات
+      {
+        code: '2102',
+        name: 'ضريبة القيمة المضافة مستحقة',
+        nameEn: 'VAT Payable',
+        type: 'liability',
+        category: 'current_liabilities',
+        description: 'ضريبة مستحقة على المبيعات',
+        balance: 0
+      },
+      
+      // 7. ضريبة القيمة المضافة (مدفوعة) - أساسي للمشتريات
+      {
+        code: '1301',
+        name: 'ضريبة القيمة المضافة مدفوعة',
+        nameEn: 'VAT Paid',
+        type: 'asset',
+        category: 'current_assets',
+        description: 'ضريبة مدفوعة على المشتريات',
+        balance: 0
+      },
+      
+      // 8. المبيعات - أساسي لفواتير المبيعات
+      {
+        code: '4001',
+        name: 'المبيعات',
+        nameEn: 'Sales',
+        type: 'revenue',
+        category: 'operating_revenue',
+        description: 'إيرادات المبيعات',
+        balance: 0
+      },
+      
+      // 9. المشتريات - أساسي لفواتير المشتريات
+      {
+        code: '5001',
+        name: 'المشتريات',
+        nameEn: 'Purchases',
+        type: 'expense',
+        category: 'cost_of_sales',
+        description: 'تكلفة المشتريات',
+        balance: 0
+      },
+      
+      // 10. خصم مسموح به - أساسي للخصومات على المبيعات
+      {
+        code: '5201',
+        name: 'خصم مسموح به',
+        nameEn: 'Sales Discounts',
+        type: 'expense',
+        category: 'selling_expenses',
+        description: 'خصومات ممنوحة للعملاء',
+        balance: 0
+      },
+      
+      // 11. خصم مكتسب - أساسي للخصومات على المشتريات
+      {
+        code: '4002',
+        name: 'خصم مكتسب',
+        nameEn: 'Purchase Discounts',
+        type: 'revenue',
+        category: 'other_revenue',
+        description: 'خصومات مكتسبة من الموردين',
+        balance: 0
+      },
+      
+      // 12. مصروفات الرواتب
+      {
+        code: '5101',
+        name: 'مصروفات الرواتب',
+        nameEn: 'Salaries Expense',
+        type: 'expense',
+        category: 'operating_expenses',
+        description: 'رواتب ومكافآت الموظفين',
+        balance: 0
+      },
+      
+      // 13. مصروفات الإيجار
+      {
+        code: '5102',
+        name: 'مصروفات الإيجار',
+        nameEn: 'Rent Expense',
+        type: 'expense',
+        category: 'operating_expenses',
+        description: 'إيجار المحل أو المكتب',
+        balance: 0
+      },
+      
+      // 14. مصروفات الضيافة
+      {
+        code: '5103',
+        name: 'مصروفات الضيافة',
+        nameEn: 'Hospitality Expense',
+        type: 'expense',
+        category: 'operating_expenses',
+        description: 'مصروفات الضيافة والاستقبال',
+        balance: 0
+      }
+    ]
+    
+    essentialAccounts.forEach(account => {
+      this.addAccount(account)
+    })
+    
+    console.log('✅ تم إنشاء 14 حساب أساسي')
+  }
+
   // Initialize default accounts
   static initializeDefaultAccounts() {
     const existingAccounts = this.getAccounts()
+    const settings = this.getSettings()
+
+    // If an admin/user has explicitly disabled seeding defaults, do nothing.
+    if (settings && settings.skipDefaultAccountsInitialization) {
+      // Respect user's decision to keep an empty accounts list.
+      return
+    }
+
     if (existingAccounts.length === 0) {
       const defaultAccounts = [
         // الأصول المتداولة - النقدية والبنوك

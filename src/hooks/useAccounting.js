@@ -15,12 +15,43 @@ export const useAccounting = () => {
   // Initialize data on component mount
   useEffect(() => {
     try {
-      // Initialize default accounts if none exist
-      DataService.initializeDefaultAccounts()
+      // التأكد من وجود الحسابات الأساسية الضرورية عند بدء التطبيق
+      const loadedAccounts = DataService.getAccounts()
       
+      // إنشاء الحسابات الأساسية إذا لم تكن موجودة
+      const essentialAccounts = [
+        { code: '1001', name: 'الخزينة', nameEn: 'Cash', type: 'cash', category: 'current_assets', description: 'الخزينة النقدية', balance: 0 },
+        { code: '1002', name: 'البنك', nameEn: 'Bank', type: 'bank', category: 'current_assets', description: 'الحساب البنكي', balance: 0 },
+        { code: '1101', name: 'العملاء', nameEn: 'Customers', type: 'asset', category: 'current_assets', subcategory: 'accounts_receivable', description: 'حسابات العملاء', balance: 0 },
+        { code: '1201', name: 'المخزون', nameEn: 'Inventory', type: 'asset', category: 'current_assets', description: 'مخزون البضاعة', balance: 0 },
+        { code: '1301', name: 'ضريبة القيمة المضافة مدفوعة', nameEn: 'VAT Paid', type: 'asset', category: 'current_assets', description: 'ضريبة مدفوعة على المشتريات', balance: 0 },
+        { code: '2001', name: 'الموردون', nameEn: 'Suppliers', type: 'liability', category: 'current_liabilities', description: 'حسابات الموردين', balance: 0 },
+        { code: '2102', name: 'ضريبة القيمة المضافة مستحقة', nameEn: 'VAT Payable', type: 'liability', category: 'current_liabilities', description: 'ضريبة مستحقة على المبيعات', balance: 0 },
+        { code: '4001', name: 'المبيعات', nameEn: 'Sales', type: 'revenue', category: 'operating_revenue', description: 'إيرادات المبيعات', balance: 0 },
+        { code: '4002', name: 'خصم مكتسب', nameEn: 'Purchase Discounts', type: 'revenue', category: 'other_revenue', description: 'خصومات مكتسبة من الموردين', balance: 0 },
+        { code: '5001', name: 'المشتريات', nameEn: 'Purchases', type: 'expense', category: 'cost_of_sales', description: 'تكلفة المشتريات', balance: 0 },
+        { code: '5101', name: 'مصروفات الرواتب', nameEn: 'Salaries Expense', type: 'expense', category: 'operating_expenses', description: 'رواتب ومكافآت الموظفين', balance: 0 },
+        { code: '5102', name: 'مصروفات الإيجار', nameEn: 'Rent Expense', type: 'expense', category: 'operating_expenses', description: 'إيجار المحل أو المكتب', balance: 0 },
+        { code: '5103', name: 'مصروفات الضيافة', nameEn: 'Hospitality Expense', type: 'expense', category: 'operating_expenses', description: 'مصروفات الضيافة والاستقبال', balance: 0 },
+        { code: '5201', name: 'خصم مسموح به', nameEn: 'Sales Discounts', type: 'expense', category: 'selling_expenses', description: 'خصومات ممنوحة للعملاء', balance: 0 }
+      ]
+      
+      let accountsCreated = 0
+      essentialAccounts.forEach(accData => {
+        const exists = loadedAccounts.find(acc => acc.code === accData.code)
+        if (!exists) {
+          DataService.addAccount(accData)
+          accountsCreated++
+        }
+      })
+      
+      if (accountsCreated > 0) {
+        console.log(`✅ تم إنشاء ${accountsCreated} حساب أساسي تلقائياً`)
+      }
+
       // Initialize default customers and suppliers
       DataService.initializeDefaultCustomersSuppliers()
-      
+
       // Initialize default inventory items
       DataService.initializeDefaultInventoryItems()
       
@@ -141,6 +172,17 @@ export const useAccounting = () => {
   // Invoice operations
   const addInvoice = (invoiceData) => {
     try {
+      console.log('📥 إضافة فاتورة جديدة:', {
+        type: invoiceData.type,
+        invoiceNumber: invoiceData.invoiceNumber,
+        subtotal: invoiceData.subtotal,
+        discountAmount: invoiceData.discountAmount,
+        vatAmount: invoiceData.vatAmount,
+        total: invoiceData.total,
+        itemsCount: invoiceData.items?.length,
+        createJournalEntry: invoiceData.createJournalEntry
+      })
+      
       // If the form provided only a date (YYYY-MM-DD) it will be interpreted
       // as midnight UTC which can display as a shifted time (e.g. 03:00) in local TZ.
       // Combine the selected date with the current local time so the stored
@@ -164,6 +206,14 @@ export const useAccounting = () => {
       }
 
       const newInvoice = DataService.addInvoice(invoiceToSave)
+      console.log('✅ الفاتورة بعد الحفظ:', {
+        id: newInvoice?.id,
+        subtotal: newInvoice?.subtotal,
+        discountAmount: newInvoice?.discountAmount,
+        vatAmount: newInvoice?.vatAmount,
+        total: newInvoice?.total
+      })
+      
       if (newInvoice) {
         setInvoices(prev => [...prev, newInvoice])
         // Refresh customers/suppliers in case DataService adjusted balances
@@ -173,8 +223,28 @@ export const useAccounting = () => {
         
         // Create automatic journal entry for the invoice
         if (invoiceData.createJournalEntry) {
+          console.log('🔄 إنشاء قيد يومي تلقائي...')
           const journalEntry = createJournalEntryFromInvoice(newInvoice)
-          addJournalEntry(journalEntry)
+          console.log('📋 القيد المُنشأ:', {
+            reference: journalEntry.reference,
+            linesCount: journalEntry.lines?.length,
+            lines: journalEntry.lines?.map(l => ({
+              accountName: l.accountName,
+              debit: l.debit,
+              credit: l.credit
+            }))
+          })
+          
+          // التحقق من عدم وجود قيد بنفس المرجع (لتجنب التكرار)
+          const existingEntries = DataService.getJournalEntries()
+          const duplicateEntry = existingEntries.find(entry => entry.reference === journalEntry.reference)
+          
+          if (duplicateEntry) {
+            console.warn('⚠️ القيد موجود مسبقاً بنفس المرجع:', journalEntry.reference)
+          } else {
+            addJournalEntry(journalEntry)
+            console.log('✅ تم إضافة القيد بنجاح')
+          }
         }
         
         return { success: true, data: newInvoice }
@@ -494,155 +564,297 @@ export const useAccounting = () => {
     }
   }
 
+  // دالة مساعدة لإنشاء حساب إذا لم يكن موجوداً
+  const ensureAccountExists = (code, accountData) => {
+    let account = accounts.find(acc => acc.code === code)
+    if (!account) {
+      console.log(`⚠️ الحساب ${code} غير موجود، جاري إنشاؤه...`)
+      const result = addAccount({ ...accountData, code })
+      if (result.success) {
+        account = result.data
+        console.log(`✅ تم إنشاء الحساب ${code} - ${accountData.name}`)
+      } else {
+        console.error(`❌ فشل إنشاء الحساب ${code}`)
+      }
+    }
+    return account
+  }
+
   // Helper function to create journal entry from invoice
   const createJournalEntryFromInvoice = (invoice) => {
     const lines = []
+    console.log('🔍 بدء إنشاء القيد من الفاتورة:', {
+      invoiceNumber: invoice.invoiceNumber,
+      type: invoice.type,
+      subtotal: invoice.subtotal,
+      discountAmount: invoice.discountAmount,
+      vatAmount: invoice.vatAmount,
+      total: invoice.total
+    })
     
     if (invoice.type === 'sales') {
       // Sales invoice: Debit Customer Account, Credit Sales, Handle Discount and VAT
       
-      // البحث عن حساب العميل المحدد (إن وُجد)
+      // البحث عن حساب العميل المحدد (إن وُجد) - دعم الحقول clientId أو customerId
       let customerAccount = null
-      if (invoice.customerId) {
+      const customerId = invoice.clientId || invoice.customerId
+      if (customerId) {
         customerAccount = accounts.find(acc => 
           acc.linkedEntityType === 'customer' && 
-          acc.linkedEntityId === invoice.customerId
+          acc.linkedEntityId === customerId
         )
       }
       
-      // إذا لم يُعثر على حساب خاص بالعميل، استخدم حساب العملاء العام
+      // إذا لم يُعثر على حساب خاص بالعميل، استخدم حساب العملاء العام (وأنشئه إن لم يكن موجوداً)
       if (!customerAccount) {
-        customerAccount = accounts.find(acc => acc.code === '1101') // العملاء (الذمم المدينة)
+        customerAccount = ensureAccountExists('1101', {
+          name: 'العملاء',
+          nameEn: 'Customers',
+          type: 'asset',
+          category: 'current_assets',
+          subcategory: 'accounts_receivable',
+          description: 'حسابات العملاء',
+          balance: 0
+        })
       }
       
-      const salesAccount = accounts.find(acc => acc.code === '4001') // المبيعات
-      const discountAccount = accounts.find(acc => acc.code === '5201') // خصم مسموح
-      const vatAccount = accounts.find(acc => acc.code === '2102') // ضريبة القيمة المضافة مستحقة
+      // التأكد من وجود الحسابات الأساسية (وإنشائها تلقائياً إن لم تكن موجودة)
+      const salesAccount = ensureAccountExists('4001', {
+        name: 'المبيعات',
+        nameEn: 'Sales',
+        type: 'revenue',
+        category: 'operating_revenue',
+        description: 'إيرادات المبيعات',
+        balance: 0
+      })
+      
+      const discountAccount = ensureAccountExists('5201', {
+        name: 'خصم مسموح به',
+        nameEn: 'Sales Discounts',
+        type: 'expense',
+        category: 'selling_expenses',
+        description: 'خصومات ممنوحة للعملاء',
+        balance: 0
+      })
+      
+      const vatAccount = ensureAccountExists('2102', {
+        name: 'ضريبة القيمة المضافة مستحقة',
+        nameEn: 'VAT Payable',
+        type: 'liability',
+        category: 'current_liabilities',
+        description: 'ضريبة مستحقة على المبيعات',
+        balance: 0
+      })
+      
+      console.log('🔍 الحسابات المستخدمة في قيد المبيعات:', {
+        customerAccount: customerAccount ? { code: customerAccount.code, name: customerAccount.name } : 'غير موجود',
+        salesAccount: salesAccount ? { code: salesAccount.code, name: salesAccount.name } : 'غير موجود',
+        discountAccount: discountAccount ? { code: discountAccount.code, name: discountAccount.name } : 'غير موجود',
+        vatAccount: vatAccount ? { code: vatAccount.code, name: vatAccount.name } : 'غير موجود'
+      })
       
       const subtotal = parseFloat(invoice.subtotal) || 0
       const invoiceDiscountAmount = parseFloat(invoice.discountAmount) || 0
-      
-      // Calculate total discount from line items
-      let itemsDiscountAmount = 0
-      if (invoice.items && Array.isArray(invoice.items)) {
-        itemsDiscountAmount = invoice.items.reduce((sum, item) => {
-          const itemTotal = parseFloat(item.quantity || 0) * parseFloat(item.unitPrice || 0)
-          const itemDiscount = (itemTotal * parseFloat(item.discount || 0)) / 100
-          return sum + itemDiscount
-        }, 0)
-      }
-      
-      const totalDiscountAmount = invoiceDiscountAmount + itemsDiscountAmount
       const vatAmount = parseFloat(invoice.vatAmount) || 0
       const total = parseFloat(invoice.total) || 0
       
-      if (customerAccount && salesAccount) {
-        // Debit Customer for total amount (including VAT, minus discount)
-        lines.push({
-          accountId: customerAccount.id,
-          accountName: customerAccount.name,
-          debit: total,
-          credit: 0,
-          description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`
-        })
-        
-        // Credit Sales for subtotal (before discount and VAT)
-        lines.push({
-          accountId: salesAccount.id,
-          accountName: salesAccount.name,
-          debit: 0,
-          credit: subtotal,
-          description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`
-        })
-        
-        // Handle discount if any (both invoice discount and line item discounts)
-        if (totalDiscountAmount > 0 && discountAccount) {
-          lines.push({
-            accountId: discountAccount.id,
-            accountName: discountAccount.name,
-            debit: totalDiscountAmount,
-            credit: 0,
-            description: `خصم مسموح - فاتورة مبيعات رقم ${invoice.invoiceNumber}`
-          })
-        }
-        
-        // Handle VAT if any
-        if (vatAmount > 0 && vatAccount) {
-          lines.push({
-            accountId: vatAccount.id,
-            accountName: vatAccount.name,
-            debit: 0,
-            credit: vatAmount,
-            description: `ضريبة قيمة مضافة - فاتورة مبيعات رقم ${invoice.invoiceNumber}`
-          })
+      console.log('💰 القيم المحسوبة:', {
+        subtotal,
+        invoiceDiscountAmount,
+        vatAmount,
+        total
+      })
+      
+      if (!customerAccount || !salesAccount) {
+        console.error('❌ فشل إنشاء الحسابات الأساسية!')
+        return {
+          date: invoice.date,
+          description: `⚠️ فشل إنشاء قيد تلقائي - فشل إنشاء الحسابات - فاتورة مبيعات رقم ${invoice.invoiceNumber}`,
+          lines: [],
+          reference: `INV-${invoice.invoiceNumber}`,
+          type: 'automatic'
         }
       }
+      
+      // Debit Customer for total amount (including VAT, minus discount)
+      lines.push({
+        accountId: customerAccount.id,
+        accountName: customerAccount.name,
+        debit: total,
+        credit: 0,
+        description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+      })
+      
+      // Credit Sales for subtotal (before discount and VAT)
+      lines.push({
+        accountId: salesAccount.id,
+        accountName: salesAccount.name,
+        debit: 0,
+        credit: subtotal,
+        description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+      })
+      
+      // Handle discount if any
+      if (invoiceDiscountAmount > 0 && discountAccount) {
+        lines.push({
+          accountId: discountAccount.id,
+          accountName: discountAccount.name,
+          debit: invoiceDiscountAmount,
+          credit: 0,
+          description: `خصم مسموح - فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+        })
+      }
+      
+      // Handle VAT if any
+      if (vatAmount > 0 && vatAccount) {
+        lines.push({
+          accountId: vatAccount.id,
+          accountName: vatAccount.name,
+          debit: 0,
+          credit: vatAmount,
+          description: `ضريبة قيمة مضافة - فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+        })
+      }
+      
     } else if (invoice.type === 'purchase') {
       // Purchase invoice: Debit Inventory/Expenses, Credit Supplier, Handle Discount and VAT
-      const suppliersAccount = accounts.find(acc => acc.code === '2001') // الموردون
-      const inventoryAccount = accounts.find(acc => acc.code === '1201') // المخزون
-      const discountAccount = accounts.find(acc => acc.code === '4002') // خصم مكتسب
-      const vatAccount = accounts.find(acc => acc.code === '1301') // ضريبة القيمة المضافة قابلة للاسترداد
+      
+      // البحث عن حساب المورد المحدد (إن وُجد)
+      let supplierAccount = null
+      const supplierId = invoice.clientId || invoice.supplierId
+      if (supplierId) {
+        supplierAccount = accounts.find(acc => 
+          acc.linkedEntityType === 'supplier' && 
+          acc.linkedEntityId === supplierId
+        )
+      }
+      
+      // إذا لم يُعثر على حساب خاص بالمورد، استخدم حساب الموردين العام (وأنشئه إن لم يكن موجوداً)
+      if (!supplierAccount) {
+        supplierAccount = ensureAccountExists('2001', {
+          name: 'الموردون',
+          nameEn: 'Suppliers',
+          type: 'liability',
+          category: 'current_liabilities',
+          description: 'حسابات الموردين',
+          balance: 0
+        })
+      }
+      
+      // التأكد من وجود الحسابات الأساسية (وإنشائها تلقائياً إن لم تكن موجودة)
+      const purchasesAccount = ensureAccountExists('5001', {
+        name: 'المشتريات',
+        nameEn: 'Purchases',
+        type: 'expense',
+        category: 'cost_of_sales',
+        description: 'تكلفة المشتريات',
+        balance: 0
+      })
+      
+      const inventoryAccount = ensureAccountExists('1201', {
+        name: 'المخزون',
+        nameEn: 'Inventory',
+        type: 'asset',
+        category: 'current_assets',
+        description: 'مخزون البضاعة',
+        balance: 0
+      })
+      
+      const discountAccount = ensureAccountExists('4002', {
+        name: 'خصم مكتسب',
+        nameEn: 'Purchase Discounts',
+        type: 'revenue',
+        category: 'other_revenue',
+        description: 'خصومات مكتسبة من الموردين',
+        balance: 0
+      })
+      
+      const vatAccount = ensureAccountExists('1301', {
+        name: 'ضريبة القيمة المضافة مدفوعة',
+        nameEn: 'VAT Paid',
+        type: 'asset',
+        category: 'current_assets',
+        description: 'ضريبة مدفوعة على المشتريات',
+        balance: 0
+      })
+      
+      console.log('🔍 الحسابات المستخدمة في قيد المشتريات:', {
+        supplierAccount: supplierAccount ? { code: supplierAccount.code, name: supplierAccount.name } : 'غير موجود',
+        purchasesAccount: purchasesAccount ? { code: purchasesAccount.code, name: purchasesAccount.name } : 'غير موجود',
+        inventoryAccount: inventoryAccount ? { code: inventoryAccount.code, name: inventoryAccount.name } : 'غير موجود',
+        discountAccount: discountAccount ? { code: discountAccount.code, name: discountAccount.name } : 'غير موجود',
+        vatAccount: vatAccount ? { code: vatAccount.code, name: vatAccount.name } : 'غير موجود'
+      })
       
       const subtotal = parseFloat(invoice.subtotal) || 0
       const invoiceDiscountAmount = parseFloat(invoice.discountAmount) || 0
-      
-      // Calculate total discount from line items
-      let itemsDiscountAmount = 0
-      if (invoice.items && Array.isArray(invoice.items)) {
-        itemsDiscountAmount = invoice.items.reduce((sum, item) => {
-          const itemTotal = parseFloat(item.quantity || 0) * parseFloat(item.unitPrice || 0)
-          const itemDiscount = (itemTotal * parseFloat(item.discount || 0)) / 100
-          return sum + itemDiscount
-        }, 0)
-      }
-      
-      const totalDiscountAmount = invoiceDiscountAmount + itemsDiscountAmount
       const vatAmount = parseFloat(invoice.vatAmount) || 0
       const total = parseFloat(invoice.total) || 0
       
-      if (suppliersAccount && inventoryAccount) {
-        // Debit Inventory for subtotal (before discount and VAT)
-        lines.push({
-          accountId: inventoryAccount.id,
-          accountName: inventoryAccount.name,
-          debit: subtotal,
-          credit: 0,
-          description: `فاتورة مشتريات رقم ${invoice.invoiceNumber}`
-        })
-        
-        // Handle discount if any (both invoice discount and line item discounts)
-        if (totalDiscountAmount > 0 && discountAccount) {
-          lines.push({
-            accountId: discountAccount.id,
-            accountName: discountAccount.name,
-            debit: 0,
-            credit: totalDiscountAmount,
-            description: `خصم مكتسب - فاتورة مشتريات رقم ${invoice.invoiceNumber}`
-          })
+      console.log('💰 القيم المحسوبة:', {
+        subtotal,
+        invoiceDiscountAmount,
+        vatAmount,
+        total
+      })
+      
+      if (!supplierAccount || !purchasesAccount) {
+        console.error('❌ فشل إنشاء الحسابات الأساسية!')
+        return {
+          date: invoice.date,
+          description: `⚠️ فشل إنشاء قيد تلقائي - فشل إنشاء الحسابات - فاتورة مشتريات رقم ${invoice.invoiceNumber}`,
+          lines: [],
+          reference: `INV-${invoice.invoiceNumber}`,
+          type: 'automatic'
         }
-        
-        // Handle VAT if any
-        if (vatAmount > 0 && vatAccount) {
-          lines.push({
-            accountId: vatAccount.id,
-            accountName: vatAccount.name,
-            debit: vatAmount,
-            credit: 0,
-            description: `ضريبة قيمة مضافة - فاتورة مشتريات رقم ${invoice.invoiceNumber}`
-          })
-        }
-        
-        // Credit Supplier for total amount
+      }
+      
+      // Debit Purchases for subtotal (before discount and VAT)
+      lines.push({
+        accountId: purchasesAccount.id,
+        accountName: purchasesAccount.name,
+        debit: subtotal,
+        credit: 0,
+        description: `فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+      })
+      
+      // Handle discount if any
+      if (invoiceDiscountAmount > 0 && discountAccount) {
         lines.push({
-          accountId: suppliersAccount.id,
-          accountName: suppliersAccount.name,
+          accountId: discountAccount.id,
+          accountName: discountAccount.name,
           debit: 0,
-          credit: total,
-          description: `فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+          credit: invoiceDiscountAmount,
+          description: `خصم مكتسب - فاتورة مشتريات رقم ${invoice.invoiceNumber}`
         })
       }
+      
+      // Handle VAT if any
+      if (vatAmount > 0 && vatAccount) {
+        lines.push({
+          accountId: vatAccount.id,
+          accountName: vatAccount.name,
+          debit: vatAmount,
+          credit: 0,
+          description: `ضريبة قيمة مضافة - فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+        })
+      }
+      
+      // Credit Supplier for total amount
+      lines.push({
+        accountId: supplierAccount.id,
+        accountName: supplierAccount.name,
+        debit: 0,
+        credit: total,
+        description: `فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+      })
     }
+
+    console.log('📋 القيد النهائي:', {
+      linesCount: lines.length,
+      totalDebit: lines.reduce((sum, l) => sum + (l.debit || 0), 0),
+      totalCredit: lines.reduce((sum, l) => sum + (l.credit || 0), 0)
+    })
 
     return {
       date: invoice.date,
@@ -883,6 +1095,21 @@ export const useAccounting = () => {
     }
   }
 
+  // إعادة تهيئة الحسابات (حذف القديمة وإنشاء أساسية جديدة)
+  const resetAccountsToDefaults = () => {
+    try {
+      const newAccounts = DataService.resetAccountsToDefaults()
+      setAccounts(newAccounts)
+      // إعادة تحميل القيود والفواتير لضمان التزامن
+      setJournalEntries(DataService.getJournalEntries())
+      setInvoices(DataService.getInvoices())
+      return { success: true, message: 'تم إعادة تهيئة الحسابات بنجاح' }
+    } catch (err) {
+      console.error('Error resetting accounts:', err)
+      return { success: false, error: 'خطأ في إعادة تهيئة الحسابات' }
+    }
+  }
+
   return {
     // State
     accounts,
@@ -898,6 +1125,7 @@ export const useAccounting = () => {
     addAccount,
     updateAccount,
     deleteAccount,
+    resetAccountsToDefaults, // 🆕 دالة جديدة لإعادة التهيئة
     
     // Journal entry operations
     addJournalEntry,

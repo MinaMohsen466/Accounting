@@ -216,6 +216,11 @@ const Invoices = () => {
   }
 
   const resetForm = () => {
+    // Try to pre-select a main bank/cash account if available
+    const accountsList = JSON.parse(localStorage.getItem('accounts') || '[]')
+    const mainBankCash = accountsList.find(acc => acc.type === 'bank' || acc.type === 'cash')
+    const preselectedAccountId = mainBankCash ? mainBankCash.id : ''
+
     setFormData({
       type: 'sales',
       clientId: '',
@@ -260,7 +265,7 @@ const Invoices = () => {
       total: 0,
       createJournalEntry: true,
       recordPaymentNow: true,
-      paymentBankAccountId: '',
+      paymentBankAccountId: preselectedAccountId,
       deductFromBalance: false
     })
     setEditingInvoice(null)
@@ -350,7 +355,9 @@ const Invoices = () => {
         vatPercentage: parseFloat(invoice.vatPercentage) || 0,
         vatAmount: parseFloat(invoice.vatAmount) || 0,
         total: parseFloat(invoice.total) || 0,
-        createJournalEntry: false
+        createJournalEntry: !!invoice.createJournalEntry,
+        recordPaymentNow: !!invoice.recordPaymentNow,
+        paymentBankAccountId: invoice.paymentBankAccountId || ''
       }
   // Recalculate to ensure consistency
   setFormData(() => calculateTotals(populated))
@@ -1637,8 +1644,9 @@ const Invoices = () => {
   // Record immediate payment when invoice is created
   const recordImmediatePayment = (invoice) => {
     try {
+      const paymentAccountId = invoice.paymentBankAccountId || formData.paymentBankAccountId
       const bankAccount = JSON.parse(localStorage.getItem('accounts') || '[]')
-        .find(acc => acc.id === formData.paymentBankAccountId)
+        .find(acc => acc.id === paymentAccountId)
       
       if (!bankAccount) {
         console.error('Bank account not found')
@@ -1666,9 +1674,12 @@ const Invoices = () => {
       const description = `${invoice.type === 'sales' ? 'تحصيل' : 'دفع'} فاتورة رقم ${invoice.invoiceNumber}`
 
       // Create journal entry for payment
+      const paymentReference = `PAY-${invoice.invoiceNumber}`
       const paymentEntry = {
         date: new Date().toISOString(),
         description,
+        reference: paymentReference,
+        type: 'payment',
         lines: []
       }
 
@@ -1698,7 +1709,7 @@ const Invoices = () => {
         
         if (!supplierAccount) {
           supplierAccount = JSON.parse(localStorage.getItem('accounts') || '[]')
-            .find(acc => acc.code === '2101')
+            .find(acc => acc.code === '2001')
         }
 
         if (supplierAccount) {
@@ -1719,20 +1730,28 @@ const Invoices = () => {
         }
       }
 
-      // Save journal entry
+      // Save journal entry only if not duplicate
       if (paymentEntry.lines.length > 0) {
         const journalEntries = JSON.parse(localStorage.getItem('journalEntries') || '[]')
-        const newEntry = {
-          id: Date.now().toString(),
-          ...paymentEntry
+        
+        // التحقق من عدم وجود قيد دفع بنفس المرجع
+        const duplicatePayment = journalEntries.find(entry => entry.reference === paymentReference)
+        
+        if (duplicatePayment) {
+          console.warn('⚠️ قيد الدفع موجود مسبقاً بنفس المرجع:', paymentReference)
+        } else {
+          const newEntry = {
+            id: Date.now().toString(),
+            ...paymentEntry
+          }
+          journalEntries.push(newEntry)
+          localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
+          
+          // Trigger storage event for other components
+          window.dispatchEvent(new Event('storage'))
+          
+          console.log('✅ Payment recorded successfully:', paymentReference)
         }
-        journalEntries.push(newEntry)
-        localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
-        
-        // Trigger storage event for other components
-        window.dispatchEvent(new Event('storage'))
-        
-        console.log('✅ Payment recorded successfully')
       }
     } catch (error) {
       console.error('Error recording payment:', error)
@@ -2032,10 +2051,11 @@ const Invoices = () => {
       }
     }
 
-    const invoiceData = {
+    // Ensure totals are freshly calculated from the validated items before saving
+    const invoiceData = calculateTotals({
       ...formData,
       items: validItems
-    }
+    })
 
     try {
       let result
@@ -2064,8 +2084,9 @@ const Invoices = () => {
           }
           
           // Record immediate payment if requested
-          if (formData.recordPaymentNow && formData.paymentBankAccountId) {
+          if (formData.recordPaymentNow && (formData.paymentBankAccountId || result.data.paymentBankAccountId)) {
             console.log('💰 تسجيل الدفع فوراً...')
+            // prefer the payment account stored on the saved invoice, fallback to formData
             recordImmediatePayment(result.data)
           }
           
@@ -2582,9 +2603,6 @@ const Invoices = () => {
               <div className="invoice-items">
                 <div className="items-header">
                   <h3>{t('invoiceItems')}</h3>
-                  <button type="button" className="btn btn-secondary" onClick={addItem}>
-                    {t('addItem')}
-                  </button>
                 </div>
 
                 <div className="items-table-container">
@@ -2753,6 +2771,13 @@ const Invoices = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* زر إضافة عنصر - أسفل الجدول */}
+                <div style={{ marginTop: '10px', textAlign: language === 'ar' ? 'right' : 'left' }}>
+                  <button type="button" className="btn btn-secondary" onClick={addItem}>
+                    ➕ {t('addItem')}
+                  </button>
                 </div>
 
                 {/* Product Search Dropdowns - خارج الجدول للظهور فوق كل شيء */}
@@ -2986,11 +3011,10 @@ const Invoices = () => {
                               checked={formData.createJournalEntry}
                               onChange={(e) => setFormData(prev => ({ ...prev, createJournalEntry: e.target.checked }))}
                               style={{ width: '18px', height: '18px' }}
-                              disabled={true}
-                              title="القيد المحاسبي إلزامي لكل فاتورة"
+                              title={language === 'ar' ? 'مفعل افتراضياً — يمكنك تعطيله إن رغبت' : 'Enabled by default — you may disable it'}
                             />
                             <span style={{ color: '#2c3e50', fontWeight: 'bold' }}>
-                              ✅ {t('createJournalEntry')} (إلزامي)
+                              ✅ {t('createJournalEntry')} ({language === 'ar' ? 'مفعل افتراضياً' : 'Enabled by default'})
                             </span>
                           </label>
                         </div>
@@ -3000,11 +3024,18 @@ const Invoices = () => {
                             <input
                               type="checkbox"
                               checked={formData.recordPaymentNow}
-                              onChange={(e) => setFormData(prev => ({ 
-                                ...prev, 
-                                recordPaymentNow: e.target.checked,
-                                paymentBankAccountId: e.target.checked ? prev.paymentBankAccountId : ''
-                              }))}
+                              onChange={(e) => {
+                                const checked = e.target.checked
+                                // find a sensible default bank/cash account
+                                const accountsList = JSON.parse(localStorage.getItem('accounts') || '[]')
+                                const mainBankCash = accountsList.find(acc => acc.type === 'bank' || acc.type === 'cash')
+                                const mainId = mainBankCash ? mainBankCash.id : ''
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  recordPaymentNow: checked,
+                                  paymentBankAccountId: checked ? (prev.paymentBankAccountId || mainId) : ''
+                                }))
+                              }}
                               style={{ width: '18px', height: '18px' }}
                             />
                             <span style={{ color: formData.type === 'sales' ? '#27ae60' : '#e67e22', fontWeight: 'bold' }}>

@@ -48,6 +48,22 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
   'view_account_statements': 'عرض كشف الحساب',
   'manage_account_statements': 'إدارة كشف الحساب',
     
+    // Banking
+    'view_banking': 'عرض البنوك',
+    'manage_bank_accounts': 'إدارة الحسابات البنكية',
+    'record_deposits': 'تسجيل إيداعات',
+    'record_withdrawals': 'تسجيل سحوبات',
+    'record_payments': 'تسجيل مدفوعات',
+    'record_receipts': 'تسجيل مقبوضات',
+    'record_expenses': 'تسجيل مصروفات',
+    'view_customer_accounts': 'عرض حسابات العملاء',
+    
+    // Treasury
+    'view_treasury': 'عرض الخزينة',
+    'manage_treasury': 'إدارة الخزينة',
+    'record_cash_deposits': 'تسجيل إيداعات نقدية',
+    'record_cash_withdrawals': 'تسجيل سحوبات نقدية',
+    
     // Reports
     'view_financial_reports': 'عرض التقارير المالية',
     'export_reports': 'تصدير التقارير',
@@ -84,6 +100,9 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
       'view_inventory', 'create_inventory_items', 'edit_inventory_items',
       'view_stock_alerts', 'view_expiry_alerts',
   'view_account_statements', 'manage_account_statements',
+      'view_banking', 'manage_bank_accounts', 'record_deposits', 'record_withdrawals', 
+      'record_payments', 'record_receipts', 'record_expenses',
+      'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals',
       'view_financial_reports', 'export_reports', 'print_reports',
       'export_data', 'backup_data',
       'view_settings'
@@ -97,6 +116,8 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
       'view_inventory', 'create_inventory_items', 'edit_inventory_items',
       'view_stock_alerts', 'view_expiry_alerts',
   'view_account_statements',
+      'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts',
+      'view_treasury', 'record_cash_deposits', 'record_cash_withdrawals',
   'view_financial_reports', 'export_reports'
     ],
     user: [
@@ -107,6 +128,8 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
       'view_customers_suppliers',
       'view_inventory',
   'view_account_statements',
+      'view_banking',
+      'view_treasury',
       'view_stock_alerts', 'view_expiry_alerts',
       'view_financial_reports'
     ]
@@ -168,6 +191,13 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
     ],
     'كشوف الحساب والحسابات': [
       'view_account_statements', 'manage_account_statements', 'view_customer_accounts'
+    ],
+    'البنوك': [
+      'view_banking', 'manage_bank_accounts', 'record_deposits', 'record_withdrawals',
+      'record_payments', 'record_receipts', 'record_expenses'
+    ],
+    'الخزينة': [
+      'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
     ],
     'التقارير': [
       'view_financial_reports', 'export_reports', 'print_reports'
