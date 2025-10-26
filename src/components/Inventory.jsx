@@ -80,10 +80,28 @@ const Inventory = () => {
     description: '',
     properties: {},
     
-    // Payment options (for new items only)
-    recordPayment: false,
+    // Payment options (for new items only) - Enabled by default
+    recordPayment: true,
     paymentAccountId: ''
   })
+
+  // Set default payment account when modal opens for new item
+  useEffect(() => {
+    if (showModal && !editingItem) {
+      const accounts = JSON.parse(localStorage.getItem('accounts') || '[]')
+      const bankCashAccounts = accounts.filter(acc => 
+        acc.type === 'bank' || acc.type === 'cash' || acc.code?.startsWith('100')
+      )
+      if (bankCashAccounts.length > 0 && !formData.paymentAccountId) {
+        // Select the first bank/cash account by default
+        setFormData(prev => ({ 
+          ...prev, 
+          recordPayment: true,
+          paymentAccountId: bankCashAccounts[0].id 
+        }))
+      }
+    }
+  }, [showModal, editingItem])
 
 
 
@@ -282,8 +300,8 @@ const Inventory = () => {
       description: '',
       properties: {},
       
-      // Payment options
-      recordPayment: false,
+      // Payment options - Enabled by default
+      recordPayment: true,
       paymentAccountId: ''
     })
     // reset textual inputs to empty so fields show blank
@@ -311,7 +329,7 @@ const Inventory = () => {
     const parsedPrice = parseFloat(priceInput)
     const parsedPurchase = parseFloat(purchasePriceInput)
 
-    if (!formData.name || !formData.sku || formData.quantity < 0 || isNaN(parsedPrice) || parsedPrice < 0 || isNaN(parsedPurchase) || parsedPurchase < 0) {
+    if (!formData.name || !formData.sku || isNaN(parsedPrice) || parsedPrice < 0 || isNaN(parsedPurchase) || parsedPurchase < 0) {
       showNotification(t('fillRequiredFields'), 'error')
       return
     }
@@ -726,19 +744,6 @@ const Inventory = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>{t('quantity')} *</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
                     <label>{t('purchasePrice')} *</label>
                     <input
                       type="number"
@@ -980,9 +985,8 @@ const Inventory = () => {
                             }}>
                               {(() => {
                                 const pp = parseFloat(purchasePriceInput)
-                                const qty = parseFloat(formData.quantity) || 0
                                 if (isNaN(pp)) return '0.000'
-                                return (pp * qty).toFixed(3)
+                                return pp.toFixed(3)
                               })()} {t('kwd')}
                             </span>
                           </div>

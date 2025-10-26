@@ -153,124 +153,157 @@ const Reports = () => {
     setRefreshKey(prev => prev + 1)
   }, [invoices, inventoryItems, dateFilter])
 
-  // حساب قائمة الدخل مع الفلترة الزمنية
+  // حساب قائمة الدخل مع الفلترة الزمنية - من القيود اليومية
   const getIncomeStatement = () => {
-    const { invoices: filteredInvoices, dateRange } = getFilteredData()
+    const { journalEntries: filteredEntries, dateRange } = getFilteredData()
 
-    // حساب الإيرادات (جميع فواتير المبيعات - بغض النظر عن حالة الدفع)
-    const salesRevenue = filteredInvoices
-      .filter(invoice => invoice.type === 'sales')
-      .reduce((total, invoice) => total + (parseFloat(invoice.total) || 0), 0)
+    // حساب الإيرادات من القيود اليومية (حسابات الإيرادات 4xxx)
+    let totalRevenue = 0
+    let salesRevenue = 0
+    let otherIncome = 0
 
-    // حساب تكلفة البضاعة المباعة (جميع فواتير المشتريات - بغض النظر عن حالة الدفع)
-    const costOfGoodsSold = filteredInvoices
-      .filter(invoice => invoice.type === 'purchase')
-      .reduce((total, invoice) => total + (parseFloat(invoice.total) || 0), 0)
+    // حساب المصروفات من القيود اليومية (حسابات المصروفات 5xxx)
+    let totalExpenses = 0
+    let costOfSales = 0
+    let operatingExpenses = 0
+    let discountsAllowed = 0
 
-    // تفصيل الإيرادات حسب حالة الدفع للمعلومات الإضافية
-    const paidSalesRevenue = filteredInvoices
-      .filter(invoice => invoice.type === 'sales' && invoice.paymentStatus === 'paid')
-      .reduce((total, invoice) => total + (parseFloat(invoice.total) || 0), 0)
-    
-    const unpaidSalesRevenue = filteredInvoices
-      .filter(invoice => invoice.type === 'sales' && invoice.paymentStatus !== 'paid')
-      .reduce((total, invoice) => total + (parseFloat(invoice.total) || 0), 0)
+    filteredEntries.forEach(entry => {
+      entry.lines?.forEach(line => {
+        const account = accounts.find(acc => acc.id === line.accountId)
+        if (account) {
+          const credit = parseFloat(line.credit) || 0
+          const debit = parseFloat(line.debit) || 0
 
-    // حساب الخصومات والضرائب
-    const totalDiscount = filteredInvoices
-      .filter(invoice => invoice.type === 'sales')
-      .reduce((total, invoice) => total + (parseFloat(invoice.discount) || 0), 0)
+          // الإيرادات (دائن في حسابات 4xxx)
+          if (account.code?.startsWith('4')) {
+            if (account.code === '4001') {
+              salesRevenue += credit - debit
+            } else {
+              otherIncome += credit - debit
+            }
+            totalRevenue += credit - debit
+          }
 
-    const totalVAT = filteredInvoices
-      .filter(invoice => invoice.type === 'sales')
-      .reduce((total, invoice) => total + (parseFloat(invoice.vat) || 0), 0)
+          // المصروفات (مدين في حسابات 5xxx)
+          if (account.code?.startsWith('5')) {
+            if (account.code === '5001') {
+              costOfSales += debit - credit
+            } else if (account.code === '5201') {
+              discountsAllowed += debit - credit
+            } else {
+              operatingExpenses += debit - credit
+            }
+            totalExpenses += debit - credit
+          }
+        }
+      })
+    })
 
-    // حساب مجمل الربح
-    const grossProfit = salesRevenue - costOfGoodsSold
+    // حساب مجمل الربح والصافي
+    const grossProfit = salesRevenue - costOfSales
+    const netIncome = totalRevenue - totalExpenses
 
-    // مصروفات تشغيلية مقدرة (يمكن تخصيصها لاحقاً)
-    const operatingExpenses = 0 // يمكن إضافة حسابات المصروفات هنا
-
-    // صافي الربح
-    const netIncome = grossProfit - operatingExpenses
-
-    // احصائيات إضافية
+    // احصائيات إضافية من الفواتير
+    const { invoices: filteredInvoices } = getFilteredData()
     const salesCount = filteredInvoices.filter(invoice => invoice.type === 'sales').length
     const purchaseCount = filteredInvoices.filter(invoice => invoice.type === 'purchase').length
-    const averageSaleAmount = salesCount > 0 ? salesRevenue / salesCount : 0
-    const averagePurchaseAmount = purchaseCount > 0 ? costOfGoodsSold / purchaseCount : 0
 
     return {
-      salesRevenue,
-      paidSalesRevenue,
-      unpaidSalesRevenue,
-      costOfGoodsSold,
+      revenue: {
+        salesRevenue,
+        otherIncome,
+        totalRevenue
+      },
+      expenses: {
+        costOfSales,
+        operatingExpenses,
+        discountsAllowed,
+        totalExpenses
+      },
       grossProfit,
-      operatingExpenses,
       netIncome,
-      totalDiscount,
-      totalVAT,
       salesCount,
       purchaseCount,
-      averageSaleAmount,
-      averagePurchaseAmount,
       period: `${dateRange.start} - ${dateRange.end}`,
       filterType: dateFilter.type
     }
   }
 
-  // حساب الميزانية العمومية مع الفلترة الزمنية
+  // حساب الميزانية العمومية من القيود اليومية
   const getBalanceSheet = () => {
-    const { invoices: filteredInvoices, dateRange } = getFilteredData()
+    const { journalEntries: filteredEntries, dateRange } = getFilteredData()
+
+    // حساب أرصدة جميع الحسابات من القيود اليومية
+    const accountBalances = {}
+    
+    filteredEntries.forEach(entry => {
+      entry.lines?.forEach(line => {
+        if (!accountBalances[line.accountId]) {
+          accountBalances[line.accountId] = { debit: 0, credit: 0 }
+        }
+        accountBalances[line.accountId].debit += parseFloat(line.debit) || 0
+        accountBalances[line.accountId].credit += parseFloat(line.credit) || 0
+      })
+    })
 
     // الأصول المتداولة
-    // النقدية (الفواتير المدفوعة فقط)
-    const paidSales = filteredInvoices
-      .filter(invoice => invoice.type === 'sales' && invoice.paymentStatus === 'paid')
-      .reduce((total, invoice) => total + (parseFloat(invoice.total) || 0), 0)
-    
-    const paidPurchases = filteredInvoices
-      .filter(invoice => invoice.type === 'purchase' && invoice.paymentStatus === 'paid')
-      .reduce((total, invoice) => total + (parseFloat(invoice.total) || 0), 0)
+    let cash = 0 // حسابات 1001-1002 (خزينة وبنك)
+    let accountsReceivable = 0 // حساب 1101 (عملاء)
+    let inventory = 0 // حساب 1201 (مخزون)
+    let vatPaid = 0 // حساب 1301 (ضريبة مدفوعة)
+    let otherCurrentAssets = 0
 
-    const cash = paidSales - paidPurchases
+    // الخصوم المتداولة
+    let accountsPayable = 0 // حساب 2001 (موردون)
+    let vatPayable = 0 // حساب 2102 (ضريبة مستحقة)
+    let otherCurrentLiabilities = 0
 
-    // الذمم المدينة (جميع فواتير المبيعات غير المدفوعة)
-    const accountsReceivable = filteredInvoices
-      .filter(invoice => invoice.type === 'sales' && invoice.paymentStatus !== 'paid')
-      .reduce((total, invoice) => total + (parseFloat(invoice.total) || 0), 0)
+    // حساب الأرصدة
+    accounts.forEach(account => {
+      const balance = accountBalances[account.id]
+      if (balance) {
+        const netBalance = balance.debit - balance.credit
 
-    // المخزون (قيمة المخزون الحالي - متأثر بجميع الفواتير)
-    const inventoryValue = inventoryItems
-      .reduce((total, item) => {
-        const quantity = parseFloat(item.quantity) || 0
-        const price = parseFloat(item.price) || 0
-        return total + (quantity * price)
-      }, 0)
+        // تصنيف الحسابات حسب الكود
+        if (account.code === '1001' || account.code === '1002') {
+          cash += netBalance
+        } else if (account.code === '1101') {
+          accountsReceivable += netBalance
+        } else if (account.code === '1201') {
+          inventory += netBalance
+        } else if (account.code === '1301') {
+          vatPaid += netBalance
+        } else if (account.code?.startsWith('1')) {
+          otherCurrentAssets += netBalance
+        } else if (account.code === '2001') {
+          accountsPayable += Math.abs(netBalance) // الخصوم قيمة موجبة
+        } else if (account.code === '2102') {
+          vatPayable += Math.abs(netBalance)
+        } else if (account.code?.startsWith('2')) {
+          otherCurrentLiabilities += Math.abs(netBalance)
+        }
+      }
+    })
 
     // إجمالي الأصول المتداولة
-    const currentAssets = cash + accountsReceivable + inventoryValue
+    const currentAssets = cash + accountsReceivable + inventory + vatPaid + otherCurrentAssets
 
-    // الأصول الثابتة (افتراضية - يمكن إضافتها لاحقاً)
-    const fixedAssets = 0
+    // الأصول الثابتة (من حسابات 15xx إن وجدت)
+    const fixedAssets = 0 // يمكن إضافتها لاحقاً
 
     // إجمالي الأصول
     const totalAssets = currentAssets + fixedAssets
 
-    // الخصوم المتداولة
-    // الذمم الدائنة (جميع فواتير المشتريات غير المدفوعة)
-    const accountsPayable = filteredInvoices
-      .filter(invoice => invoice.type === 'purchase' && invoice.paymentStatus !== 'paid')
-      .reduce((total, invoice) => total + (parseFloat(invoice.total) || 0), 0)
-
     // إجمالي الخصوم
-    const totalLiabilities = accountsPayable
+    const totalLiabilities = accountsPayable + vatPayable + otherCurrentLiabilities
 
-    // حقوق الملكية
+    // حقوق الملكية = صافي الربح من قائمة الدخل
     const retainedEarnings = getIncomeStatement().netIncome
-    const totalEquity = retainedEarnings
+    const totalEquity = totalAssets - totalLiabilities // المعادلة المحاسبية
 
     // احصائيات إضافية
+    const { invoices: filteredInvoices } = getFilteredData()
     const receivableCount = filteredInvoices.filter(invoice => 
       invoice.type === 'sales' && invoice.paymentStatus !== 'paid'
     ).length
@@ -284,7 +317,9 @@ const Reports = () => {
         currentAssets: {
           cash,
           accountsReceivable,
-          inventory: inventoryValue,
+          inventory,
+          vatPaid,
+          other: otherCurrentAssets,
           total: currentAssets
         },
         fixedAssets,
@@ -293,12 +328,14 @@ const Reports = () => {
       liabilities: {
         currentLiabilities: {
           accountsPayable,
-          total: accountsPayable
+          vatPayable,
+          other: otherCurrentLiabilities,
+          total: totalLiabilities
         },
         totalLiabilities
       },
       equity: {
-        retainedEarnings,
+        retainedEarnings: totalEquity,
         totalEquity
       },
       additionalInfo: {
@@ -357,11 +394,33 @@ const Reports = () => {
     }
   }
 
-  // إضافة تقرير التدفق النقدي
+  // إضافة تقرير التدفق النقدي من القيود اليومية
   const getCashFlowStatement = () => {
-    const { invoices: filteredInvoices, dateRange } = getFilteredData()
+    const { journalEntries: filteredEntries, dateRange } = getFilteredData()
 
-    // التدفقات النقدية من الأنشطة التشغيلية
+    // التدفقات النقدية من حسابات الخزينة والبنك (1001, 1002)
+    let cashInflows = 0
+    let cashOutflows = 0
+
+    filteredEntries.forEach(entry => {
+      entry.lines?.forEach(line => {
+        const account = accounts.find(acc => acc.id === line.accountId)
+        if (account && (account.code === '1001' || account.code === '1002')) {
+          const debit = parseFloat(line.debit) || 0
+          const credit = parseFloat(line.credit) || 0
+          
+          cashInflows += debit
+          cashOutflows += credit
+        }
+      })
+    })
+
+    // صافي التدفق النقدي
+    const netCashFlow = cashInflows - cashOutflows
+
+    // تفصيل حسب نوع النشاط (من الفواتير للمعلومات)
+    const { invoices: filteredInvoices } = getFilteredData()
+    
     const cashFromSales = filteredInvoices
       .filter(invoice => invoice.type === 'sales' && invoice.paymentStatus === 'paid')
       .reduce((total, invoice) => total + (parseFloat(invoice.total) || 0), 0)
@@ -372,28 +431,22 @@ const Reports = () => {
 
     const netCashFromOperations = cashFromSales - cashToPurchases
 
-    // التدفقات النقدية من الأنشطة الاستثمارية (افتراضية)
-    const netCashFromInvesting = 0
-
-    // التدفقات النقدية من الأنشطة التمويلية (افتراضية)
-    const netCashFromFinancing = 0
-
-    // صافي التغيير في النقد
-    const netCashChange = netCashFromOperations + netCashFromInvesting + netCashFromFinancing
-
     return {
       operating: {
+        cashInflows,
+        cashOutflows,
         cashFromSales,
         cashToPurchases,
         netCashFromOperations
       },
       investing: {
-        netCashFromInvesting
+        netCashFromInvesting: 0
       },
       financing: {
-        netCashFromFinancing
+        netCashFromFinancing: 0
       },
-      netCashChange,
+      netCashFlow,
+      netCashChange: netCashFlow,
       period: `${dateRange.start} - ${dateRange.end}`
     }
   }
@@ -598,17 +651,17 @@ const Reports = () => {
               <div className="summary-card revenue">
                 <div className="summary-icon">💰</div>
                 <div className="summary-info">
-                  <h4>{language === 'ar' ? 'إجمالي المبيعات' : 'Total Sales'}</h4>
-                  <p>{formatCurrency(getIncomeStatement().salesRevenue)}</p>
-                  <span>{getIncomeStatement().salesCount} {language === 'ar' ? 'فاتورة' : 'invoices'}</span>
+                  <h4>{language === 'ar' ? 'إجمالي الإيرادات' : 'Total Revenue'}</h4>
+                  <p>{formatCurrency(getIncomeStatement().revenue.totalRevenue)}</p>
+                  <span>{getIncomeStatement().salesCount} {language === 'ar' ? 'فاتورة مبيعات' : 'sales invoices'}</span>
                 </div>
               </div>
               <div className="summary-card expense">
                 <div className="summary-icon">💸</div>
                 <div className="summary-info">
-                  <h4>{language === 'ar' ? 'تكلفة المشتريات' : 'Cost of Purchases'}</h4>
-                  <p>{formatCurrency(getIncomeStatement().costOfGoodsSold)}</p>
-                  <span>{getIncomeStatement().purchaseCount} {language === 'ar' ? 'فاتورة' : 'invoices'}</span>
+                  <h4>{language === 'ar' ? 'إجمالي المصروفات' : 'Total Expenses'}</h4>
+                  <p>{formatCurrency(getIncomeStatement().expenses.totalExpenses)}</p>
+                  <span>{getIncomeStatement().purchaseCount} {language === 'ar' ? 'فاتورة شراء' : 'purchase invoices'}</span>
                 </div>
               </div>
               <div className="summary-card profit">
@@ -619,7 +672,10 @@ const Reports = () => {
                     {formatCurrency(getIncomeStatement().netIncome)}
                   </p>
                   <span>
-                    {((getIncomeStatement().netIncome / getIncomeStatement().salesRevenue) * 100 || 0).toFixed(1)}% 
+                    {getIncomeStatement().revenue.totalRevenue > 0 
+                      ? ((getIncomeStatement().netIncome / getIncomeStatement().revenue.totalRevenue) * 100).toFixed(1)
+                      : '0.0'
+                    }% 
                     {language === 'ar' ? ' هامش ربح' : ' profit margin'}
                   </span>
                 </div>
@@ -629,44 +685,53 @@ const Reports = () => {
             <div className="income-statement-details">
               <table className="report-table">
                 <tbody>
-                  <tr className="revenue-section">
+                  <tr className="section-header">
                     <td><strong>{language === 'ar' ? 'الإيرادات' : 'Revenue'}</strong></td>
-                    <td className="amount"><strong>{formatCurrency(getIncomeStatement().salesRevenue)}</strong></td>
+                    <td></td>
                   </tr>
                   <tr>
-                    <td className="indent">{language === 'ar' ? 'مبيعات مدفوعة' : 'Paid Sales'}</td>
-                    <td className="amount">{formatCurrency(getIncomeStatement().paidSalesRevenue)}</td>
+                    <td className="indent">{language === 'ar' ? 'إيرادات المبيعات' : 'Sales Revenue'}</td>
+                    <td className="amount">{formatCurrency(getIncomeStatement().revenue.salesRevenue)}</td>
                   </tr>
                   <tr>
-                    <td className="indent">{language === 'ar' ? 'مبيعات غير مدفوعة' : 'Unpaid Sales'}</td>
-                    <td className="amount">{formatCurrency(getIncomeStatement().unpaidSalesRevenue)}</td>
+                    <td className="indent">{language === 'ar' ? 'إيرادات أخرى' : 'Other Income'}</td>
+                    <td className="amount">{formatCurrency(getIncomeStatement().revenue.otherIncome)}</td>
                   </tr>
-                  <tr>
-                    <td className="indent">{language === 'ar' ? 'إجمالي الخصومات' : 'Total Discounts'}</td>
-                    <td className="amount negative">({formatCurrency(getIncomeStatement().totalDiscount)})</td>
-                  </tr>
-                  <tr>
-                    <td className="indent">{language === 'ar' ? 'إجمالي الضرائب' : 'Total VAT'}</td>
-                    <td className="amount">{formatCurrency(getIncomeStatement().totalVAT)}</td>
+                  <tr className="subtotal-row">
+                    <td><strong>{language === 'ar' ? 'إجمالي الإيرادات' : 'Total Revenue'}</strong></td>
+                    <td className="amount"><strong>{formatCurrency(getIncomeStatement().revenue.totalRevenue)}</strong></td>
                   </tr>
                   
-                  <tr className="expense-section">
-                    <td><strong>{language === 'ar' ? 'تكلفة البضاعة المباعة' : 'Cost of Goods Sold'}</strong></td>
-                    <td className="amount"><strong>({formatCurrency(getIncomeStatement().costOfGoodsSold)})</strong></td>
+                  <tr className="section-header">
+                    <td><strong>{language === 'ar' ? 'المصروفات' : 'Expenses'}</strong></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td className="indent">{language === 'ar' ? 'تكلفة المبيعات' : 'Cost of Sales'}</td>
+                    <td className="amount negative">({formatCurrency(getIncomeStatement().expenses.costOfSales)})</td>
+                  </tr>
+                  <tr>
+                    <td className="indent">{language === 'ar' ? 'مصروفات تشغيلية' : 'Operating Expenses'}</td>
+                    <td className="amount negative">({formatCurrency(getIncomeStatement().expenses.operatingExpenses)})</td>
+                  </tr>
+                  <tr>
+                    <td className="indent">{language === 'ar' ? 'خصم مسموح به' : 'Discounts Allowed'}</td>
+                    <td className="amount negative">({formatCurrency(getIncomeStatement().expenses.discountsAllowed)})</td>
+                  </tr>
+                  <tr className="subtotal-row">
+                    <td><strong>{language === 'ar' ? 'إجمالي المصروفات' : 'Total Expenses'}</strong></td>
+                    <td className="amount"><strong>({formatCurrency(getIncomeStatement().expenses.totalExpenses)})</strong></td>
                   </tr>
                   
-                  <tr className="profit-section">
+                  <tr className="subtotal-row">
                     <td><strong>{language === 'ar' ? 'مجمل الربح' : 'Gross Profit'}</strong></td>
-                    <td className="amount"><strong>{formatCurrency(getIncomeStatement().grossProfit)}</strong></td>
+                    <td className={`amount ${getIncomeStatement().grossProfit >= 0 ? 'positive' : 'negative'}`}>
+                      <strong>{formatCurrency(getIncomeStatement().grossProfit)}</strong>
+                    </td>
                   </tr>
                   
-                  <tr>
-                    <td><strong>{language === 'ar' ? 'المصروفات التشغيلية' : 'Operating Expenses'}</strong></td>
-                    <td className="amount"><strong>({formatCurrency(getIncomeStatement().operatingExpenses)})</strong></td>
-                  </tr>
-                  
-                  <tr className="net-income-section">
-                    <td><strong>{language === 'ar' ? 'صافي الربح' : 'Net Income'}</strong></td>
+                  <tr className="total-row">
+                    <td><strong>{language === 'ar' ? 'صافي الربح (الخسارة)' : 'Net Income (Loss)'}</strong></td>
                     <td className={`amount ${getIncomeStatement().netIncome >= 0 ? 'positive' : 'negative'}`}>
                       <strong>{formatCurrency(getIncomeStatement().netIncome)}</strong>
                     </td>
@@ -735,17 +800,27 @@ const Reports = () => {
                       <td className="amount"><strong>{formatCurrency(getBalanceSheet().assets.currentAssets.total)}</strong></td>
                     </tr>
                     <tr>
-                      <td className="indent">{language === 'ar' ? 'النقدية' : 'Cash'}</td>
+                      <td className="indent">{language === 'ar' ? 'النقدية (خزينة وبنك)' : 'Cash (Cash & Bank)'}</td>
                       <td className="amount">{formatCurrency(getBalanceSheet().assets.currentAssets.cash)}</td>
                     </tr>
                     <tr>
-                      <td className="indent">{language === 'ar' ? 'الذمم المدينة' : 'Accounts Receivable'}</td>
+                      <td className="indent">{language === 'ar' ? 'الذمم المدينة (عملاء)' : 'Accounts Receivable (Customers)'}</td>
                       <td className="amount">{formatCurrency(getBalanceSheet().assets.currentAssets.accountsReceivable)}</td>
                     </tr>
                     <tr>
                       <td className="indent">{language === 'ar' ? 'المخزون' : 'Inventory'}</td>
                       <td className="amount">{formatCurrency(getBalanceSheet().assets.currentAssets.inventory)}</td>
                     </tr>
+                    <tr>
+                      <td className="indent">{language === 'ar' ? 'ضريبة مدفوعة' : 'VAT Paid'}</td>
+                      <td className="amount">{formatCurrency(getBalanceSheet().assets.currentAssets.vatPaid)}</td>
+                    </tr>
+                    {getBalanceSheet().assets.currentAssets.other > 0 && (
+                      <tr>
+                        <td className="indent">{language === 'ar' ? 'أصول متداولة أخرى' : 'Other Current Assets'}</td>
+                        <td className="amount">{formatCurrency(getBalanceSheet().assets.currentAssets.other)}</td>
+                      </tr>
+                    )}
                     <tr>
                       <td><strong>{language === 'ar' ? 'الأصول الثابتة' : 'Fixed Assets'}</strong></td>
                       <td className="amount"><strong>{formatCurrency(getBalanceSheet().assets.fixedAssets)}</strong></td>
@@ -767,9 +842,19 @@ const Reports = () => {
                       <td className="amount"><strong>{formatCurrency(getBalanceSheet().liabilities.currentLiabilities.total)}</strong></td>
                     </tr>
                     <tr>
-                      <td className="indent">{language === 'ar' ? 'الذمم الدائنة' : 'Accounts Payable'}</td>
+                      <td className="indent">{language === 'ar' ? 'الذمم الدائنة (موردون)' : 'Accounts Payable (Suppliers)'}</td>
                       <td className="amount">{formatCurrency(getBalanceSheet().liabilities.currentLiabilities.accountsPayable)}</td>
                     </tr>
+                    <tr>
+                      <td className="indent">{language === 'ar' ? 'ضريبة مستحقة' : 'VAT Payable'}</td>
+                      <td className="amount">{formatCurrency(getBalanceSheet().liabilities.currentLiabilities.vatPayable)}</td>
+                    </tr>
+                    {getBalanceSheet().liabilities.currentLiabilities.other > 0 && (
+                      <tr>
+                        <td className="indent">{language === 'ar' ? 'خصوم متداولة أخرى' : 'Other Current Liabilities'}</td>
+                        <td className="amount">{formatCurrency(getBalanceSheet().liabilities.currentLiabilities.other)}</td>
+                      </tr>
+                    )}
                     <tr>
                       <td><strong>{language === 'ar' ? 'إجمالي الخصوم' : 'Total Liabilities'}</strong></td>
                       <td className="amount"><strong>{formatCurrency(getBalanceSheet().liabilities.totalLiabilities)}</strong></td>
@@ -827,23 +912,23 @@ const Reports = () => {
               <div className="summary-card inflow">
                 <div className="summary-icon">💰</div>
                 <div className="summary-info">
-                  <h4>{language === 'ar' ? 'النقد من المبيعات' : 'Cash from Sales'}</h4>
-                  <p>{formatCurrency(getCashFlowStatement().operating.cashFromSales)}</p>
+                  <h4>{language === 'ar' ? 'التدفقات النقدية الداخلة' : 'Cash Inflows'}</h4>
+                  <p>{formatCurrency(getCashFlowStatement().operating.cashInflows)}</p>
                 </div>
               </div>
               <div className="summary-card outflow">
                 <div className="summary-icon">💸</div>
                 <div className="summary-info">
-                  <h4>{language === 'ar' ? 'النقد للمشتريات' : 'Cash for Purchases'}</h4>
-                  <p>{formatCurrency(getCashFlowStatement().operating.cashToPurchases)}</p>
+                  <h4>{language === 'ar' ? 'التدفقات النقدية الخارجة' : 'Cash Outflows'}</h4>
+                  <p>{formatCurrency(getCashFlowStatement().operating.cashOutflows)}</p>
                 </div>
               </div>
               <div className="summary-card net-cash">
                 <div className="summary-icon">📊</div>
                 <div className="summary-info">
-                  <h4>{language === 'ar' ? 'صافي التغيير النقدي' : 'Net Cash Change'}</h4>
-                  <p className={getCashFlowStatement().netCashChange >= 0 ? 'positive' : 'negative'}>
-                    {formatCurrency(getCashFlowStatement().netCashChange)}
+                  <h4>{language === 'ar' ? 'صافي التدفق النقدي' : 'Net Cash Flow'}</h4>
+                  <p className={getCashFlowStatement().netCashFlow >= 0 ? 'positive' : 'negative'}>
+                    {formatCurrency(getCashFlowStatement().netCashFlow)}
                   </p>
                 </div>
               </div>
@@ -857,11 +942,19 @@ const Reports = () => {
                     <td></td>
                   </tr>
                   <tr>
-                    <td className="indent">{language === 'ar' ? 'النقد المحصل من العملاء' : 'Cash received from customers'}</td>
+                    <td className="indent">{language === 'ar' ? 'إجمالي النقد الداخل (مدين)' : 'Total Cash Inflows (Debit)'}</td>
+                    <td className="amount positive">{formatCurrency(getCashFlowStatement().operating.cashInflows)}</td>
+                  </tr>
+                  <tr>
+                    <td className="indent">{language === 'ar' ? 'إجمالي النقد الخارج (دائن)' : 'Total Cash Outflows (Credit)'}</td>
+                    <td className="amount negative">({formatCurrency(getCashFlowStatement().operating.cashOutflows)})</td>
+                  </tr>
+                  <tr>
+                    <td className="indent">{language === 'ar' ? 'النقد من المبيعات المدفوعة' : 'Cash from paid sales'}</td>
                     <td className="amount positive">{formatCurrency(getCashFlowStatement().operating.cashFromSales)}</td>
                   </tr>
                   <tr>
-                    <td className="indent">{language === 'ar' ? 'النقد المدفوع للموردين' : 'Cash paid to suppliers'}</td>
+                    <td className="indent">{language === 'ar' ? 'النقد للمشتريات المدفوعة' : 'Cash for paid purchases'}</td>
                     <td className="amount negative">({formatCurrency(getCashFlowStatement().operating.cashToPurchases)})</td>
                   </tr>
                   <tr className="subtotal-row">
@@ -890,9 +983,9 @@ const Reports = () => {
                   </tr>
                   
                   <tr className="total-row">
-                    <td><strong>{language === 'ar' ? 'صافي التغيير في النقد' : 'Net change in cash'}</strong></td>
-                    <td className={`amount ${getCashFlowStatement().netCashChange >= 0 ? 'positive' : 'negative'}`}>
-                      <strong>{formatCurrency(getCashFlowStatement().netCashChange)}</strong>
+                    <td><strong>{language === 'ar' ? 'صافي التدفق النقدي' : 'Net Cash Flow'}</strong></td>
+                    <td className={`amount ${getCashFlowStatement().netCashFlow >= 0 ? 'positive' : 'negative'}`}>
+                      <strong>{formatCurrency(getCashFlowStatement().netCashFlow)}</strong>
                     </td>
                   </tr>
                 </tbody>

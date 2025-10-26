@@ -27,7 +27,8 @@ let VALID_USERS = {
       'view_account_statements', 'manage_account_statements',
       'view_financial_reports', 'export_reports',
       'view_settings',
-      'view_banking', 'manage_bank_accounts', 'record_payments', 'record_receipts', 'record_expenses'
+      'view_banking', 'manage_bank_accounts', 'record_payments', 'record_receipts', 'record_expenses',
+      'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
     ]
   },
   'accountant': { 
@@ -45,7 +46,8 @@ let VALID_USERS = {
       'view_inventory',
       'view_account_statements',
       'view_financial_reports',
-      'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts'
+      'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts',
+      'view_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
     ]
   },
   'user': { 
@@ -60,7 +62,8 @@ let VALID_USERS = {
       'view_customers_suppliers',
       'view_inventory',
       'view_account_statements',
-      'view_banking'
+      'view_banking',
+      'view_treasury'
     ]
   }
 }
@@ -98,7 +101,8 @@ const loadUsersFromStorage = () => {
               'view_account_statements', 'manage_account_statements',
               'view_financial_reports', 'export_reports',
               'view_settings',
-              'view_banking', 'manage_bank_accounts', 'record_payments', 'record_receipts', 'record_expenses'
+              'view_banking', 'manage_bank_accounts', 'record_payments', 'record_receipts', 'record_expenses',
+              'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
             ],
             accountant: [
               'view_dashboard',
@@ -109,7 +113,8 @@ const loadUsersFromStorage = () => {
               'view_inventory',
               'view_account_statements',
               'view_financial_reports',
-              'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts'
+              'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts',
+              'view_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
             ],
             user: [
               'view_dashboard',
@@ -117,7 +122,8 @@ const loadUsersFromStorage = () => {
               'view_customers_suppliers',
               'view_inventory',
               'view_account_statements',
-              'view_banking'
+              'view_banking',
+              'view_treasury'
             ]
           }
           
@@ -396,7 +402,8 @@ export const AuthProvider = ({ children }) => {
         'view_settings', 'edit_general_settings', 'edit_brand_settings', 'manage_users', 'view_user_logs',
         'system_maintenance', 'view_system_logs', 'manage_system_backups',
         'view_banking', 'manage_bank_accounts', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts', 'record_expenses', 'view_customer_accounts',
-        'view_account_statements', 'manage_account_statements'
+        'view_account_statements', 'manage_account_statements',
+        'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
       ]
     }
     
