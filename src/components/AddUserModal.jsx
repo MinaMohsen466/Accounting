@@ -163,7 +163,7 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
                 onChange={handleInputChange}
                 className={errors.name ? 'error' : ''}
                 disabled={loading}
-                placeholder="أحمد محمد"
+                placeholder="الاسم الكامل"
               />
               {errors.name && <span className="error-text">{errors.name}</span>}
             </div>
