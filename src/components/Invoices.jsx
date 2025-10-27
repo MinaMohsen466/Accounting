@@ -162,7 +162,9 @@ const Invoices = () => {
     createJournalEntry: true,
     recordPaymentNow: false,
     paymentBankAccountId: '',
-    deductFromBalance: false // خصم من الرصيد الابتدائي
+    deductFromBalance: false, // خصم من الرصيد الابتدائي
+    // Control whether to show the Color column when printing this invoice
+    showColorInPrint: true
   })
   // show/hide compact payment options dropdown
   const [showPaymentOptions, setShowPaymentOptions] = useState(false)
@@ -266,7 +268,9 @@ const Invoices = () => {
       createJournalEntry: true,
       recordPaymentNow: true,
       paymentBankAccountId: preselectedAccountId,
-      deductFromBalance: false
+      deductFromBalance: false,
+      // Control whether to show the Color column when printing this invoice
+      showColorInPrint: true
     })
     setEditingInvoice(null)
   }
@@ -358,6 +362,8 @@ const Invoices = () => {
         createJournalEntry: !!invoice.createJournalEntry,
         recordPaymentNow: !!invoice.recordPaymentNow,
         paymentBankAccountId: invoice.paymentBankAccountId || ''
+        ,
+        showColorInPrint: invoice.showColorInPrint !== undefined ? !!invoice.showColorInPrint : true
       }
   // Recalculate to ensure consistency
   setFormData(() => calculateTotals(populated))
@@ -1489,7 +1495,7 @@ const Invoices = () => {
                 <tr>
                   <th style="width: 40px; text-align: center;">#</th>
                   <th>${language === 'ar' ? 'العنصر | Item' : 'Item | العنصر'}</th>
-                  <th>${language === 'ar' ? 'اللون | Color' : 'Color | اللون'}</th>
+                  ${invoice.showColorInPrint !== false ? `<th>${language === 'ar' ? 'الإضافات | Extras' : 'Extras | الإضافات'}</th>` : ''}
                   <th>${language === 'ar' ? 'الكمية | Qty' : 'Qty | الكمية'}</th>
                   <th>${language === 'ar' ? 'سعر الوحدة | Unit Price' : 'Unit Price | سعر الوحدة'}</th>
                   <th>${language === 'ar' ? 'الخصم | Discount' : 'Discount | الخصم'}</th>
@@ -1514,15 +1520,16 @@ const Invoices = () => {
                   const colorPrice = item.colorPrice || 0;
                   const basePrice = item.unitPrice || 0;
                   const totalPrice = basePrice + colorPrice;
-                  const priceDisplay = colorPrice > 0 ? 
-                    `${basePrice.toFixed(2)} + ${colorPrice.toFixed(2)} = ${totalPrice.toFixed(2)}` : 
-                    basePrice.toFixed(2);
+                  // Show detailed breakdown only when color price exists AND the invoice flag allows showing color details on print
+                  const priceDisplay = (colorPrice > 0 && invoice.showColorInPrint !== false) ?
+                    `${basePrice.toFixed(2)} + ${colorPrice.toFixed(2)} = ${totalPrice.toFixed(2)}` :
+                    totalPrice.toFixed(2);
                   
                   return `
                     <tr>
                       <td style="text-align: center; font-weight: bold; background: #f8f9fa; color: #495057;">${index + 1}</td>
                       <td class="item-name">${item.itemName}</td>
-                      <td class="color-cell">${colorDisplay}</td>
+                      ${invoice.showColorInPrint !== false ? `<td class="color-cell">${colorDisplay}</td>` : ''}
                       <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
                       <td style="text-align: center;">${priceDisplay}</td>
                       <td style="text-align: center;">${discountDisplay}</td>
@@ -2611,7 +2618,18 @@ const Invoices = () => {
                       <tr>
                         <th style={{width: '50px', textAlign: 'center'}}>#</th>
                         <th>{t('products')}</th>
-                        <th>{language === 'ar' ? 'اللون' : 'Color'}</th>
+                        <th>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>{language === 'ar' ? 'الإضافات' : 'Extras'}</span>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px' }} title={language === 'ar' ? 'إظهار حقل الإضافات عند الطباعة' : 'Show extras field on printed invoice'}>
+                              <input
+                                type="checkbox"
+                                checked={!!formData.showColorInPrint}
+                                onChange={() => setFormData(prev => ({ ...prev, showColorInPrint: !prev.showColorInPrint }))}
+                              />
+                            </label>
+                          </div>
+                        </th>
                         <th>{t('quantity')}</th>
                         <th>
                           {formData.type === 'purchase' 
@@ -2707,13 +2725,13 @@ const Invoices = () => {
                                 readOnly
                                 className="readonly-input price-input-main"
                               />
-                              {item.colorPrice > 0 && (
+                              {item.colorPrice > 0 && formData.showColorInPrint && (
                                 <div className="price-breakdown">
                                   <small className="base-price">
                                     {language === 'ar' ? 'الأساسي:' : 'Base:'} {parseFloat(item.unitPrice).toFixed(3)} {t('currency')}
                                   </small>
                                   <small className="color-price">
-                                    {language === 'ar' ? 'اللون:' : 'Color:'} +{parseFloat(item.colorPrice).toFixed(3)} {t('currency')}
+                                    {language === 'ar' ? 'الإضافات:' : 'Extras:'} +{parseFloat(item.colorPrice).toFixed(3)} {t('currency')}
                                   </small>
                                   <small className="total-price">
                                     {language === 'ar' ? 'الإجمالي:' : 'Total:'} {(parseFloat(item.unitPrice) + parseFloat(item.colorPrice)).toFixed(3)} {t('currency')}
