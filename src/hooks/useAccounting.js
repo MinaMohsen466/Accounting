@@ -235,13 +235,19 @@ export const useAccounting = () => {
             }))
           })
           
-          // التحقق من عدم وجود قيد بنفس المرجع (لتجنب التكرار)
+          // التحقق من عدم وجود قيد نشط (غير معكوس) بنفس المرجع
           const existingEntries = DataService.getJournalEntries()
-          const duplicateEntry = existingEntries.find(entry => entry.reference === journalEntry.reference)
+          const existingEntry = existingEntries.find(entry => entry.reference === journalEntry.reference)
+          const hasReversalEntry = existingEntries.find(entry => entry.reference === `REV-${journalEntry.reference}`)
           
-          if (duplicateEntry) {
-            console.warn('⚠️ القيد موجود مسبقاً بنفس المرجع:', journalEntry.reference)
+          // إذا كان القيد موجود ولم يتم عكسه، فهو مكرر
+          if (existingEntry && !hasReversalEntry) {
+            console.warn('⚠️ القيد موجود مسبقاً ونشط (لم يتم عكسه):', journalEntry.reference)
+            console.log('   → تخطي إنشاء قيد مكرر')
           } else {
+            if (existingEntry && hasReversalEntry) {
+              console.log('✅ القيد القديم تم عكسه، يمكن إنشاء قيد جديد:', journalEntry.reference)
+            }
             addJournalEntry(journalEntry)
             console.log('✅ تم إضافة القيد بنجاح')
           }
@@ -583,9 +589,18 @@ export const useAccounting = () => {
   // Helper function to create journal entry from invoice
   const createJournalEntryFromInvoice = (invoice) => {
     const lines = []
+    const isReturn = invoice.isReturn === true
+    const isPaid = invoice.paymentStatus === 'paid'
+    const paymentMethod = invoice.paymentMethod || 'cash'
+    const paymentBankAccountId = invoice.paymentBankAccountId
+    
     console.log('🔍 بدء إنشاء القيد من الفاتورة:', {
       invoiceNumber: invoice.invoiceNumber,
       type: invoice.type,
+      isReturn,
+      isPaid,
+      paymentMethod,
+      paymentBankAccountId,
       subtotal: invoice.subtotal,
       discountAmount: invoice.discountAmount,
       vatAmount: invoice.vatAmount,
@@ -676,22 +691,59 @@ export const useAccounting = () => {
         }
       }
       
-      // Debit Customer for total amount (including VAT, minus discount)
+      // إذا كانت الفاتورة مدفوعة، نستخدم حساب الخزينة أو البنك بدلاً من حساب العميل
+      let paymentAccount = customerAccount
+      if (isPaid) {
+        if (paymentMethod === 'bank' && paymentBankAccountId) {
+          // البحث عن حساب البنك المحدد
+          paymentAccount = accounts.find(acc => acc.id === paymentBankAccountId)
+          if (!paymentAccount) {
+            console.warn('⚠️ لم يتم العثور على حساب البنك، استخدام الخزينة')
+            paymentAccount = ensureAccountExists('1001', {
+              name: 'الخزينة',
+              nameEn: 'Cash',
+              type: 'asset',
+              category: 'current_assets',
+              description: 'الخزينة النقدية',
+              balance: 0
+            })
+          }
+        } else {
+          // استخدام حساب الخزينة للدفع النقدي
+          paymentAccount = ensureAccountExists('1001', {
+            name: 'الخزينة',
+            nameEn: 'Cash',
+            type: 'asset',
+            category: 'current_assets',
+            description: 'الخزينة النقدية',
+            balance: 0
+          })
+        }
+        console.log('💳 الفاتورة مدفوعة، استخدام حساب:', {
+          code: paymentAccount.code,
+          name: paymentAccount.name,
+          paymentMethod
+        })
+      }
+      
+      // Debit Customer/Cash/Bank for total amount (including VAT, minus discount)
+      // إذا كانت فاتورة إرجاع، نعكس المدين والدائن
       lines.push({
-        accountId: customerAccount.id,
-        accountName: customerAccount.name,
-        debit: total,
-        credit: 0,
-        description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+        accountId: paymentAccount.id,
+        accountName: paymentAccount.name,
+        debit: isReturn ? 0 : total,
+        credit: isReturn ? total : 0,
+        description: `${isReturn ? 'إرجاع ' : ''}فاتورة مبيعات رقم ${invoice.invoiceNumber}`
       })
       
       // Credit Sales for subtotal (before discount and VAT)
+      // إذا كانت فاتورة إرجاع، نعكس المدين والدائن
       lines.push({
         accountId: salesAccount.id,
         accountName: salesAccount.name,
-        debit: 0,
-        credit: subtotal,
-        description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+        debit: isReturn ? subtotal : 0,
+        credit: isReturn ? 0 : subtotal,
+        description: `${isReturn ? 'إرجاع ' : ''}فاتورة مبيعات رقم ${invoice.invoiceNumber}`
       })
       
       // Handle discount if any
@@ -699,9 +751,9 @@ export const useAccounting = () => {
         lines.push({
           accountId: discountAccount.id,
           accountName: discountAccount.name,
-          debit: invoiceDiscountAmount,
-          credit: 0,
-          description: `خصم مسموح - فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+          debit: isReturn ? 0 : invoiceDiscountAmount,
+          credit: isReturn ? invoiceDiscountAmount : 0,
+          description: `خصم مسموح - ${isReturn ? 'إرجاع ' : ''}فاتورة مبيعات رقم ${invoice.invoiceNumber}`
         })
       }
       
@@ -710,9 +762,9 @@ export const useAccounting = () => {
         lines.push({
           accountId: vatAccount.id,
           accountName: vatAccount.name,
-          debit: 0,
-          credit: vatAmount,
-          description: `ضريبة قيمة مضافة - فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+          debit: isReturn ? vatAmount : 0,
+          credit: isReturn ? 0 : vatAmount,
+          description: `ضريبة قيمة مضافة - ${isReturn ? 'إرجاع ' : ''}فاتورة مبيعات رقم ${invoice.invoiceNumber}`
         })
       }
       
@@ -809,13 +861,49 @@ export const useAccounting = () => {
         }
       }
       
+      // إذا كانت الفاتورة مدفوعة، نستخدم حساب الخزينة أو البنك بدلاً من حساب المورد
+      let paymentAccount = supplierAccount
+      if (isPaid) {
+        if (paymentMethod === 'bank' && paymentBankAccountId) {
+          // البحث عن حساب البنك المحدد
+          paymentAccount = accounts.find(acc => acc.id === paymentBankAccountId)
+          if (!paymentAccount) {
+            console.warn('⚠️ لم يتم العثور على حساب البنك، استخدام الخزينة')
+            paymentAccount = ensureAccountExists('1001', {
+              name: 'الخزينة',
+              nameEn: 'Cash',
+              type: 'asset',
+              category: 'current_assets',
+              description: 'الخزينة النقدية',
+              balance: 0
+            })
+          }
+        } else {
+          // استخدام حساب الخزينة للدفع النقدي
+          paymentAccount = ensureAccountExists('1001', {
+            name: 'الخزينة',
+            nameEn: 'Cash',
+            type: 'asset',
+            category: 'current_assets',
+            description: 'الخزينة النقدية',
+            balance: 0
+          })
+        }
+        console.log('💳 الفاتورة مدفوعة، استخدام حساب:', {
+          code: paymentAccount.code,
+          name: paymentAccount.name,
+          paymentMethod
+        })
+      }
+      
       // Debit Purchases for subtotal (before discount and VAT)
+      // إذا كانت فاتورة إرجاع، نعكس المدين والدائن
       lines.push({
         accountId: purchasesAccount.id,
         accountName: purchasesAccount.name,
-        debit: subtotal,
-        credit: 0,
-        description: `فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+        debit: isReturn ? 0 : subtotal,
+        credit: isReturn ? subtotal : 0,
+        description: `${isReturn ? 'إرجاع ' : ''}فاتورة مشتريات رقم ${invoice.invoiceNumber}`
       })
       
       // Handle discount if any
@@ -823,9 +911,9 @@ export const useAccounting = () => {
         lines.push({
           accountId: discountAccount.id,
           accountName: discountAccount.name,
-          debit: 0,
-          credit: invoiceDiscountAmount,
-          description: `خصم مكتسب - فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+          debit: isReturn ? invoiceDiscountAmount : 0,
+          credit: isReturn ? 0 : invoiceDiscountAmount,
+          description: `خصم مكتسب - ${isReturn ? 'إرجاع ' : ''}فاتورة مشتريات رقم ${invoice.invoiceNumber}`
         })
       }
       
@@ -834,19 +922,20 @@ export const useAccounting = () => {
         lines.push({
           accountId: vatAccount.id,
           accountName: vatAccount.name,
-          debit: vatAmount,
-          credit: 0,
-          description: `ضريبة قيمة مضافة - فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+          debit: isReturn ? 0 : vatAmount,
+          credit: isReturn ? vatAmount : 0,
+          description: `ضريبة قيمة مضافة - ${isReturn ? 'إرجاع ' : ''}فاتورة مشتريات رقم ${invoice.invoiceNumber}`
         })
       }
       
-      // Credit Supplier for total amount
+      // Credit Supplier/Cash/Bank for total amount
+      // إذا كانت فاتورة إرجاع، نعكس المدين والدائن
       lines.push({
-        accountId: supplierAccount.id,
-        accountName: supplierAccount.name,
-        debit: 0,
-        credit: total,
-        description: `فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+        accountId: paymentAccount.id,
+        accountName: paymentAccount.name,
+        debit: isReturn ? total : 0,
+        credit: isReturn ? 0 : total,
+        description: `${isReturn ? 'إرجاع ' : ''}فاتورة مشتريات رقم ${invoice.invoiceNumber}`
       })
     }
 
@@ -858,7 +947,11 @@ export const useAccounting = () => {
 
     return {
       date: invoice.date,
-      description: `قيد تلقائي من ${invoice.type === 'sales' ? 'فاتورة مبيعات' : 'فاتورة مشتريات'} رقم ${invoice.invoiceNumber}`,
+      description: `${isReturn ? 'قيد إرجاع من' : 'قيد تلقائي من'} ${
+        isReturn 
+          ? (invoice.type === 'sales' ? 'مرتجع مبيعات' : 'مرتجع مشتريات')
+          : (invoice.type === 'sales' ? 'فاتورة مبيعات' : 'فاتورة مشتريات')
+      } رقم ${invoice.invoiceNumber}`,
       lines: lines,
       reference: `INV-${invoice.invoiceNumber}`,
       type: 'automatic'
@@ -986,20 +1079,28 @@ export const useAccounting = () => {
       
       if (entityType === 'customer') {
         // Sales invoice - customer owes us (debit to customer)
-        debit = total
-        // If paid, also show credit (payment) in the same transaction
-        credit = invoice.paymentStatus === 'paid' ? total : 0
+        // إذا كانت فاتورة إرجاع، نعكس: دائن بدلاً من مدين
+        if (invoice.isReturn) {
+          credit = total  // إرجاع مبيعات: نرد للعميل (دائن)
+        } else {
+          debit = total   // مبيعات: العميل يدين لنا (مدين)
+        }
       } else {
         // Purchase invoice - we owe supplier (credit to supplier)
-        credit = total
-        // If paid, also show debit (payment) in the same transaction
-        debit = invoice.paymentStatus === 'paid' ? total : 0
+        // إذا كانت فاتورة إرجاع، نعكس: مدين بدلاً من دائن
+        if (invoice.isReturn) {
+          debit = total   // إرجاع مشتريات: المورد يرد لنا (مدين)
+        } else {
+          credit = total  // مشتريات: نحن ندين للمورد (دائن)
+        }
       }
       
       // Determine status label
       let statusLabel = ''
       if (invoice.paymentStatus === 'paid') {
         statusLabel = ' - مدفوعة'
+      } else if (invoice.paymentStatus === 'partial') {
+        statusLabel = ' - مدفوعة جزئياً'
       } else if (invoice.paymentStatus === 'overdue') {
         statusLabel = ' - متأخرة'
       } else if (invoice.paymentStatus === 'pending') {
@@ -1009,13 +1110,17 @@ export const useAccounting = () => {
       const transaction = {
         date: invoice.date,
         invoiceNumber: invoice.invoiceNumber,
-        description: `${invoice.description || (invoice.type === 'sales' ? 'فاتورة مبيعات' : 'فاتورة مشتريات')} ${statusLabel}`,
+        description: `${invoice.description || (invoice.isReturn 
+          ? (invoice.type === 'sales' ? 'مرتجع مبيعات' : 'مرتجع مشتريات')
+          : (invoice.type === 'sales' ? 'فاتورة مبيعات' : 'فاتورة مشتريات')
+        )} ${statusLabel}`,
         debit: debit,
         credit: credit,
         invoiceDate: invoiceDate,
         status: invoice.paymentStatus,
         dueDate: invoice.dueDate,
-        isPaid: invoice.paymentStatus === 'paid'
+        isPaid: invoice.paymentStatus === 'paid',
+        isPartial: invoice.paymentStatus === 'partial'
       }
       
       // If before start date, add to opening balance
@@ -1058,17 +1163,25 @@ export const useAccounting = () => {
     
     // Calculate summary statistics
     const paidInvoices = entityInvoices.filter(inv => inv.paymentStatus === 'paid').length
+    const partialInvoices = entityInvoices.filter(inv => inv.paymentStatus === 'partial').length
     const pendingInvoices = entityInvoices.filter(inv => inv.paymentStatus === 'pending').length
     const overdueInvoices = entityInvoices.filter(inv => inv.paymentStatus === 'overdue').length
-    
-    const totalPaidAmount = entityInvoices
-      .filter(inv => inv.paymentStatus === 'paid')
-      .reduce((sum, inv) => sum + (parseFloat(inv.total) || 0), 0)
-    
+
+    // totalPaidAmount should sum actual paid amounts (paidAmount) when available,
+    // or fall back to invoice.total when status is 'paid' but paidAmount missing
+    const totalPaidAmount = entityInvoices.reduce((sum, inv) => {
+      const paid = parseFloat(inv.paidAmount) || (inv.paymentStatus === 'paid' ? parseFloat(inv.total) || 0 : 0)
+      return sum + paid
+    }, 0)
+
+    const totalPartialAmount = entityInvoices
+      .filter(inv => inv.paymentStatus === 'partial')
+      .reduce((sum, inv) => sum + (parseFloat(inv.paidAmount) || 0), 0)
+
     const totalPendingAmount = entityInvoices
       .filter(inv => inv.paymentStatus === 'pending')
       .reduce((sum, inv) => sum + (parseFloat(inv.total) || 0), 0)
-    
+
     const totalOverdueAmount = entityInvoices
       .filter(inv => inv.paymentStatus === 'overdue')
       .reduce((sum, inv) => sum + (parseFloat(inv.total) || 0), 0)
@@ -1157,7 +1270,8 @@ export const useAccounting = () => {
     getAccountStatement,
     getCustomerSupplierStatement,
     
-    // Utility
+    // Utility functions
+    createJournalEntryFromInvoice, // 🆕 إتاحة دالة إنشاء القيد من الفاتورة لإعادة استخدامها
     setError
   }
 }
