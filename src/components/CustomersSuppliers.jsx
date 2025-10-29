@@ -335,24 +335,28 @@ const CustomersSuppliers = () => {
     
     let unpaidBalance = 0
     let paidBalance = 0
-    
+    let partialCount = 0
+    let partialPaidAmount = 0
+
     clientInvoices.forEach(invoice => {
       const amount = parseFloat(invoice.total || 0)
-      
+      const paidAmt = parseFloat(invoice.paidAmount) || (invoice.paymentStatus === 'paid' ? amount : 0)
+
+      if (invoice.paymentStatus === 'partial') {
+        partialCount++
+        partialPaidAmount += paidAmt
+      }
+
       if (invoice.type === 'sales') {
         // فواتير المبيعات - العميل مدين لنا
-        if (invoice.paymentStatus === 'paid') {
-          paidBalance += amount
-        } else {
-          unpaidBalance += amount // زيادة في الرصيد المدين
-        }
+        // total increases unpaid; paidAmt reduces it
+        paidBalance += paidAmt
+        unpaidBalance += (amount - paidAmt)
       } else if (invoice.type === 'purchase') {
         // فواتير المشتريات - نحن مدينون للمورد
-        if (invoice.paymentStatus === 'paid') {
-          paidBalance -= amount
-        } else {
-          unpaidBalance -= amount // زيادة في الرصيد الدائن
-        }
+        // paid reduces our liability
+        paidBalance -= paidAmt
+        unpaidBalance -= (amount - paidAmt)
       }
     })
     
@@ -365,7 +369,9 @@ const CustomersSuppliers = () => {
       totalBalance,
       invoiceCount: clientInvoices.length,
       unpaidInvoices: clientInvoices.filter(inv => inv.paymentStatus !== 'paid').length,
-      paidInvoices: clientInvoices.filter(inv => inv.paymentStatus === 'paid').length
+      paidInvoices: clientInvoices.filter(inv => inv.paymentStatus === 'paid').length,
+      partialInvoices: partialCount,
+      partialPaidAmount
     }
   }
 

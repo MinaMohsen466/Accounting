@@ -345,24 +345,28 @@
 
 .items-table {
   width: 100%;
-  min-width: 800px; /* تقليل العرض الأدنى */
+  min-width: 600px; /* تقليل العرض الأدنى لتجنب السكرول الأفقي */
   border-collapse: collapse;
   background: white;
+  font-size: 12px; /* تصغير حجم الخط العام */
 }
 
 .items-table th {
   background-color: #f8f9fa;
   color: #2c3e50;
-  padding: 12px 8px;
+  padding: 6px 4px; /* تقليل التباعد */
   text-align: center;
   font-weight: 600;
   border: 1px solid #dee2e6;
+  font-size: 11px; /* خط أصغر للرؤوس */
+  white-space: nowrap; /* منع الالتفاف */
 }
 
 .items-table td {
-  padding: 8px;
+  padding: 6px 4px; /* تقليل التباعد */
   border: 1px solid #dee2e6;
   vertical-align: middle;
+  font-size: 12px; /* خط أصغر */
 }
 
 /* تنسيق عمود الرقم المسلسل */
@@ -385,33 +389,40 @@
   font-weight: bold;
 }
 
-/* تحديد عرض الأعمدة لتحسين التوزيع - المجموع = 100% */
+/* تحديد عرض الأعمدة لتحسين التوزيع - مجموع مُحسّن لتجنب السكرول */
 .items-table th:nth-child(2) { /* المنتجات */
-  width: 25% !important;
+  width: 20%;
+  min-width: 120px;
 }
 
-.items-table th:nth-child(3) { /* اللون */
-  width: 14% !important;
+.items-table th:nth-child(3) { /* الإضافات/اللون */
+  width: 12%;
+  min-width: 80px;
 }
 
 .items-table th:nth-child(4) { /* الكمية */
-  width: 4% !important;
+  width: 8%;
+  min-width: 50px;
 }
 
 .items-table th:nth-child(5) { /* سعر الوحدة */
-  width: 7% !important;
+  width: 12%;
+  min-width: 60px;
 }
 
 .items-table th:nth-child(6) { /* الخصم */
-  width: 9% !important;
+  width: 10%;
+  min-width: 70px;
 }
 
 .items-table th:nth-child(8) { /* المجموع */
-  width: 11% !important;
+  width: 12%;
+  min-width: 80px;
 }
 
 .items-table th:nth-child(9) { /* الإجراءات */
-  width: 18% !important;
+  width: 12%;
+  min-width: 70px;
 }
 
 /* تطبيق نفس العرض على TD */
@@ -421,47 +432,54 @@
 }
 
 .items-table td:nth-child(2) { /* المنتجات */
-  width: 25% !important;
+  width: 20%;
+  min-width: 120px;
 }
 
-.items-table td:nth-child(3) { /* اللون */
-  width: 14% !important;
+.items-table td:nth-child(3) { /* الإضافات/اللون */
+  width: 12%;
+  min-width: 80px;
 }
 
 .items-table td:nth-child(4) { /* الكمية */
-  width: 4% !important;
+  width: 8%;
+  min-width: 50px;
   text-align: center;
 }
 
 .items-table td:nth-child(5) { /* سعر الوحدة */
-  width: 7% !important;
+  width: 12%;
+  min-width: 60px;
   text-align: center;
 }
 
 .items-table td:nth-child(6) { /* الخصم */
-  width: 9% !important;
+  width: 10%;
+  min-width: 70px;
   text-align: center;
 }
 
 /* Expiry date column removed */
 
 .items-table td:nth-child(8) { /* المجموع */
-  width: 11% !important;
+  width: 12%;
+  min-width: 80px;
   text-align: center;
   font-weight: bold;
 }
 
 .items-table td:nth-child(9) { /* الإجراءات */
-  width: 18% !important;
+  width: 12%;
+  min-width: 70px;
   text-align: center;
 }
 
 .items-table input {
   width: 100%;
-  padding: 6px 4px;
+  padding: 4px 2px; /* تقليل التباعد */
   border: 1px solid #ccc;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px; /* خط أصغر */
   text-align: center;
 }
 
@@ -473,9 +491,10 @@
 .items-table td:nth-child(4) input, /* الكمية */
 .items-table td:nth-child(5) input, /* السعر */
 .items-table td:nth-child(6) input { /* الخصم */
-  padding: 7px 5px;
-  font-size: 13px;
-  min-width: 50px;
+  padding: 4px 3px; /* تصغير التباعد */
+  font-size: 11px;
+  min-width: 28px; /* أصغر عرض أدنى للمدخلات الصغيرة */
+  box-sizing: border-box;
 }
 
 .item-total {
@@ -1812,34 +1831,46 @@
 
 /* Enhanced readonly input for prices */
 .readonly-input {
-  background: #f8f9fa !important;
-  border: 1px solid #e9ecef !important;
-  color: #495057 !important;
-  font-weight: 600 !important;
-  text-align: center !important;
-  min-width: 80px !important;
-  padding: 6px 8px !important;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  color: #495057;
+  font-weight: 600;
+  text-align: center;
+  min-width: 48px;
+  padding: 6px 6px;
 }
 
 /* Main price input styling */
 .price-input-main {
-  font-size: 1rem !important;
-  min-width: 100px !important;
-  max-width: 120px !important;
-  padding: 8px 10px !important;
-  border: 2px solid #e9ecef !important;
-  border-radius: 6px !important;
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%) !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-  font-weight: 700 !important;
-  color: #2c3e50 !important;
+  font-size: 0.98rem;
+  min-width: 80px;
+  max-width: 110px;
+  padding: 5px 6px;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+/* Purchase-scoped smaller purchase price input */
+.invoice-modal.purchase .price-input-main {
+  width: auto; /* don't stretch to cell width */
+  display: inline-block;
+  min-width: 28px;
+  max-width: 48px;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-sizing: border-box;
 }
 
 /* Price column width adjustment - استخدام النسب المئوية بدلاً من القيم الثابتة */
 .items-table th:nth-child(4),
 .items-table td:nth-child(4) {
   min-width: 60px; /* حد أدنى معقول للكمية */
-  width: 4% !important; /* نفس النسبة المحددة أعلاه مع الأولوية */
+  width: 4%;
 }
 
 /* Responsive adjustments for compact color column */
@@ -1884,16 +1915,16 @@
   
   /* Maintain price column width on mobile */
   .price-input-main {
-    min-width: 80px !important;
-    max-width: 100px !important;
-    font-size: 0.9rem !important;
-    padding: 6px 8px !important;
+    min-width: 72px;
+    max-width: 96px;
+    font-size: 0.9rem;
+    padding: 5px 6px;
   }
   
   .items-table th:nth-child(4),
   .items-table td:nth-child(4) {
     min-width: 80px;
-    width: 4% !important; /* الحفاظ على النسبة المئوية */
+    width: 4%; /* الحفاظ على النسبة المئوية */
   }
 }
 
@@ -1926,16 +1957,16 @@
   
   /* Keep price readable even on small screens */
   .price-input-main {
-    min-width: 70px !important;
-    max-width: 85px !important;
-    font-size: 0.8rem !important;
-    padding: 4px 6px !important;
+    min-width: 64px;
+    max-width: 80px;
+    font-size: 0.8rem;
+    padding: 4px 6px;
   }
   
   .items-table th:nth-child(4),
   .items-table td:nth-child(4) {
     min-width: 70px;
-    width: 4% !important; /* الحفاظ على النسبة المئوية حتى على الشاشات الصغيرة */
+    width: 4%; /* الحفاظ على النسبة المئوية حتى على الشاشات الصغيرة */
   }
 }
 

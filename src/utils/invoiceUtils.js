@@ -19,13 +19,27 @@ export const daysBetween = (date1, date2) => {
  * @param {string} currentStatus - The current payment status
  * @returns {string} - Updated payment status
  */
-export const getAutoPaymentStatus = (dueDate, currentStatus) => {
-  // If already paid, don't change status
+export const getAutoPaymentStatus = (dueDate, currentStatus, paidAmount = 0, total = 0) => {
+  // Normalize numeric inputs
+  const paid = parseFloat(paidAmount || 0)
+  const tot = parseFloat(total || 0)
+
+  // If paid amount covers or exceeds total, mark as paid
+  if (tot > 0 && paid >= tot) {
+    return 'paid'
+  }
+
+  // If some payment has been made but not full amount -> partial
+  if (tot > 0 && paid > 0 && paid < tot) {
+    return 'partial'
+  }
+
+  // If already paid (legacy flag) keep it
   if (currentStatus === 'paid') {
     return 'paid'
   }
 
-  // If no due date specified, keep current status
+  // If no due date specified, keep current status (or default to pending)
   if (!dueDate) {
     return currentStatus || 'pending'
   }
@@ -51,7 +65,12 @@ export const getAutoPaymentStatus = (dueDate, currentStatus) => {
  */
 export const updateInvoicesStatus = (invoices) => {
   return invoices.map(invoice => {
-    const newStatus = getAutoPaymentStatus(invoice.dueDate, invoice.paymentStatus)
+    const newStatus = getAutoPaymentStatus(
+      invoice.dueDate,
+      invoice.paymentStatus,
+      parseFloat(invoice.paidAmount) || 0,
+      parseFloat(invoice.total) || 0
+    )
     
     // Only update if status has changed
     if (newStatus !== invoice.paymentStatus) {

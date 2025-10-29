@@ -3,7 +3,7 @@ import { useAccounting } from '../hooks/useAccounting'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useBrand } from '../contexts/BrandContext'
-import { updateInvoicesStatus, getInvoiceNotifications, getDaysInfo } from '../utils/invoiceUtils'
+import { updateInvoicesStatus, getInvoiceNotifications, getDaysInfo, getAutoPaymentStatus } from '../utils/invoiceUtils'
 import InvoiceNotifications from './InvoiceNotifications'
 import PermissionDenied from './PermissionDenied'
 import './Invoices.css'
@@ -18,7 +18,9 @@ const Invoices = () => {
     updateInvoice,
     deleteInvoice,
     getInventoryItems,
-    updateInventoryItem
+    updateInventoryItem,
+    addJournalEntry,
+    createJournalEntryFromInvoice
   } = useAccounting()
   const { t, language, notificationsEnabled } = useLanguage()
   const { hasPermission } = useAuth()
@@ -46,6 +48,13 @@ const Invoices = () => {
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState('')
   const [pendingEditInvoice, setPendingEditInvoice] = useState(null)
+
+  // 🆕 Return Invoice States (إرجاع الفاتورة)
+  const [showReturnModal, setShowReturnModal] = useState(false)
+  const [returningInvoice, setReturningInvoice] = useState(null)
+  const [returnItems, setReturnItems] = useState([])
+  const [returnReason, setReturnReason] = useState('')
+  const [returnInventoryStatus, setReturnInventoryStatus] = useState({}) // لتتبع توفر المنتجات
 
   // Refs for dropdown management
   const dropdownRefs = useRef({})
@@ -146,6 +155,8 @@ const Invoices = () => {
         // حقول اللون المخصص
         customColorName: '',
         customColorCode: '',
+    expiryMonth: '',
+    expiryYear: ''
   // تاريخ انتهاء الصلاحية للشحنة الجديدة (محذوف من واجهة الفاتورة)
       }
     ],
@@ -251,8 +262,9 @@ const Invoices = () => {
           // حقول اللون المخصص
           customColorName: '',
           customColorCode: '',
-          // تاريخ انتهاء الصلاحية
-          expiryDate: ''
+          // تاريخ انتهاء الصلاحية (شهر/سنة)
+          expiryMonth: '',
+          expiryYear: ''
         }
       ],
       subtotal: 0,
@@ -449,6 +461,55 @@ const Invoices = () => {
     return () => window.removeEventListener('openInvoice', handler)
   }, [invoices])
 
+  // التحقق من توفر المنتجات في المخزون عند تغيير كميات الإرجاع
+  useEffect(() => {
+    if (!showReturnModal || returnItems.length === 0 || !returningInvoice) {
+      setReturnInventoryStatus({})
+      return
+    }
+
+    const inventoryItems = getInventoryItems()
+    const status = {}
+
+    returnItems.forEach((item, index) => {
+      if (item.returnQuantity > 0) {
+        const inventoryItem = inventoryItems.find(inv => inv.name === item.itemName)
+        
+        if (returningInvoice.type === 'purchase') {
+          // إرجاع مشتريات: يجب التحقق من توفر الكمية
+          if (!inventoryItem) {
+            status[index] = {
+              available: false,
+              message: language === 'ar' ? 'المنتج غير موجود في المخزون' : 'Product not in inventory',
+              color: '#dc3545'
+            }
+          } else {
+            const availableQty = parseFloat(inventoryItem.quantity) || 0
+            const isAvailable = availableQty >= item.returnQuantity
+            
+            status[index] = {
+              available: isAvailable,
+              availableQty: availableQty,
+              message: isAvailable 
+                ? `✓ ${language === 'ar' ? 'متوفر' : 'Available'} (${availableQty})`
+                : `✗ ${language === 'ar' ? 'غير كافي' : 'Insufficient'} (${language === 'ar' ? 'متوفر' : 'available'}: ${availableQty})`,
+              color: isAvailable ? '#28a745' : '#dc3545'
+            }
+          }
+        } else if (returningInvoice.type === 'sales') {
+          // إرجاع مبيعات: لا يشترط توفر المنتج - سيتم إضافته
+          status[index] = {
+            available: true,
+            message: `✓ ${language === 'ar' ? 'سيتم الإضافة للمخزون' : 'Will be added to inventory'}`,
+            color: '#28a745'
+          }
+        }
+      }
+    })
+
+    setReturnInventoryStatus(status)
+  }, [returnItems, showReturnModal, returningInvoice, language])
+
   const addItem = () => {
     setFormData(prev => calculateTotals({
       ...prev,
@@ -472,7 +533,8 @@ const Invoices = () => {
         customColorName: '',
         customColorCode: '',
         // تاريخ انتهاء الصلاحية للشحنة الجديدة
-        expiryDate: ''
+        expiryMonth: '',
+        expiryYear: ''
       }]
     }))
   }
@@ -552,8 +614,8 @@ const Invoices = () => {
     // تحديد السعر المناسب حسب نوع الفاتورة
     let unitPrice = 0
     if (formData.type === 'purchase') {
-      // للمشتريات: استخدم سعر الشراء أو سعر البيع كقيمة افتراضية
-      unitPrice = product.purchasePrice || product.price || product.unitPrice || 0
+      // للمشتريات: استخدم سعر الشراء فقط (لا تستخدم سعر البيع كبديل)
+      unitPrice = product.purchasePrice || 0
     } else {
       // للمبيعات: استخدم سعر البيع
       unitPrice = product.price || product.unitPrice || 0
@@ -585,8 +647,9 @@ const Invoices = () => {
       // خانات اللون المخصص
       customColorName: '',
       customColorCode: '',
-      // تاريخ انتهاء الصلاحية - فارغ دائماً للمنتجات الجديدة
-      expiryDate: ''
+      // تاريخ انتهاء الصلاحية - فارغ دائماً للمنتجات الجديدة (شهر/سنة)
+      expiryMonth: '',
+      expiryYear: ''
     }
     
     setFormData(prev => calculateTotals({ ...prev, items: newItems }))
@@ -608,7 +671,14 @@ const Invoices = () => {
             const selectedInventoryItem = inventoryItems?.find(invItem => invItem.id === value)
             if (selectedInventoryItem) {
               updatedItem.itemName = selectedInventoryItem.name
-              updatedItem.unitPrice = selectedInventoryItem.price || 0
+              // استخدام السعر المناسب حسب نوع الفاتورة
+              if (prev.type === 'purchase') {
+                // فواتير المشتريات: استخدام سعر الشراء
+                updatedItem.unitPrice = selectedInventoryItem.purchasePrice || 0
+              } else {
+                // فواتير المبيعات: استخدام سعر البيع
+                updatedItem.unitPrice = selectedInventoryItem.price || 0
+              }
             }
           }
 
@@ -907,6 +977,94 @@ const Invoices = () => {
         updateInventoryItem(inv.id, { ...inv, quantity: updatedQty, price: finalPrice })
       }
     })
+  }
+
+  // دالة عكس القيود المحاسبية المرتبطة بالفاتورة
+  // Reverse journal entries related to an invoice (for edit/delete operations)
+  const reverseJournalEntriesForInvoice = (invoice) => {
+    if (!invoice || !invoice.invoiceNumber) {
+      console.log('⚠️ لا يمكن عكس القيود - فاتورة غير صالحة')
+      return
+    }
+
+    try {
+      const journalEntries = JSON.parse(localStorage.getItem('journalEntries') || '[]')
+      
+      console.log('📋 إجمالي القيود في النظام:', journalEntries.length)
+      console.log('🔍 البحث عن قيود للفاتورة:', invoice.invoiceNumber)
+      
+      // البحث عن جميع القيود المرتبطة بهذه الفاتورة (باستثناء القيود العكسية)
+      // نبحث عن: INV-رقم_الفاتورة، PAY-رقم_الفاتورة، BAL-DED-رقم_الفاتورة
+      const relatedEntries = journalEntries.filter(entry => {
+        if (!entry.reference) return false
+        
+        // تجاهل القيود العكسية
+        if (entry.reference.startsWith('REV-')) return false
+        if (entry.type === 'reversal') return false
+        
+        // البحث عن القيود المرتبطة بهذه الفاتورة
+        // يجب أن يحتوي reference على رقم الفاتورة كاملاً
+        const hasInvoiceNumber = entry.reference.includes(invoice.invoiceNumber)
+        
+        if (hasInvoiceNumber) {
+          console.log(`   ✅ قيد مطابق: ${entry.reference}`)
+        }
+        
+        return hasInvoiceNumber
+      })
+
+      console.log(`� عدد القيود المرتبطة (غير العكسية): ${relatedEntries.length}`)
+
+      if (relatedEntries.length === 0) {
+        console.log('⚠️ لا توجد قيود محاسبية مرتبطة بالفاتورة:', invoice.invoiceNumber)
+        return
+      }
+
+      console.log(`🔄 إنشاء قيود عكسية لـ ${relatedEntries.length} قيد`)
+
+      // إنشاء قيد عكسي لكل قيد مرتبط
+      let successCount = 0
+      relatedEntries.forEach((entry, index) => {
+        console.log(`\n🔄 [${index + 1}/${relatedEntries.length}] عكس القيد: ${entry.reference}`)
+        
+        const reversedLines = (entry.lines || []).map(line => {
+          const reversed = {
+            accountId: line.accountId,
+            accountCode: line.accountCode,
+            accountName: line.accountName,
+            debit: parseFloat(line.credit) || 0,  // عكس المدين والدائن
+            credit: parseFloat(line.debit) || 0,
+            description: line.description
+          }
+          console.log(`   ${line.accountName}: مدين ${line.debit} / دائن ${line.credit} → مدين ${reversed.debit} / دائن ${reversed.credit}`)
+          return reversed
+        })
+
+        const reversalEntry = {
+          date: new Date().toISOString().split('T')[0],
+          description: `${language === 'ar' ? 'قيد عكسي - حذف فاتورة' : 'Reversal - Invoice Deletion'} - ${entry.description || entry.reference}`,
+          reference: `REV-${entry.reference}`,
+          lines: reversedLines,
+          type: 'reversal'
+        }
+
+        // استخدام addJournalEntry من الـ hook حتى يتم تحديث أرصدة الحسابات تلقائياً
+        const result = addJournalEntry(reversalEntry)
+        if (result.success) {
+          successCount++
+          console.log(`✅ تم إنشاء القيد العكسي: ${reversalEntry.reference}`)
+        } else {
+          console.error(`❌ فشل إنشاء القيد العكسي: ${reversalEntry.reference}`, result.error)
+        }
+      })
+
+      console.log(`\n✅ تم إنشاء ${successCount} من ${relatedEntries.length} قيد عكسي بنجاح`)
+
+      // إطلاق حدث لتحديث البيانات في جميع المكونات
+      window.dispatchEvent(new Event('accountingDataUpdated'))
+    } catch (error) {
+      console.error('❌ خطأ في عكس القيود المحاسبية:', error)
+    }
   }
 
   // Function to display simple invoice number
@@ -1453,9 +1611,13 @@ const Invoices = () => {
               </div>
               <div class="invoice-details">
                 <div class="invoice-number">${language === 'ar' ? 'رقم الفاتورة | Invoice No' : 'Invoice No | رقم الفاتورة'}: ${invoiceNumber}</div>
-                <div class="invoice-type">${invoice.type === 'sales' ? 
-                  (language === 'ar' ? 'فاتورة مبيعات | Sales Invoice' : 'Sales Invoice | فاتورة مبيعات') : 
-                  (language === 'ar' ? 'فاتورة مشتريات | Purchase Invoice' : 'Purchase Invoice | فاتورة مشتريات')
+                <div class="invoice-type">${invoice.isReturn 
+                  ? (invoice.type === 'sales'
+                      ? (language === 'ar' ? 'مرتجع مبيعات | Sales Return' : 'Sales Return | مرتجع مبيعات')
+                      : (language === 'ar' ? 'مرتجع مشتريات | Purchase Return' : 'Purchase Return | مرتجع مشتريات'))
+                  : (invoice.type === 'sales' 
+                      ? (language === 'ar' ? 'فاتورة مبيعات | Sales Invoice' : 'Sales Invoice | فاتورة مبيعات') 
+                      : (language === 'ar' ? 'فاتورة مشتريات | Purchase Invoice' : 'Purchase Invoice | فاتورة مشتريات'))
                 }</div>
               </div>
             </div>
@@ -1507,7 +1669,7 @@ const Invoices = () => {
                   const discountAmount = item.discountAmount || 0;
                   const discountDisplay = discountAmount > 0 ? discountAmount.toFixed(2) : '-';
                   
-                  // عرض اللون
+                  // عرض اللون / الإضافات — إذا كان هناك سعر إضافي فقط اعرضه حتى بدون اسم
                   let colorDisplay = '-';
                   if (item.color === 'custom' && item.customColorName) {
                     colorDisplay = item.customColorName;
@@ -1515,6 +1677,9 @@ const Invoices = () => {
                   } else if (item.color && item.color !== 'custom') {
                     colorDisplay = item.color;
                     if (item.colorPrice > 0) colorDisplay += ` (+${item.colorPrice})`;
+                  } else if ((item.colorPrice || 0) > 0) {
+                    // No color name but there is an extras price — show the price
+                    colorDisplay = `+${item.colorPrice}`
                   }
                   
                   const colorPrice = item.colorPrice || 0;
@@ -1741,12 +1906,18 @@ const Invoices = () => {
       if (paymentEntry.lines.length > 0) {
         const journalEntries = JSON.parse(localStorage.getItem('journalEntries') || '[]')
         
-        // التحقق من عدم وجود قيد دفع بنفس المرجع
-        const duplicatePayment = journalEntries.find(entry => entry.reference === paymentReference)
+        // التحقق من عدم وجود قيد دفع نشط (غير معكوس) بنفس المرجع
+        const existingPayment = journalEntries.find(entry => entry.reference === paymentReference)
+        const hasReversalEntry = journalEntries.find(entry => entry.reference === `REV-${paymentReference}`)
         
-        if (duplicatePayment) {
-          console.warn('⚠️ قيد الدفع موجود مسبقاً بنفس المرجع:', paymentReference)
+        // إذا كان القيد موجود ولم يتم عكسه، فهو مكرر
+        if (existingPayment && !hasReversalEntry) {
+          console.warn('⚠️ قيد الدفع موجود مسبقاً ونشط (لم يتم عكسه):', paymentReference)
+          console.log('   → تخطي إنشاء قيد دفع مكرر')
         } else {
+          if (existingPayment && hasReversalEntry) {
+            console.log('✅ قيد الدفع القديم تم عكسه، يمكن إنشاء قيد جديد:', paymentReference)
+          }
           const newEntry = {
             id: Date.now().toString(),
             ...paymentEntry
@@ -1847,37 +2018,53 @@ const Invoices = () => {
             .find(acc => acc.linkedEntityType === 'customer' && acc.linkedEntityId === entityId)
           
           if (customerAccount) {
-            const journalEntry = {
-              date: new Date().toISOString().split('T')[0],
-              description: `خصم من رصيد العميل - فاتورة رقم ${invoice.invoiceNumber}`,
-              reference: `BAL-DED-${invoice.invoiceNumber}`,
-              lines: [
-                {
-                  accountCode: customerAccount.code,
-                  accountName: customerAccount.name,
-                  debit: 0,
-                  credit: amount,
-                  description: 'خصم من رصيد العميل'
-                },
-                {
-                  accountCode: '1101',
-                  accountName: 'المذمم - العملاء',
-                  debit: amount,
-                  credit: 0,
-                  description: 'تسديد من الرصيد'
-                }
-              ]
-            }
-            
+            const balanceReference = `BAL-DED-${invoice.invoiceNumber}`
             const journalEntries = JSON.parse(localStorage.getItem('journalEntries') || '[]')
-            const newEntry = {
-              id: Date.now().toString(),
-              entryNumber: journalEntries.length + 1,
-              createdAt: new Date().toISOString(),
-              ...journalEntry
+            
+            // التحقق من عدم وجود قيد خصم رصيد نشط (غير معكوس) بنفس المرجع
+            const existingBalanceEntry = journalEntries.find(entry => entry.reference === balanceReference)
+            const hasReversalEntry = journalEntries.find(entry => entry.reference === `REV-${balanceReference}`)
+            
+            // إذا كان القيد موجود ولم يتم عكسه، فهو مكرر
+            if (existingBalanceEntry && !hasReversalEntry) {
+              console.warn('⚠️ قيد خصم الرصيد موجود مسبقاً ونشط (لم يتم عكسه):', balanceReference)
+            } else {
+              if (existingBalanceEntry && hasReversalEntry) {
+                console.log('✅ قيد خصم الرصيد القديم تم عكسه، يمكن إنشاء قيد جديد:', balanceReference)
+              }
+              
+              const journalEntry = {
+                date: new Date().toISOString().split('T')[0],
+                description: `خصم من رصيد العميل - فاتورة رقم ${invoice.invoiceNumber}`,
+                reference: balanceReference,
+                lines: [
+                  {
+                    accountCode: customerAccount.code,
+                    accountName: customerAccount.name,
+                    debit: 0,
+                    credit: amount,
+                    description: 'خصم من رصيد العميل'
+                  },
+                  {
+                    accountCode: '1101',
+                    accountName: 'المذمم - العملاء',
+                    debit: amount,
+                    credit: 0,
+                    description: 'تسديد من الرصيد'
+                  }
+                ]
+              }
+              
+              const newEntry = {
+                id: Date.now().toString(),
+                entryNumber: journalEntries.length + 1,
+                createdAt: new Date().toISOString(),
+                ...journalEntry
+              }
+              journalEntries.push(newEntry)
+              localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
+              console.log('✅ تم إنشاء قيد خصم الرصيد:', balanceReference)
             }
-            journalEntries.push(newEntry)
-            localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
           }
           
           console.log(`✅ تم تحديث رصيد العميل: ${currentBalance.toFixed(3)} → ${newBalance.toFixed(3)} د.ك`)
@@ -1919,37 +2106,53 @@ const Invoices = () => {
             .find(acc => acc.linkedEntityType === 'supplier' && acc.linkedEntityId === entityId)
           
           if (supplierAccount) {
-            const journalEntry = {
-              date: new Date().toISOString().split('T')[0],
-              description: `خصم من رصيد المورد - فاتورة رقم ${invoice.invoiceNumber}`,
-              reference: `BAL-DED-${invoice.invoiceNumber}`,
-              lines: [
-                {
-                  accountCode: supplierAccount.code,
-                  accountName: supplierAccount.name,
-                  debit: amount,
-                  credit: 0,
-                  description: 'خصم من رصيد المورد'
-                },
-                {
-                  accountCode: '2101',
-                  accountName: 'الدائنون - الموردين',
-                  debit: 0,
-                  credit: amount,
-                  description: 'تسديد من الرصيد'
-                }
-              ]
-            }
-            
+            const balanceReference = `BAL-DED-${invoice.invoiceNumber}`
             const journalEntries = JSON.parse(localStorage.getItem('journalEntries') || '[]')
-            const newEntry = {
-              id: Date.now().toString(),
-              entryNumber: journalEntries.length + 1,
-              createdAt: new Date().toISOString(),
-              ...journalEntry
+            
+            // التحقق من عدم وجود قيد خصم رصيد نشط (غير معكوس) بنفس المرجع
+            const existingBalanceEntry = journalEntries.find(entry => entry.reference === balanceReference)
+            const hasReversalEntry = journalEntries.find(entry => entry.reference === `REV-${balanceReference}`)
+            
+            // إذا كان القيد موجود ولم يتم عكسه، فهو مكرر
+            if (existingBalanceEntry && !hasReversalEntry) {
+              console.warn('⚠️ قيد خصم الرصيد موجود مسبقاً ونشط (لم يتم عكسه):', balanceReference)
+            } else {
+              if (existingBalanceEntry && hasReversalEntry) {
+                console.log('✅ قيد خصم الرصيد القديم تم عكسه، يمكن إنشاء قيد جديد:', balanceReference)
+              }
+              
+              const journalEntry = {
+                date: new Date().toISOString().split('T')[0],
+                description: `خصم من رصيد المورد - فاتورة رقم ${invoice.invoiceNumber}`,
+                reference: balanceReference,
+                lines: [
+                  {
+                    accountCode: supplierAccount.code,
+                    accountName: supplierAccount.name,
+                    debit: amount,
+                    credit: 0,
+                    description: 'خصم من رصيد المورد'
+                  },
+                  {
+                    accountCode: '2101',
+                    accountName: 'الدائنون - الموردين',
+                    debit: 0,
+                    credit: amount,
+                    description: 'تسديد من الرصيد'
+                  }
+                ]
+              }
+              
+              const newEntry = {
+                id: Date.now().toString(),
+                entryNumber: journalEntries.length + 1,
+                createdAt: new Date().toISOString(),
+                ...journalEntry
+              }
+              journalEntries.push(newEntry)
+              localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
+              console.log('✅ تم إنشاء قيد خصم الرصيد:', balanceReference)
             }
-            journalEntries.push(newEntry)
-            localStorage.setItem('journalEntries', JSON.stringify(journalEntries))
           }
           
           console.log(`✅ تم تحديث رصيد المورد: ${currentBalance.toFixed(3)} → ${newBalance.toFixed(3)} د.ك`)
@@ -2067,17 +2270,66 @@ const Invoices = () => {
     try {
       let result
       if (editingInvoice) {
-        // Reconcile inventory according to old invoice before saving new one
-        reconcileInventoryOnEdit(editingInvoice, validItems, formData.paymentStatus)
+        console.log('✏️ تعديل فاتورة موجودة:', editingInvoice.invoiceNumber)
         
-        result = updateInvoice(editingInvoice.id, invoiceData)
-        
-        if (result.success) {
-          // Force refresh of inventory data after update to ensure UI consistency
-          setTimeout(() => {
-            // This ensures the UI reflects the latest inventory changes
-            const freshInventory = getInventoryItems()
-          }, 100)
+        if (editingInvoice.type === 'purchase') {
+          // فواتير المشتريات: لا يمكن تعديلها، فقط الملاحظات
+          console.log('📝 تعديل ملاحظات فاتورة المشتريات فقط')
+          result = updateInvoice(editingInvoice.id, {
+            ...editingInvoice,
+            notes: formData.notes,
+          })
+          
+          if (result.success) {
+            console.log('✅ تم تحديث ملاحظات فاتورة المشتريات بنجاح')
+          }
+        } else if (editingInvoice.type === 'sales') {
+          // فواتير المبيعات: يمكن تعديلها بالكامل
+          console.log('🔄 تعديل كامل لفاتورة المبيعات')
+          
+          // 1. عكس تأثير الفاتورة القديمة على المخزون
+          console.log('📦 عكس تأثير الفاتورة القديمة على المخزون')
+          editingInvoice.items.forEach(item => {
+            const inventoryItems = getInventoryItems()
+            const inventoryItem = inventoryItems.find(inv => inv.name === item.itemName)
+            if (inventoryItem) {
+              const currentQty = parseFloat(inventoryItem.quantity) || 0
+              const oldItemQty = parseFloat(item.quantity) || 0
+              const newQuantity = currentQty + oldItemQty // إرجاع الكمية القديمة للمخزون
+              
+              updateInventoryItem(inventoryItem.id, {
+                ...inventoryItem,
+                quantity: newQuantity
+              })
+              console.log(`  - ${item.itemName}: ${currentQty} -> ${newQuantity} (إرجاع ${oldItemQty})`)
+            }
+          })
+          
+          // 2. عكس القيود المحاسبية القديمة
+          console.log('📊 عكس القيود المحاسبية القديمة')
+          reverseJournalEntriesForInvoice(editingInvoice.invoiceNumber)
+          
+          // 3. تطبيق الفاتورة الجديدة
+          console.log('✨ تطبيق الفاتورة المعدلة الجديدة')
+          result = updateInvoice(editingInvoice.id, invoiceData)
+          
+          if (result.success) {
+            // 4. تطبيق تأثير الفاتورة الجديدة على المخزون
+            console.log('📦 تطبيق تأثير الفاتورة الجديدة على المخزون (خصم من المخزون)')
+            updateInventoryForSale(validItems)
+            
+            // 5. تسجيل القيود المحاسبية الجديدة
+            console.log('📊 تسجيل القيود المحاسبية الجديدة')
+            if (formData.recordPaymentNow && formData.paymentBankAccountId) {
+              recordImmediatePayment(result.data)
+            }
+            
+            if (formData.deductFromBalance) {
+              deductFromBalance(result.data)
+            }
+            
+            console.log('✅ تم تحديث فاتورة المبيعات بنجاح')
+          }
         }
       } else {
         result = addInvoice(invoiceData)
@@ -2090,12 +2342,9 @@ const Invoices = () => {
             updateInventoryForPurchase(validItems)
           }
           
-          // Record immediate payment if requested
-          if (formData.recordPaymentNow && (formData.paymentBankAccountId || result.data.paymentBankAccountId)) {
-            console.log('💰 تسجيل الدفع فوراً...')
-            // prefer the payment account stored on the saved invoice, fallback to formData
-            recordImmediatePayment(result.data)
-          }
+          // ملاحظة: لا نحتاج لاستدعاء recordImmediatePayment هنا
+          // لأن القيد المحاسبي التلقائي (INV-) يتضمن بالفعل حساب الخزينة/البنك
+          // عندما تكون الفاتورة مدفوعة (paymentStatus: 'paid')
           
           // Deduct from balance if requested
           console.log('🔍 فحص خيار خصم من الرصيد:', {
@@ -2122,6 +2371,7 @@ const Invoices = () => {
         showNotification(result.error, 'error')
       }
     } catch (err) {
+      console.error('❌ خطأ في معالجة الفاتورة:', err)
       showNotification(t('unexpectedError'), 'error')
     }
   }
@@ -2156,10 +2406,15 @@ const Invoices = () => {
 
   const handleDelete = async (invoice) => {
     if (window.confirm(`${t('confirmDelete')} "${invoice.invoiceNumber}"؟`)) {
-      // First reverse the inventory effects before deleting
+      console.log('🗑️ حذف الفاتورة:', invoice.invoiceNumber)
+      
+      // 1. عكس القيود المحاسبية المرتبطة بالفاتورة
+      reverseJournalEntriesForInvoice(invoice)
+      
+      // 2. عكس تأثير المخزون
       reverseInventoryEffectsOnDelete(invoice)
       
-      // Then delete the invoice
+      // 3. حذف الفاتورة
       const result = deleteInvoice(invoice.id)
       if (result.success) {
         showNotification(t('invoiceDeletedSuccess'))
@@ -2168,6 +2423,167 @@ const Invoices = () => {
       } else {
         showNotification(result.error, 'error')
       }
+    }
+  }
+
+  // 🆕 فتح نموذج إرجاع الفاتورة
+  const openReturnModal = (invoice) => {
+    console.log('🔄 فتح نموذج إرجاع للفاتورة:', invoice.invoiceNumber)
+    
+    // إعداد عناصر الإرجاع مع الكميات القابلة للإرجاع
+    const items = (invoice.items || []).map(item => ({
+      ...item,
+      returnQuantity: 0, // الكمية المراد إرجاعها
+      maxQuantity: parseFloat(item.quantity) || 0, // الكمية الأصلية
+      canReturn: true
+    }))
+    
+    setReturningInvoice(invoice)
+    setReturnItems(items)
+    setReturnReason('')
+    setShowReturnModal(true)
+  }
+
+  // 🆕 معالجة إرجاع الفاتورة
+  const handleReturnInvoice = async () => {
+    if (!returningInvoice) return
+
+    // التحقق من وجود عناصر للإرجاع
+    const itemsToReturn = returnItems.filter(item => item.returnQuantity > 0)
+    
+    if (itemsToReturn.length === 0) {
+      setModalError(language === 'ar' ? 'يرجى تحديد كمية للإرجاع' : 'Please specify quantity to return')
+      return
+    }
+
+    // التحقق من المخزون حسب نوع الفاتورة
+    const inventoryItems = getInventoryItems()
+    
+    console.log('🔍 التحقق من توفر المنتجات في المخزون...')
+    console.log(`📋 نوع الفاتورة: ${returningInvoice.type}`)
+    
+    for (const item of itemsToReturn) {
+      const inventoryItem = inventoryItems.find(inv => inv.name === item.itemName)
+      
+      if (returningInvoice.type === 'purchase') {
+        // إرجاع مشتريات: يجب أن تتوفر الكمية في المخزون (سنخصم منه ونسترجع المال)
+        if (!inventoryItem) {
+          setModalError(`❌ المنتج "${item.itemName}" غير موجود في المخزون`)
+          console.error(`❌ المنتج "${item.itemName}" غير موجود في المخزون`)
+          return
+        }
+        
+        const availableQty = parseFloat(inventoryItem.quantity) || 0
+        if (availableQty < item.returnQuantity) {
+          setModalError(
+            `❌ الكمية المتوفرة من "${item.itemName}" غير كافية للإرجاع للمورد\n` +
+            `المطلوب: ${item.returnQuantity} • المتوفر: ${availableQty}`
+          )
+          console.error(`❌ ${item.itemName}: مطلوب ${item.returnQuantity} لكن متوفر ${availableQty}`)
+          return
+        }
+        
+        console.log(`  ✅ ${item.itemName}: متوفر ${availableQty} (مطلوب ${item.returnQuantity})`)
+      } else if (returningInvoice.type === 'sales') {
+        // إرجاع مبيعات: لا نحتاج للتحقق لأننا سنضيف للمخزون
+        console.log(`  ℹ️ ${item.itemName}: إرجاع مبيعات - سيتم إضافة ${item.returnQuantity} للمخزون`)
+      }
+    }
+    
+    console.log('✅ التحقق من المخزون اكتمل بنجاح')
+
+    // حساب إجمالي الإرجاع
+    const returnTotal = itemsToReturn.reduce((sum, item) => {
+      const itemTotal = item.returnQuantity * (parseFloat(item.unitPrice) || 0)
+      const itemDiscount = parseFloat(item.discount) || 0
+      return sum + (itemTotal - itemDiscount)
+    }, 0)
+
+    try {
+      console.log('🔄 بدء عملية الإرجاع للفاتورة:', returningInvoice.invoiceNumber)
+      console.log(`💰 المبلغ الإجمالي للفاتورة الأصلية: ${returningInvoice.total.toFixed(3)} د.ك`)
+      console.log(`� المبلغ المرتجع: ${returnTotal.toFixed(3)} د.ك`)
+      
+      // إنشاء فاتورة إرجاع مع قيود محاسبية للمبلغ المرتجع فقط
+      console.log('📝 إنشاء فاتورة إرجاع مع قيود محاسبية')
+      const returnInvoiceData = {
+        type: returningInvoice.type,
+        clientId: returningInvoice.clientId,
+        clientName: returningInvoice.clientName,
+        date: new Date().toISOString().split('T')[0],
+        invoiceNumber: `RET-${returningInvoice.invoiceNumber}`,
+        originalInvoiceNumber: returningInvoice.invoiceNumber,
+        isReturn: true,
+        returnReason: returnReason,
+        items: itemsToReturn.map(item => ({
+          ...item,
+          quantity: item.returnQuantity
+        })),
+        subtotal: returnTotal,
+        discount: 0,
+        discountAmount: 0,
+        vatAmount: 0,
+        total: returnTotal,
+        paymentStatus: 'paid',
+        createJournalEntry: true, // ✅ ننشئ قيود للمبلغ المرتجع
+        paymentMethod: returningInvoice.paymentMethod || 'cash',
+        paymentBankAccountId: returningInvoice.paymentBankAccountId || null
+      }
+
+      const result = addInvoice(returnInvoiceData)
+      
+      if (result.success) {
+        console.log('✅ تم إنشاء فاتورة الإرجاع بنجاح')
+        console.log('📊 تم إنشاء قيود محاسبية للمبلغ المرتجع')
+        
+        // تحديث المخزون حسب نوع الفاتورة
+        console.log('📦 تحديث المخزون')
+        
+        if (returningInvoice.type === 'purchase') {
+          // إرجاع مشتريات: خصم من المخزون (نرجع للمورد) + زيادة الرصيد
+          console.log('  📦 إرجاع مشتريات: خصم من المخزون')
+          itemsToReturn.forEach(item => {
+            const inventoryItem = inventoryItems.find(inv => inv.name === item.itemName)
+            if (inventoryItem) {
+              const oldQty = parseFloat(inventoryItem.quantity) || 0
+              const newQty = Math.max(0, oldQty - item.returnQuantity)
+              updateInventoryItem(inventoryItem.id, { ...inventoryItem, quantity: newQty })
+              console.log(`    📦 ${item.itemName}: ${oldQty} -> ${newQty} (-${item.returnQuantity})`)
+            }
+          })
+          console.log(`  💰 زيادة رصيد الخزينة/البنوك: +${returnTotal.toFixed(3)} د.ك`)
+        } else if (returningInvoice.type === 'sales') {
+          // إرجاع مبيعات: إضافة للمخزون (يرجع من العميل) + تقليل الرصيد
+          console.log('  📦 إرجاع مبيعات: إضافة للمخزون')
+          itemsToReturn.forEach(item => {
+            const inventoryItem = inventoryItems.find(inv => inv.name === item.itemName)
+            if (inventoryItem) {
+              const oldQty = parseFloat(inventoryItem.quantity) || 0
+              const newQty = oldQty + item.returnQuantity
+              updateInventoryItem(inventoryItem.id, { ...inventoryItem, quantity: newQty })
+              console.log(`    📦 ${item.itemName}: ${oldQty} -> ${newQty} (+${item.returnQuantity})`)
+            }
+          })
+          console.log(`  � تقليل رصيد الخزينة/البنوك: -${returnTotal.toFixed(3)} د.ك`)
+        }
+
+        console.log('✅ عملية الإرجاع اكتملت بنجاح')
+        
+        // 4. إغلاق النموذج وإظهار رسالة نجاح
+        setShowReturnModal(false)
+        showNotification(
+          language === 'ar' 
+            ? `✅ تم إنشاء فاتورة إرجاع رقم ${result.data.invoiceNumber}` 
+            : `✅ Return invoice ${result.data.invoiceNumber} created successfully`
+        )
+        refreshAllData()
+      } else {
+        console.error('❌ فشل في إنشاء فاتورة الإرجاع:', result.error)
+        setModalError(result.error)
+      }
+    } catch (err) {
+      console.error('❌ خطأ في معالجة الإرجاع:', err)
+      setModalError(language === 'ar' ? 'حدث خطأ في معالجة الإرجاع' : 'Error processing return')
     }
   }
 
@@ -2350,6 +2766,7 @@ const Invoices = () => {
             >
               <option value="all">{t('allStatuses')}</option>
               <option value="paid">{t('paid')}</option>
+              <option value="partial">{language === 'ar' ? 'مدفوعة جزئياً' : 'Partial'}</option>
               <option value="pending">{t('pending')}</option>
               <option value="overdue">{t('overdue')}</option>
             </select>
@@ -2420,8 +2837,13 @@ const Invoices = () => {
                     </span>
                   </td>
                   <td>
-                    <span className={`invoice-type ${invoice.type}`}>
-                      {invoice.type === 'sales' ? t('sales') : t('purchase')}
+                    <span className={`invoice-type ${invoice.type} ${invoice.isReturn ? 'return' : ''}`}>
+                      {invoice.isReturn 
+                        ? (invoice.type === 'sales' 
+                            ? (language === 'ar' ? 'مرتجع مبيعات' : 'Sales Return') 
+                            : (language === 'ar' ? 'مرتجع مشتريات' : 'Purchase Return'))
+                        : (invoice.type === 'sales' ? t('sales') : t('purchase'))
+                      }
                       {hasDiscount(invoice) && <span className="discount-indicator" title={t('hasDiscount')}> 📊</span>}
                       {hasVAT(invoice) && <span className="vat-indicator" title={t('hasVAT')}> 💰</span>}
                     </span>
@@ -2464,6 +2886,7 @@ const Invoices = () => {
                   <td>
                     <span className={`payment-status ${invoice.paymentStatus || 'paid'}`}>
                       {invoice.paymentStatus === 'paid' && t('paid')}
+                      {invoice.paymentStatus === 'partial' && (language === 'ar' ? 'مدفوعة جزئياً' : 'Partial')}
                       {invoice.paymentStatus === 'pending' && t('pending')}
                       {invoice.paymentStatus === 'overdue' && t('overdue')}
                       {!invoice.paymentStatus && t('paid')}
@@ -2476,7 +2899,7 @@ const Invoices = () => {
                           className="btn btn-secondary btn-sm"
                           onClick={() => openModal(invoice)}
                         >
-                          {t('viewEdit')}
+                          {t('view')}
                         </button>
                       )}
                       {hasPermission('print_reports') && (
@@ -2487,12 +2910,13 @@ const Invoices = () => {
                           {t('print')}
                         </button>
                       )}
-                      {hasPermission('delete_invoices') && (
+                      {hasPermission('delete_invoices') && !invoice.isReturn && (
                         <button 
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(invoice)}
+                          className="btn btn-warning btn-sm"
+                          onClick={() => openReturnModal(invoice)}
+                          style={{ backgroundColor: '#ff9800', borderColor: '#ff9800' }}
                         >
-                          {t('delete')}
+                          🔄 {language === 'ar' ? 'إرجاع' : 'Return'}
                         </button>
                       )}
                     </div>
@@ -2517,9 +2941,34 @@ const Invoices = () => {
         <div className="modal-overlay">
           <div className="modal-content invoice-modal">
             <div className="modal-header">
-              <h2>{editingInvoice ? `${t('editInvoice')} ${editingInvoice.invoiceNumber}` : t('createNewInvoice')}</h2>
+              <h2>{editingInvoice ? `${language === 'ar' ? 'عرض الفاتورة' : 'View Invoice'} ${editingInvoice.invoiceNumber}` : t('createNewInvoice')}</h2>
               <button className="close-btn" onClick={closeModal}>&times;</button>
             </div>
+            
+            {/* تنبيه عند عرض فاتورة موجودة */}
+            {editingInvoice && (
+              <div style={{
+                backgroundColor: '#d1ecf1',
+                border: '1px solid #17a2b8',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                margin: '0 20px 15px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                direction: language === 'ar' ? 'rtl' : 'ltr'
+              }}>
+                <span style={{ fontSize: '20px' }}>👁️</span>
+                <div style={{ flex: 1, fontSize: '14px', color: '#0c5460' }}>
+                  <strong>{language === 'ar' ? 'عرض الفاتورة:' : 'View Invoice:'}</strong>
+                  {' '}
+                  {language === 'ar' 
+                    ? 'هذه الفاتورة للعرض فقط. يمكنك عرض التفاصيل وتعديل الملاحظات فقط. لإجراء تغييرات، يرجى استخدام خيار "إرجاع".'
+                    : 'This invoice is view-only. You can view details and edit notes only. To make changes, please use "Return" option.'
+                  }
+                </div>
+              </div>
+            )}
             
             {/* Error Message Display */}
             {modalError && (
@@ -2560,6 +3009,7 @@ const Invoices = () => {
                       value={formData.clientId}
                       onChange={(e) => handleClientChange(e.target.value)}
                       required
+                      disabled={editingInvoice}
                     >
                       <option value="">{formData.type === 'sales' ? t('selectClient') : t('selectSupplier')}</option>
                       {(formData.type === 'sales' ? customers : suppliers).map(client => (
@@ -2580,6 +3030,7 @@ const Invoices = () => {
                       value={formData.date}
                       onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                       required
+                      disabled={editingInvoice}
                     />
                   </div>
 
@@ -2589,6 +3040,7 @@ const Invoices = () => {
                       type="date"
                       value={formData.dueDate}
                       onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                      disabled={editingInvoice}
                     />
                   </div>
 
@@ -2598,8 +3050,10 @@ const Invoices = () => {
                       value={formData.paymentStatus}
                       onChange={(e) => setFormData(prev => ({ ...prev, paymentStatus: e.target.value }))}
                       required
+                      disabled={editingInvoice}
                     >
                       <option value="paid">{t('paid')}</option>
+                      <option value="partial">{language === 'ar' ? 'مدفوعة جزئياً' : 'Partial'}</option>
                       <option value="pending">{t('pending')}</option>
                       <option value="overdue">{t('overdue')}</option>
                     </select>
@@ -2631,6 +3085,7 @@ const Invoices = () => {
                           </div>
                         </th>
                         <th>{t('quantity')}</th>
+                        {/* Expiry column removed */}
                         <th>
                           {formData.type === 'purchase' 
                             ? (language === 'ar' ? 'سعر الشراء' : 'Purchase Price')
@@ -2664,15 +3119,33 @@ const Invoices = () => {
                                   placeholder={t('searchProduct')}
                                   className="product-search-input"
                                   required
+                                  disabled={editingInvoice}
+                                  style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
+                                  title={editingInvoice ? (language === 'ar' ? 'الفاتورة للعرض فقط' : 'Invoice is view-only') : ''}
                                 />
                               </div>
                             </div>
                           </td>
                           {/* Color Selection Column */}
                           <td>
-                            {item.requiresColor ? (
+                            {formData.type === 'purchase' ? (
+                              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                <input
+                                  type="number"
+                                  value={item.colorPrice || 0}
+                                  onChange={(e) => updateItem(index, 'colorPrice', parseFloat(e.target.value) || 0)}
+                                  placeholder={language === 'ar' ? 'سعر إضافي' : 'Extra cost'}
+                                  min="0"
+                                  step="0.25"
+                                  className="custom-price-compact"
+                                  title={language === 'ar' ? 'سعر إضافي' : 'Extra cost'}
+                                  disabled={editingInvoice}
+                                  style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
+                                />
+                              </div>
+                            ) : (
                               <div className="color-select-container">
-                                {/* Custom Color Input - Always Visible */}
+                                {/* Custom Color Input - Always Visible for All Items in Sales */}
                                 <div className="custom-color-compact">
                                   <input
                                     type="text"
@@ -2680,6 +3153,8 @@ const Invoices = () => {
                                     onChange={(e) => updateItem(index, 'customColorName', e.target.value)}
                                     placeholder={language === 'ar' ? 'اسم اللون' : 'Color name'}
                                     className="custom-input-compact"
+                                    disabled={editingInvoice}
+                                    style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
                                   />
                                   <input
                                     type="number"
@@ -2690,9 +3165,11 @@ const Invoices = () => {
                                     step="0.25"
                                     className="custom-price-compact"
                                     title={language === 'ar' ? 'سعر إضافي للون' : 'Additional color cost'}
+                                    disabled={editingInvoice}
+                                    style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
                                   />
                                 </div>
-                                
+                              
                                 {/* Color Price Display */}
                                 {item.customColorName && item.colorPrice > 0 && (
                                   <div className="color-price-compact">
@@ -2700,8 +3177,6 @@ const Invoices = () => {
                                   </div>
                                 )}
                               </div>
-                            ) : (
-                              <span className="no-color-compact">-</span>
                             )}
                           </td>
                           <td>
@@ -2712,8 +3187,12 @@ const Invoices = () => {
                               min="1"
                               step="1"
                               required
+                              disabled={editingInvoice}
+                              style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
+                              title={editingInvoice ? (language === 'ar' ? 'الفاتورة للعرض فقط' : 'Invoice is view-only') : ''}
                             />
                           </td>
+                          {/* expiry inputs removed */}
                           <td>
                             <div className="price-display">
                               <input
@@ -2750,11 +3229,16 @@ const Invoices = () => {
                                 step="0.001"
                                 placeholder="0"
                                 className="discount-input"
+                                disabled={editingInvoice}
+                                style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
+                                title={editingInvoice ? (language === 'ar' ? 'الفاتورة للعرض فقط' : 'Invoice is view-only') : ''}
                               />
                               <select
                                 value={item.discountType || 'amount'}
                                 onChange={(e) => updateItem(index, 'discountType', e.target.value)}
                                 className="discount-type-select"
+                                disabled={editingInvoice}
+                                style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
                               >
                                 <option value="amount">د.ك</option>
                                 <option value="percentage">%</option>
@@ -2774,7 +3258,8 @@ const Invoices = () => {
                           </td>
                           <td>
                             <div className="action-buttons">
-                              {formData.items.length > 1 && (
+                              {/* إخفاء زر الحذف عند عرض فاتورة موجودة */}
+                              {formData.items.length > 1 && !editingInvoice && (
                                 <button
                                   type="button"
                                   className="btn btn-danger btn-sm"
@@ -2791,12 +3276,14 @@ const Invoices = () => {
                   </table>
                 </div>
 
-                {/* زر إضافة عنصر - أسفل الجدول */}
-                <div style={{ marginTop: '10px', textAlign: language === 'ar' ? 'right' : 'left' }}>
-                  <button type="button" className="btn btn-secondary" onClick={addItem}>
-                    ➕ {t('addItem')}
-                  </button>
-                </div>
+                {/* زر إضافة عنصر - مخفي عند عرض فاتورة موجودة */}
+                {!editingInvoice && (
+                  <div style={{ marginTop: '10px', textAlign: language === 'ar' ? 'right' : 'left' }}>
+                    <button type="button" className="btn btn-secondary" onClick={addItem}>
+                      ➕ {t('addItem')}
+                    </button>
+                  </div>
+                )}
 
                 {/* Product Search Dropdowns - خارج الجدول للظهور فوق كل شيء */}
                 {Object.keys(searchResults).map(itemIndex => (
@@ -2902,11 +3389,16 @@ const Invoices = () => {
                           step="0.25"
                           placeholder="0"
                           className="compact-input"
+                          disabled={editingInvoice}
+                          style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
+                          title={editingInvoice ? (language === 'ar' ? 'الفاتورة للعرض فقط' : 'Invoice is view-only') : ''}
                         />
                         <select
                           className="compact-select"
                           value={formData.discountType}
                           onChange={(e) => updateInvoiceField('discountType', e.target.value)}
+                          disabled={editingInvoice}
+                          style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
                         >
                           <option value="amount">{t('kwd')}</option>
                           <option value="percentage">%</option>
@@ -2928,11 +3420,16 @@ const Invoices = () => {
                           step="0.1"
                           placeholder="0"
                           className="compact-input"
+                          disabled={editingInvoice}
+                          style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
+                          title={editingInvoice ? (language === 'ar' ? 'الفاتورة للعرض فقط' : 'Invoice is view-only') : ''}
                         />
                         <select
                           className="compact-select"
                           value={formData.vatType}
                           onChange={(e) => updateInvoiceField('vatType', e.target.value)}
+                          disabled={editingInvoice}
+                          style={editingInvoice ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
                         >
                           <option value="amount">{t('kwd')}</option>
                           <option value="percentage">%</option>
@@ -3129,20 +3626,31 @@ const Invoices = () => {
               )}
               
               <div className="modal-actions">
-                <button type="submit" className="btn btn-primary">
-                  {editingInvoice ? t('saveChanges') : t('createInvoiceBtn')}
-                </button>
-                {editingInvoice && (
-                  <button 
-                    type="button" 
-                    className="btn btn-info"
-                    onClick={() => printInvoice(editingInvoice)}
-                  >
-                    {t('printInvoice')}
+                {!editingInvoice && (
+                  <button type="submit" className="btn btn-primary">
+                    {t('createInvoiceBtn')}
                   </button>
                 )}
+                {editingInvoice && (
+                  <>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary"
+                      onClick={handleSubmit}
+                    >
+                      {language === 'ar' ? 'حفظ الملاحظات' : 'Save Notes'}
+                    </button>
+                    <button 
+                      type="button" 
+                      className="btn btn-info"
+                      onClick={() => printInvoice(editingInvoice)}
+                    >
+                      {t('printInvoice')}
+                    </button>
+                  </>
+                )}
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                  {t('cancel')}
+                  {editingInvoice ? t('close') : t('cancel')}
                 </button>
               </div>
             </form>
@@ -3210,6 +3718,230 @@ const Invoices = () => {
                 <button 
                   className="btn btn-secondary"
                   onClick={closePinModal}
+                >
+                  {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🆕 نموذج إرجاع الفاتورة */}
+      {showReturnModal && returningInvoice && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '900px' }}>
+            <div className="modal-header">
+              <h2>
+                🔄 {language === 'ar' ? 'إرجاع' : 'Return'} {returningInvoice.type === 'sales' ? (language === 'ar' ? 'فاتورة مبيعات' : 'Sales Invoice') : (language === 'ar' ? 'فاتورة مشتريات' : 'Purchase Invoice')}
+                {' - '}
+                {returningInvoice.invoiceNumber}
+              </h2>
+              <button className="close-btn" onClick={() => setShowReturnModal(false)}>&times;</button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '20px' }}>
+              {/* رسالة توضيحية */}
+              <div style={{
+                backgroundColor: returningInvoice.type === 'purchase' ? '#d1ecf1' : '#fff3cd',
+                border: `1px solid ${returningInvoice.type === 'purchase' ? '#17a2b8' : '#ffc107'}`,
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '20px'
+              }}>
+                <p style={{ margin: 0, color: returningInvoice.type === 'purchase' ? '#0c5460' : '#856404', fontSize: '14px' }}>
+                  {returningInvoice.type === 'purchase' ? (
+                    <>
+                      <strong>📦 إرجاع مشتريات:</strong><br />
+                      {language === 'ar'
+                        ? '• المخزون: سينقص (إرجاع للمورد) ✓\n• الرصيد: سيزيد (استرجاع المال) ✓\n• يجب توفر الكمية في المخزون'
+                        : '• Inventory: Will decrease (return to supplier) ✓\n• Balance: Will increase (get money back) ✓\n• Quantity must be available in inventory'
+                      }
+                    </>
+                  ) : (
+                    <>
+                      <strong>🛒 إرجاع مبيعات:</strong><br />
+                      {language === 'ar'
+                        ? '• المخزون: سيزيد (استلام من العميل) ✓\n• الرصيد: سينقص (إرجاع المال للعميل) ✓\n• لا يشترط توفر المنتج مسبقاً'
+                        : '• Inventory: Will increase (receive from customer) ✓\n• Balance: Will decrease (refund money) ✓\n• Product availability not required'
+                      }
+                    </>
+                  )}
+                </p>
+              </div>
+
+              {/* Error Message */}
+              {modalError && (
+                <div className="modal-error-message" style={{ marginBottom: '15px' }}>
+                  <div className="error-content">
+                    <i className="error-icon">⚠️</i>
+                    <span className="error-text">{modalError}</span>
+                    <button 
+                      className="error-close" 
+                      onClick={() => setModalError(null)}
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* معلومات الفاتورة الأصلية */}
+              <div style={{ 
+                backgroundColor: '#f8f9fa', 
+                padding: '15px', 
+                borderRadius: '8px', 
+                marginBottom: '20px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '10px'
+              }}>
+                <div>
+                  <strong>{language === 'ar' ? 'العميل/المورد:' : 'Client/Supplier:'}</strong>
+                  <div>{returningInvoice.clientName}</div>
+                </div>
+                <div>
+                  <strong>{language === 'ar' ? 'التاريخ:' : 'Date:'}</strong>
+                  <div>{new Date(returningInvoice.date).toLocaleDateString('ar-EG')}</div>
+                </div>
+                <div>
+                  <strong>{language === 'ar' ? 'الإجمالي:' : 'Total:'}</strong>
+                  <div>{parseFloat(returningInvoice.total).toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}</div>
+                </div>
+              </div>
+
+              {/* جدول العناصر */}
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{ marginBottom: '10px' }}>{language === 'ar' ? 'العناصر:' : 'Items:'}</h4>
+                <table className="items-table" style={{ width: '100%', fontSize: '13px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px' }}>#</th>
+                      <th>{language === 'ar' ? 'المنتج' : 'Product'}</th>
+                      <th style={{ width: '100px' }}>{language === 'ar' ? 'الكمية الأصلية' : 'Original Qty'}</th>
+                      <th style={{ width: '120px' }}>{language === 'ar' ? 'كمية الإرجاع' : 'Return Qty'}</th>
+                      <th style={{ width: '120px' }}>{language === 'ar' ? 'حالة المخزون' : 'Inventory Status'}</th>
+                      <th style={{ width: '100px' }}>{language === 'ar' ? 'السعر' : 'Price'}</th>
+                      <th style={{ width: '100px' }}>{language === 'ar' ? 'المجموع' : 'Total'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {returnItems.map((item, index) => (
+                      <tr key={index} style={{ 
+                        backgroundColor: item.returnQuantity > 0 && returnInventoryStatus[index] && !returnInventoryStatus[index].available 
+                          ? '#ffebee' 
+                          : 'transparent'
+                      }}>
+                        <td style={{ textAlign: 'center' }}>{index + 1}</td>
+                        <td>{item.itemName}</td>
+                        <td style={{ textAlign: 'center' }}>{item.maxQuantity}</td>
+                        <td>
+                          <input
+                            type="number"
+                            value={item.returnQuantity}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 0
+                              const maxQty = item.maxQuantity
+                              const newQty = Math.min(Math.max(0, value), maxQty)
+                              
+                              setReturnItems(prev => prev.map((it, i) => 
+                                i === index ? { ...it, returnQuantity: newQty } : it
+                              ))
+                            }}
+                            min="0"
+                            max={item.maxQuantity}
+                            step="1"
+                            style={{ width: '100%', padding: '5px' }}
+                          />
+                        </td>
+                        <td style={{ 
+                          textAlign: 'center',
+                          fontSize: '12px',
+                          color: item.returnQuantity > 0 && returnInventoryStatus[index] 
+                            ? returnInventoryStatus[index].color 
+                            : '#6c757d',
+                          fontWeight: item.returnQuantity > 0 ? 'bold' : 'normal'
+                        }}>
+                          {item.returnQuantity > 0 && returnInventoryStatus[index] 
+                            ? returnInventoryStatus[index].message
+                            : '-'
+                          }
+                        </td>
+                        <td style={{ textAlign: 'right' }}>{parseFloat(item.unitPrice).toFixed(3)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                          {(item.returnQuantity * parseFloat(item.unitPrice)).toFixed(3)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'right', fontWeight: 'bold', paddingTop: '10px' }}>
+                        {language === 'ar' ? 'إجمالي الإرجاع:' : 'Return Total:'}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '16px', paddingTop: '10px' }}>
+                        {returnItems.reduce((sum, item) => 
+                          sum + (item.returnQuantity * parseFloat(item.unitPrice)), 0
+                        ).toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* سبب الإرجاع */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  {language === 'ar' ? 'سبب الإرجاع:' : 'Return Reason:'}
+                </label>
+                <textarea
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  placeholder={language === 'ar' ? 'اختياري - اذكر سبب الإرجاع...' : 'Optional - Enter return reason...'}
+                  style={{
+                    width: '100%',
+                    minHeight: '80px',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="modal-actions">
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleReturnInvoice}
+                  disabled={
+                    returnItems.every(item => item.returnQuantity === 0) ||
+                    Object.values(returnInventoryStatus).some(status => !status.available)
+                  }
+                  style={{
+                    opacity: returnItems.every(item => item.returnQuantity === 0) ||
+                            Object.values(returnInventoryStatus).some(status => !status.available)
+                      ? 0.5 
+                      : 1,
+                    cursor: returnItems.every(item => item.returnQuantity === 0) ||
+                            Object.values(returnInventoryStatus).some(status => !status.available)
+                      ? 'not-allowed' 
+                      : 'pointer'
+                  }}
+                  title={
+                    returnItems.every(item => item.returnQuantity === 0)
+                      ? (language === 'ar' ? 'يرجى تحديد كمية للإرجاع' : 'Please specify return quantity')
+                      : Object.values(returnInventoryStatus).some(status => !status.available)
+                        ? (language === 'ar' ? 'بعض المنتجات غير متوفرة في المخزون' : 'Some products are not available in inventory')
+                        : (language === 'ar' ? 'تأكيد الإرجاع' : 'Confirm Return')
+                  }
+                >
+                  ✅ {language === 'ar' ? 'تأكيد الإرجاع' : 'Confirm Return'}
+                </button>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => setShowReturnModal(false)}
                 >
                   {language === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>

@@ -121,7 +121,57 @@ class DataService {
       createdAt: new Date().toISOString()
     }
     entries.push(newEntry)
-    return this.saveJournalEntries(entries) ? newEntry : null
+    
+    const saved = this.saveJournalEntries(entries)
+    
+    // تطبيق القيد على أرصدة الحسابات - كل حركة يجب أن تنعكس فوراً على الحسابات
+    // Apply journal entry to account balances so bank/cash balances reflect immediately
+    if (saved) {
+      try {
+        const accounts = this.getAccounts()
+        let accountsModified = false
+        
+        (newEntry.lines || []).forEach(line => {
+          // البحث عن الحساب بواسطة accountId أو accountCode
+          let accountIndex = -1
+          if (line.accountId) {
+            accountIndex = accounts.findIndex(acc => acc.id === line.accountId)
+          }
+          if (accountIndex === -1 && line.accountCode) {
+            accountIndex = accounts.findIndex(acc => acc.code === line.accountCode)
+          }
+          
+          if (accountIndex !== -1) {
+            const account = accounts[accountIndex]
+            const currentBalance = parseFloat(account.balance) || 0
+            const debit = parseFloat(line.debit) || 0
+            const credit = parseFloat(line.credit) || 0
+            const newBalance = currentBalance + debit - credit
+            
+            accounts[accountIndex] = {
+              ...account,
+              balance: newBalance,
+              lastUpdated: new Date().toISOString()
+            }
+            accountsModified = true
+            
+            console.log(`💰 تحديث رصيد الحساب ${account.name}: ${currentBalance.toFixed(3)} → ${newBalance.toFixed(3)}`)
+          }
+        })
+        
+        if (accountsModified) {
+          this.saveAccounts(accounts)
+          // إطلاق حدث لإعلام المكونات بتحديث البيانات
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('accountingDataUpdated'))
+          }
+        }
+      } catch (error) {
+        console.error('❌ خطأ في تطبيق القيد على أرصدة الحسابات:', error)
+      }
+    }
+    
+    return saved ? newEntry : null
   }
 
   static updateJournalEntry(id, updatedEntry) {
