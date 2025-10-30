@@ -133,7 +133,7 @@ const Invoices = () => {
     clientName: '',
     date: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD format
     dueDate: '',
-    paymentStatus: 'paid', // paid, pending, overdue
+    paymentStatus: '', // 🔥 فارغ - يجب اختيار حالة الدفع
     description: '',
     items: [
       { 
@@ -240,7 +240,7 @@ const Invoices = () => {
       clientName: '',
       date: new Date().toLocaleDateString('en-CA'),
       dueDate: '',
-      paymentStatus: 'paid',
+      paymentStatus: '', // 🔥 فارغ - يجب اختيار حالة الدفع
       description: '',
       items: [
         { 
@@ -2179,6 +2179,12 @@ const Invoices = () => {
       return
     }
 
+    // 🔥 التحقق من اختيار حالة الدفع
+    if (!formData.paymentStatus) {
+      setModalError(language === 'ar' ? 'يرجى اختيار حالة الدفع' : 'Please select payment status')
+      return
+    }
+
     // Filter valid items
     const validItems = formData.items.filter(item => 
       item.itemName && item.quantity > 0 && item.unitPrice > 0
@@ -2430,13 +2436,37 @@ const Invoices = () => {
   const openReturnModal = (invoice) => {
     console.log('🔄 فتح نموذج إرجاع للفاتورة:', invoice.invoiceNumber)
     
+    // 🔥 حساب الكميات المرتجعة سابقاً من هذه الفاتورة
+    const previousReturns = invoices.filter(inv => 
+      inv.isReturn && 
+      inv.originalInvoiceId === invoice.id
+    )
+    
     // إعداد عناصر الإرجاع مع الكميات القابلة للإرجاع
-    const items = (invoice.items || []).map(item => ({
-      ...item,
-      returnQuantity: 0, // الكمية المراد إرجاعها
-      maxQuantity: parseFloat(item.quantity) || 0, // الكمية الأصلية
-      canReturn: true
-    }))
+    const items = (invoice.items || []).map(item => {
+      const originalQty = parseFloat(item.quantity) || 0
+      
+      // حساب الكمية المرتجعة سابقاً من هذا المنتج
+      let returnedQty = 0
+      previousReturns.forEach(returnInv => {
+        const returnedItem = (returnInv.items || []).find(ri => ri.itemName === item.itemName)
+        if (returnedItem) {
+          returnedQty += parseFloat(returnedItem.quantity) || 0
+        }
+      })
+      
+      // الكمية المتاحة للإرجاع = الأصلية - المرتجعة سابقاً
+      const availableToReturn = Math.max(0, originalQty - returnedQty)
+      
+      return {
+        ...item,
+        returnQuantity: 0, // الكمية المراد إرجاعها الآن
+        maxQuantity: availableToReturn, // ✅ الكمية المتاحة للإرجاع (بعد طرح المرتجع سابقاً)
+        originalQuantity: originalQty, // الكمية الأصلية
+        previouslyReturned: returnedQty, // الكمية المرتجعة سابقاً
+        canReturn: availableToReturn > 0
+      }
+    })
     
     setReturningInvoice(invoice)
     setReturnItems(items)
@@ -2494,9 +2524,29 @@ const Invoices = () => {
 
     // حساب إجمالي الإرجاع
     const returnTotal = itemsToReturn.reduce((sum, item) => {
-      const itemTotal = item.returnQuantity * (parseFloat(item.unitPrice) || 0)
-      const itemDiscount = parseFloat(item.discount) || 0
-      return sum + (itemTotal - itemDiscount)
+      const originalQty = parseFloat(item.originalQuantity) || parseFloat(item.quantity) || 1
+      const returnQty = item.returnQuantity
+      const unitPrice = parseFloat(item.unitPrice) || 0
+      const originalDiscount = parseFloat(item.discount) || 0
+      
+      // حساب الخصم النسبي للكمية المرتجعة
+      // إذا كانت الكمية الأصلية 3 والخصم 3، والمرتجع 1، فالخصم المرتجع = 3 × (1/3) = 1
+      const proportionalDiscount = originalQty > 0 ? (originalDiscount * returnQty) / originalQty : 0
+      
+      const itemSubtotal = returnQty * unitPrice
+      const itemTotal = itemSubtotal - proportionalDiscount
+      
+      console.log(`📦 حساب المرتجع - ${item.itemName}:`, {
+        originalQty,
+        returnQty,
+        unitPrice,
+        originalDiscount,
+        proportionalDiscount,
+        itemSubtotal,
+        itemTotal
+      })
+      
+      return sum + itemTotal
     }, 0)
 
     try {
@@ -2513,18 +2563,36 @@ const Invoices = () => {
         date: new Date().toISOString().split('T')[0],
         invoiceNumber: `RET-${returningInvoice.invoiceNumber}`,
         originalInvoiceNumber: returningInvoice.invoiceNumber,
+        originalInvoiceId: returningInvoice.id, // 🆕 ربط بالفاتورة الأصلية بالـ ID
         isReturn: true,
         returnReason: returnReason,
-        items: itemsToReturn.map(item => ({
-          ...item,
-          quantity: item.returnQuantity
-        })),
+        items: itemsToReturn.map(item => {
+          // حساب الإجمالي لكل صنف مع الخصم النسبي
+          const originalQty = parseFloat(item.originalQuantity) || parseFloat(item.quantity) || 1
+          const returnQty = item.returnQuantity
+          const unitPrice = parseFloat(item.unitPrice) || 0
+          const originalDiscount = parseFloat(item.discount) || 0
+          
+          // حساب الخصم النسبي للكمية المرتجعة
+          const proportionalDiscount = originalQty > 0 ? (originalDiscount * returnQty) / originalQty : 0
+          
+          const itemSubtotal = returnQty * unitPrice
+          const itemTotal = itemSubtotal - proportionalDiscount
+          
+          return {
+            ...item,
+            quantity: returnQty,
+            discount: proportionalDiscount,  // ✅ الخصم النسبي
+            total: itemTotal  // ✅ تعيين الإجمالي بشكل صحيح
+          }
+        }),
         subtotal: returnTotal,
         discount: 0,
         discountAmount: 0,
         vatAmount: 0,
         total: returnTotal,
-        paymentStatus: 'paid',
+        paymentStatus: 'n/a', // 🔥 فواتير المرتجع لا تحتاج حالة دفع
+        paidAmount: 0, // لا يوجد مبلغ مدفوع في المرتجعات
         createJournalEntry: true, // ✅ ننشئ قيود للمبلغ المرتجع
         paymentMethod: returningInvoice.paymentMethod || 'cash',
         paymentBankAccountId: returningInvoice.paymentBankAccountId || null
@@ -2767,8 +2835,8 @@ const Invoices = () => {
               <option value="all">{t('allStatuses')}</option>
               <option value="paid">{t('paid')}</option>
               <option value="partial">{language === 'ar' ? 'مدفوعة جزئياً' : 'Partial'}</option>
-              <option value="pending">{t('pending')}</option>
-              <option value="overdue">{t('overdue')}</option>
+              <option value="pending">{language === 'ar' ? 'آجل' : 'Credit'}</option>
+              <option value="overdue">{language === 'ar' ? 'متأخر السداد' : 'Overdue'}</option>
             </select>
             
             <select
@@ -2884,13 +2952,20 @@ const Invoices = () => {
                   </td>
                   <td>{parseFloat(invoice.total).toFixed(3)} {t('kwd')}</td>
                   <td>
-                    <span className={`payment-status ${invoice.paymentStatus || 'paid'}`}>
-                      {invoice.paymentStatus === 'paid' && t('paid')}
-                      {invoice.paymentStatus === 'partial' && (language === 'ar' ? 'مدفوعة جزئياً' : 'Partial')}
-                      {invoice.paymentStatus === 'pending' && t('pending')}
-                      {invoice.paymentStatus === 'overdue' && t('overdue')}
-                      {!invoice.paymentStatus && t('paid')}
-                    </span>
+                    {invoice.isReturn ? (
+                      <span className="payment-status neutral">
+                        {language === 'ar' ? 'مرتجع' : 'Return'}
+                      </span>
+                    ) : (
+                      <span className={`payment-status ${invoice.paymentStatus || 'paid'}`}>
+                        {invoice.paymentStatus === 'paid' && t('paid')}
+                        {invoice.paymentStatus === 'partial' && (language === 'ar' ? 'مدفوعة جزئياً' : 'Partial')}
+                        {invoice.paymentStatus === 'pending' && (language === 'ar' ? 'آجل' : 'Credit')}
+                        {invoice.paymentStatus === 'overdue' && (language === 'ar' ? 'متأخر السداد' : 'Overdue')}
+                        {invoice.paymentStatus === 'n/a' && (language === 'ar' ? 'غير متاح' : 'N/A')}
+                        {!invoice.paymentStatus && t('paid')}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <div className="action-buttons">
@@ -3052,10 +3127,11 @@ const Invoices = () => {
                       required
                       disabled={editingInvoice}
                     >
+                      <option value="">{language === 'ar' ? '-- اختر حالة الدفع --' : '-- Select Payment Status --'}</option>
                       <option value="paid">{t('paid')}</option>
                       <option value="partial">{language === 'ar' ? 'مدفوعة جزئياً' : 'Partial'}</option>
-                      <option value="pending">{t('pending')}</option>
-                      <option value="overdue">{t('overdue')}</option>
+                      <option value="pending">{language === 'ar' ? 'آجل' : 'Credit'}</option>
+                      <option value="overdue">{language === 'ar' ? 'متأخر السداد' : 'Overdue'}</option>
                     </select>
                   </div>
                 </div>

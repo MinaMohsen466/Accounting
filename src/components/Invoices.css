@@ -1289,6 +1289,16 @@
   color: #721c24;
 }
 
+.payment-status.partial {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.payment-status.neutral {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
 /* Invoice Search and Filter Controls */
 .invoice-controls {
   background-color: var(--bg-white);

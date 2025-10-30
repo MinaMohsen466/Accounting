@@ -18,6 +18,8 @@ import AccountStatement from './components/AccountStatement'
 import DataManagement from './components/DataManagement'
 import Settings from './components/Settings'
 import LoginOverlay from './components/LoginOverlay'
+import ReceiptVouchers from './components/ReceiptVouchers' // 🆕 سندات القبض
+import PaymentVouchers from './components/PaymentVouchers' // 🆕 سندات الدفع
 
 const AppContent = () => {
   const [currentView, setCurrentView] = useState('dashboard')
@@ -78,6 +80,10 @@ const AppContent = () => {
         return <Inventory />
       case 'banking':
         return <Banking />
+      case 'receiptVouchers': // 🆕 سندات القبض
+        return <ReceiptVouchers />
+      case 'paymentVouchers': // 🆕 سندات الدفع
+        return <PaymentVouchers />
       case 'reports':
         return <Reports />
       case 'accountStatement':

@@ -28,7 +28,8 @@ let VALID_USERS = {
       'view_financial_reports', 'export_reports',
       'view_settings',
       'view_banking', 'manage_bank_accounts', 'record_payments', 'record_receipts', 'record_expenses',
-      'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
+      'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals',
+      'manage_vouchers', 'create_vouchers', 'delete_vouchers' // 🆕 صلاحيات السندات
     ]
   },
   'accountant': { 
@@ -47,7 +48,8 @@ let VALID_USERS = {
       'view_account_statements',
       'view_financial_reports',
       'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts',
-      'view_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
+      'view_treasury', 'record_cash_deposits', 'record_cash_withdrawals',
+      'manage_vouchers', 'create_vouchers', 'delete_vouchers' // 🆕 صلاحيات السندات
     ]
   },
   'user': { 
