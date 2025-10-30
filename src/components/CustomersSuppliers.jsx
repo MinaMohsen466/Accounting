@@ -11,12 +11,14 @@ const CustomersSuppliers = () => {
     customers,
     suppliers,
     invoices,
+    vouchers, // 🆕 السندات لحساب الرصيد
     addCustomer,
     updateCustomer,
     deleteCustomer,
     addSupplier,
     updateSupplier,
-    deleteSupplier
+    deleteSupplier,
+    hasTransactions // 🆕 دالة للتحقق من وجود معاملات
   } = useAccounting()
   const { t, language } = useLanguage()
   const { hasPermission } = useAuth()
@@ -324,23 +326,24 @@ const CustomersSuppliers = () => {
 
   const currentData = activeTab === 'customers' ? customers : suppliers
   
-  // دالة حساب الرصيد الإجمالي (الابتدائي + الفواتير)
+  // دالة حساب الرصيد الإجمالي (الافتتاحي + الفواتير - السندات)
   const calculateTotalBalance = (client) => {
-    const initialBalance = parseFloat(client.balance || 0)
+    // 1️⃣ الرصيد الافتتاحي (Opening Balance) - ثابت لا يتغير
+    const openingBalance = parseFloat(client.balance || 0)
     
-    // البحث عن فواتير العميل/المورد
+    // 2️⃣ حساب الفواتير غير المدفوعة (أو المدفوعة جزئياً)
     const clientInvoices = invoices.filter(inv => 
       inv.clientId === client.id || inv.clientName === client.name
     )
     
-    let unpaidBalance = 0
-    let paidBalance = 0
+    let invoicesBalance = 0  // رصيد الفواتير الإجمالي
+    let paidBalance = 0      // المدفوع من الفواتير
     let partialCount = 0
     let partialPaidAmount = 0
 
     clientInvoices.forEach(invoice => {
       const amount = parseFloat(invoice.total || 0)
-      const paidAmt = parseFloat(invoice.paidAmount) || (invoice.paymentStatus === 'paid' ? amount : 0)
+      const paidAmt = parseFloat(invoice.paidAmount || 0)
 
       if (invoice.paymentStatus === 'partial') {
         partialCount++
@@ -348,25 +351,67 @@ const CustomersSuppliers = () => {
       }
 
       if (invoice.type === 'sales') {
-        // فواتير المبيعات - العميل مدين لنا
-        // total increases unpaid; paidAmt reduces it
+        // فواتير المبيعات
+        if (invoice.isReturn) {
+          // ❌ مرتجع مبيعات = نرد للعميل (يقلل رصيده)
+          invoicesBalance -= amount
+        } else {
+          // ✅ فاتورة مبيعات = العميل مدين (فقط المبلغ غير المدفوع)
+          invoicesBalance += (amount - paidAmt)
+        }
         paidBalance += paidAmt
-        unpaidBalance += (amount - paidAmt)
+        
       } else if (invoice.type === 'purchase') {
-        // فواتير المشتريات - نحن مدينون للمورد
-        // paid reduces our liability
-        paidBalance -= paidAmt
-        unpaidBalance -= (amount - paidAmt)
+        // فواتير المشتريات
+        if (invoice.isReturn) {
+          // ❌ مرتجع مشتريات = المورد يرد لنا (يقلل رصيده)
+          invoicesBalance -= amount
+        } else {
+          // ✅ فاتورة مشتريات = نحن مدينون للمورد (فقط المبلغ غير المدفوع)
+          invoicesBalance += (amount - paidAmt)
+        }
+        paidBalance += paidAmt
       }
     })
     
-    const totalBalance = initialBalance + unpaidBalance
+    // 3️⃣ حساب السندات غير المرتبطة بفواتير محددة
+    let vouchersBalance = 0
+    let vouchersCount = 0
+    
+    if (vouchers && vouchers.length > 0) {
+      const clientVouchers = vouchers.filter(v => 
+        (v.customerId === client.id || v.customerName === client.name ||
+         v.supplierId === client.id || v.supplierName === client.name) &&
+        !v.invoiceId  // 🔥 فقط السندات غير المرتبطة بفاتورة محددة
+      )
+      
+      clientVouchers.forEach(voucher => {
+        const voucherAmount = parseFloat(voucher.amount || 0)
+        vouchersCount++
+        
+        if (voucher.type === 'receipt') {
+          // سند قبض = العميل دفع → يقلل رصيده
+          vouchersBalance -= voucherAmount
+        } else if (voucher.type === 'payment') {
+          // سند دفع = دفعنا له → يقلل رصيده (أو يزيد رصيدنا الدائن)
+          vouchersBalance -= voucherAmount
+        }
+      })
+    }
+    
+    // 4️⃣ الرصيد الإجمالي = الافتتاحي + الفواتير غير المدفوعة - السندات غير المرتبطة
+    // ✅ السندات المرتبطة بفواتير محددة تم احتسابها في paidAmount داخل الفواتير
+    const totalBalance = openingBalance + invoicesBalance + vouchersBalance
     
     return {
-      initialBalance,
-      unpaidBalance,
-      paidBalance,
-      totalBalance,
+      openingBalance,        // الرصيد الافتتاحي (ثابت)
+      initialBalance: openingBalance,  // للتوافق
+      invoicesBalance,       // رصيد الفواتير (غير المدفوع فقط)
+      unpaidBalance: invoicesBalance,  // للتوافق
+      vouchersBalance,       // رصيد السندات غير المرتبطة (سالب)
+      vouchersCount,         // عدد السندات غير المرتبطة
+      paidBalance,           // المدفوع من الفواتير (عبر السندات المرتبطة)
+      totalBalance,          // الرصيد النهائي = افتتاحي + فواتير - سندات
       invoiceCount: clientInvoices.length,
       unpaidInvoices: clientInvoices.filter(inv => inv.paymentStatus !== 'paid').length,
       paidInvoices: clientInvoices.filter(inv => inv.paymentStatus === 'paid').length,
@@ -958,7 +1003,7 @@ const CustomersSuppliers = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>{language === 'ar' ? 'الرصيد الابتدائي' : 'Initial Balance'} *</label>
+                    <label>{language === 'ar' ? 'الرصيد الافتتاحي' : 'Opening Balance'} *</label>
                     <div className="currency-input-group">
                       <input
                         type="number"
@@ -967,18 +1012,32 @@ const CustomersSuppliers = () => {
                         onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))}
                         placeholder="0.000"
                         className="balance-input"
+                        disabled={editingItem && hasTransactions ? hasTransactions(editingItem.id, activeTab === 'customers' ? 'customer' : 'supplier') : false}
+                        title={
+                          editingItem && hasTransactions && hasTransactions(editingItem.id, activeTab === 'customers' ? 'customer' : 'supplier')
+                            ? (language === 'ar' ? 'لا يمكن تعديل الرصيد الافتتاحي بعد إجراء معاملات' : 'Cannot edit opening balance after transactions')
+                            : ''
+                        }
                       />
                       <span className="currency-symbol">{language === 'ar' ? 'د.ك' : 'KWD'}</span>
                     </div>
                     <small className="field-hint">
-                      {language === 'ar' 
-                        ? activeTab === 'customers'
-                          ? '• موجب (+): العميل مدين لنا (له دين علينا) | سالب (-): العميل دائن لنا (دفعنا له مقدماً)'
-                          : '• موجب (+): المورد دائن لنا (نحن مدينون له) | سالب (-): المورد مدين لنا (دفعنا له مقدماً)'
-                        : activeTab === 'customers'
-                          ? '• Positive (+): Customer owes us | Negative (-): We owe customer (advance payment)'
-                          : '• Positive (+): We owe supplier | Negative (-): Supplier owes us (advance payment)'
-                      }
+                      {editingItem && hasTransactions && hasTransactions(editingItem.id, activeTab === 'customers' ? 'customer' : 'supplier') ? (
+                        <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>
+                          {language === 'ar' 
+                            ? '⚠️ الرصيد الافتتاحي مقفل بعد إجراء معاملات (فواتير أو سندات). استخدم السندات لتعديل الرصيد.' 
+                            : '⚠️ Opening balance is locked after transactions (invoices or vouchers). Use vouchers to adjust balance.'
+                          }
+                        </span>
+                      ) : (
+                        language === 'ar' 
+                          ? activeTab === 'customers'
+                            ? '• موجب (+): العميل مدين لنا (له دين علينا) | سالب (-): العميل دائن لنا (دفعنا له مقدماً)'
+                            : '• موجب (+): المورد دائن لنا (نحن مدينون له) | سالب (-): المورد مدين لنا (دفعنا له مقدماً)'
+                          : activeTab === 'customers'
+                            ? '• Positive (+): Customer owes us | Negative (-): We owe customer (advance payment)'
+                            : '• Positive (+): We owe supplier | Negative (-): Supplier owes us (advance payment)'
+                      )}
                     </small>
                   </div>
 

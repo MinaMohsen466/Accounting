@@ -9,6 +9,7 @@ export const useAccounting = () => {
   const [customers, setCustomers] = useState([])
   const [suppliers, setSuppliers] = useState([])
   const [inventoryItems, setInventoryItems] = useState([])
+  const [vouchers, setVouchers] = useState([]) // 🆕 سندات القبض والدفع
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -62,6 +63,7 @@ export const useAccounting = () => {
       setCustomers(DataService.getCustomers())
       setSuppliers(DataService.getSuppliers())
       setInventoryItems(DataService.getInventoryItems())
+      setVouchers(DataService.getVouchers()) // 🆕 تحميل السندات
     } catch (err) {
       setError('خطأ في تحميل البيانات')
       console.error('Error loading data:', err)
@@ -79,6 +81,7 @@ export const useAccounting = () => {
       setCustomers(DataService.getCustomers())
       setSuppliers(DataService.getSuppliers())
       setInventoryItems(DataService.getInventoryItems())
+      setVouchers(DataService.getVouchers()) // 🆕 تحديث السندات
     }
 
     window.addEventListener('accountingDataUpdated', handleDataUpdate)
@@ -183,11 +186,17 @@ export const useAccounting = () => {
         createJournalEntry: invoiceData.createJournalEntry
       })
       
+      // 🔥 إصلاح: إذا كانت الفاتورة مدفوعة، تعيين paidAmount = total
+      const invoiceToSave = { ...invoiceData }
+      if (invoiceToSave.paymentStatus === 'paid' && !invoiceToSave.paidAmount) {
+        invoiceToSave.paidAmount = invoiceToSave.total
+        console.log('✅ تم تعيين paidAmount للفاتورة المدفوعة:', invoiceToSave.paidAmount)
+      }
+      
       // If the form provided only a date (YYYY-MM-DD) it will be interpreted
       // as midnight UTC which can display as a shifted time (e.g. 03:00) in local TZ.
       // Combine the selected date with the current local time so the stored
       // invoice.date reflects the creation time the user expects.
-      const invoiceToSave = { ...invoiceData }
       try {
         const dateOnlyMatch = /^\d{4}-\d{2}-\d{2}$/.test(String(invoiceData.date))
         if (dateOnlyMatch) {
@@ -1063,9 +1072,18 @@ export const useAccounting = () => {
       }))
     })
     
-    // Start with the entity's initial balance
+    // Start with the entity's initial balance (الرصيد الافتتاحي)
     let openingBalance = parseFloat(entity?.balance || 0)
     const transactions = []
+    
+    // 🆕 Get vouchers for this entity (سندات القبض والدفع)
+    const entityVouchers = vouchers.filter(voucher => {
+      if (entityType === 'customer') {
+        return voucher.type === 'receipt' && voucher.customerId === entityId
+      } else {
+        return voucher.type === 'payment' && voucher.supplierId === entityId
+      }
+    })
     
     // Process invoices
     entityInvoices.forEach(invoice => {
@@ -1129,6 +1147,44 @@ export const useAccounting = () => {
       } 
       // If within date range, add to transactions
       else if (invoiceDate >= start && invoiceDate <= end) {
+        transactions.push(transaction)
+      }
+    })
+    
+    // 🆕 Process vouchers (سندات القبض والدفع)
+    entityVouchers.forEach(voucher => {
+      const voucherDate = new Date(voucher.date)
+      const amount = parseFloat(voucher.amount) || 0
+      
+      let debit = 0
+      let credit = 0
+      
+      if (voucher.type === 'receipt') {
+        // سند قبض: العميل يدفع لنا → يقلل من رصيد العميل (دائن)
+        credit = amount
+      } else if (voucher.type === 'payment') {
+        // سند دفع: ندفع للمورد → يقلل من رصيد المورد (مدين)
+        debit = amount
+      }
+      
+      const transaction = {
+        date: voucher.date,
+        voucherNumber: voucher.voucherNumber,
+        description: voucher.type === 'receipt' 
+          ? `سند قبض ${voucher.voucherNumber}` 
+          : `سند دفع ${voucher.voucherNumber}`,
+        debit: debit,
+        credit: credit,
+        invoiceDate: voucherDate,
+        isVoucher: true
+      }
+      
+      // If before start date, add to opening balance
+      if (voucherDate < start) {
+        openingBalance += debit - credit
+      } 
+      // If within date range, add to transactions
+      else if (voucherDate >= start && voucherDate <= end) {
         transactions.push(transaction)
       }
     })
@@ -1223,6 +1279,63 @@ export const useAccounting = () => {
     }
   }
 
+  // 🆕 Voucher operations (سندات القبض والدفع)
+  const addVoucher = (voucherData) => {
+    try {
+      const newVoucher = DataService.addVoucher(voucherData)
+      if (newVoucher) {
+        setVouchers(prev => [...prev, newVoucher])
+        return newVoucher
+      }
+      return null
+    } catch (err) {
+      console.error('Error adding voucher:', err)
+      return null
+    }
+  }
+
+  const updateVoucher = (id, updatedData) => {
+    try {
+      const updatedVoucher = DataService.updateVoucher(id, updatedData)
+      if (updatedVoucher) {
+        setVouchers(prev => prev.map(v => v.id === id ? updatedVoucher : v))
+        return updatedVoucher
+      }
+      return null
+    } catch (err) {
+      console.error('Error updating voucher:', err)
+      return null
+    }
+  }
+
+  const deleteVoucher = (id) => {
+    try {
+      if (DataService.deleteVoucher(id)) {
+        setVouchers(prev => prev.filter(v => v.id !== id))
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error('Error deleting voucher:', err)
+      return false
+    }
+  }
+
+  // 🆕 Helper: Check if entity has any transactions (for locking openingBalance)
+  const hasTransactions = (entityId, entityType) => {
+    // Check invoices
+    const hasInvoices = invoices.some(inv => 
+      entityType === 'customer' ? inv.clientId === entityId : inv.supplierId === entityId
+    )
+    
+    // Check vouchers
+    const hasVouchers = vouchers.some(v => 
+      entityType === 'customer' ? v.customerId === entityId : v.supplierId === entityId
+    )
+    
+    return hasInvoices || hasVouchers
+  }
+
   return {
     // State
     accounts,
@@ -1231,6 +1344,7 @@ export const useAccounting = () => {
     customers,
     suppliers,
     inventoryItems,
+    vouchers, // 🆕 السندات
     loading,
     error,
     
@@ -1265,6 +1379,14 @@ export const useAccounting = () => {
     updateInventoryItem,
     deleteInventoryItem,
     getInventoryItems: () => DataService.getInventoryItems(),
+    
+    // 🆕 Voucher operations
+    addVoucher,
+    updateVoucher,
+    deleteVoucher,
+    
+    // 🆕 Utility
+    hasTransactions, // للتحقق من وجود معاملات قبل قفل الرصيد الافتتاحي
     
     // Reports
     getAccountStatement,

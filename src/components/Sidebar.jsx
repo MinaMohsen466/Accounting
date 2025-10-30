@@ -9,6 +9,7 @@ const Sidebar = ({ currentView, setCurrentView }) => {
   const { user, logout, hasPermission } = useAuth()
   const { brandSettings } = useBrand()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [openSubmenu, setOpenSubmenu] = useState(null) // 🆕 للتحكم في فتح/إغلاق القوائم الفرعية
   
   // Define menu items with their required permissions
   const allMenuItems = [
@@ -19,7 +20,17 @@ const Sidebar = ({ currentView, setCurrentView }) => {
     { id: 'customers', label: t('customersSuppliers'), icon: '👥', permission: 'view_customers_suppliers' },
     { id: 'inventory', label: t('inventory'), icon: '📦', permission: 'view_inventory' },
     { id: 'banking', label: language === 'ar' ? 'الخزينة والبنوك' : 'Banking', icon: '🏦', permission: 'view_banking' },
-  { id: 'accountStatement', label: t('accountStatement'), icon: '📋', permission: 'view_account_statements' },
+    { 
+      id: 'vouchers', 
+      label: language === 'ar' ? 'السندات' : 'Vouchers', 
+      icon: '📄', 
+      permission: 'manage_vouchers',
+      submenu: [
+        { id: 'receiptVouchers', label: language === 'ar' ? 'سندات القبض' : 'Receipt Vouchers', icon: '🧾' },
+        { id: 'paymentVouchers', label: language === 'ar' ? 'سندات الدفع' : 'Payment Vouchers', icon: '💸' }
+      ]
+    },
+    { id: 'accountStatement', label: t('accountStatement'), icon: '📋', permission: 'view_account_statements' },
     { id: 'reports', label: t('reports'), icon: '📈', permission: 'view_financial_reports' },
   ]
 
@@ -88,14 +99,43 @@ const Sidebar = ({ currentView, setCurrentView }) => {
 
       <nav className="sidebar-nav">
         {menuItems.map((item) => (
-          <button
-            key={item.id}
-            className={`nav-item ${currentView === item.id ? 'active' : ''}`}
-            onClick={() => setCurrentView(item.id)}
-          >
-            <span className="nav-icon">{item.icon}</span>
-            <span className="nav-label">{item.label}</span>
-          </button>
+          item.submenu ? (
+            <div key={item.id} className="nav-group">
+              <button
+                className="nav-item nav-parent"
+                onClick={() => setOpenSubmenu(openSubmenu === item.id ? null : item.id)}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                <span className="nav-label">{item.label}</span>
+                <span className={`submenu-arrow ${openSubmenu === item.id ? 'open' : ''}`}>
+                  {language === 'ar' ? '◀' : '▶'}
+                </span>
+              </button>
+              {openSubmenu === item.id && (
+                <div className="nav-submenu">
+                  {item.submenu.map((subItem) => (
+                    <button
+                      key={subItem.id}
+                      className={`nav-item nav-subitem ${currentView === subItem.id ? 'active' : ''}`}
+                      onClick={() => setCurrentView(subItem.id)}
+                    >
+                      <span className="nav-icon">{subItem.icon}</span>
+                      <span className="nav-label">{subItem.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              key={item.id}
+              className={`nav-item ${currentView === item.id ? 'active' : ''}`}
+              onClick={() => setCurrentView(item.id)}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </button>
+          )
         ))}
       </nav>
       

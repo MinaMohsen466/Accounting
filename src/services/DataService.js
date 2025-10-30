@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   CUSTOMERS: 'customers',  // تم تغييرها من 'accounting_customers' إلى 'customers'
   SUPPLIERS: 'suppliers',  // تم تغييرها من 'accounting_suppliers' إلى 'suppliers'
   INVENTORY: 'inventoryItems',  // تم تغييرها من 'accounting_inventory' إلى 'inventoryItems'
+  VOUCHERS: 'vouchers',  // 🆕 سندات القبض والدفع
   SETTINGS: 'accounting_settings'
 }
 
@@ -379,6 +380,50 @@ class DataService {
     const items = this.getInventoryItems()
     const filteredItems = items.filter(item => item.id !== id)
     return this.saveInventoryItems(filteredItems)
+  }
+
+  // 🆕 Vouchers Management (سندات القبض والدفع)
+  static getVouchers() {
+    return this.get(STORAGE_KEYS.VOUCHERS) || []
+  }
+
+  static saveVouchers(vouchers) {
+    return this.set(STORAGE_KEYS.VOUCHERS, vouchers)
+  }
+
+  static addVoucher(voucher) {
+    const vouchers = this.getVouchers()
+    const newVoucher = {
+      ...voucher,
+      id: this.generateId(),
+      voucherNumber: this.generateVoucherNumber(voucher.type),
+      createdAt: new Date().toISOString()
+    }
+    vouchers.push(newVoucher)
+    return this.saveVouchers(vouchers) ? newVoucher : null
+  }
+
+  static updateVoucher(id, updatedVoucher) {
+    const vouchers = this.getVouchers()
+    const index = vouchers.findIndex(v => v.id === id)
+    if (index !== -1) {
+      vouchers[index] = { ...vouchers[index], ...updatedVoucher, updatedAt: new Date().toISOString() }
+      return this.saveVouchers(vouchers) ? vouchers[index] : null
+    }
+    return null
+  }
+
+  static deleteVoucher(id) {
+    const vouchers = this.getVouchers()
+    const filteredVouchers = vouchers.filter(v => v.id !== id)
+    return this.saveVouchers(filteredVouchers)
+  }
+
+  static generateVoucherNumber(type) {
+    const vouchers = this.getVouchers().filter(v => v.type === type)
+    const prefix = type === 'receipt' ? 'RV' : 'PV' // RV = Receipt Voucher, PV = Payment Voucher
+    const number = (vouchers.length + 1).toString().padStart(4, '0')
+    return `${prefix}${number}`
   }
 
   // Utility methods
