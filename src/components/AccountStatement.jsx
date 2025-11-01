@@ -13,7 +13,9 @@ const AccountStatement = () => {
     invoices,
     accounts,
     journalEntries,
-    getCustomerSupplierStatement 
+    getCustomerSupplierStatement,
+    getAccountStatement: getAccountStatementFromHook, // 🆕 الدالة المحسّنة التي تدعم الحسابات الفرعية
+    getAllSubAccounts // 🆕 للحصول على جميع الحسابات الفرعية
   } = useAccounting()
   const { language } = useLanguage()
   const { hasPermission } = useAuth()
@@ -35,6 +37,7 @@ const AccountStatement = () => {
   const [endDate, setEndDate] = useState('')
   const [statementData, setStatementData] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [includeSubAccounts, setIncludeSubAccounts] = useState(true) // 🆕 خيار تضمين الحسابات الفرعية
   // Keep the actual invoice object in state so the modal renders reliably
   const [openInvoice, setOpenInvoice] = useState(null)
   const openInvoiceModal = (invoiceOrId) => {
@@ -205,59 +208,17 @@ const AccountStatement = () => {
            (entity.phone && entity.phone.includes(searchTerm))
   })
 
-  // Generate account statement for general ledger accounts
+  // 🆕 استخدام الدالة المحسّنة من useAccounting التي تدعم الحسابات الفرعية
   const getAccountStatement = (accountId, startDate, endDate) => {
     const account = accounts.find(acc => acc.id === accountId)
     if (!account) return null
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    end.setHours(23, 59, 59, 999)
+    // استخدام الدالة المحسّنة التي تدعم الحسابات الفرعية
+    const result = getAccountStatementFromHook(accountId, startDate, endDate, includeSubAccounts)
+    
+    if (!result) return null
 
-    const transactions = []
-    let openingBalance = 0
-
-    // Process journal entries
-    journalEntries.forEach(entry => {
-      const entryDate = new Date(entry.date)
-
-      entry.lines?.forEach(line => {
-        if (line.accountId === accountId) {
-          const debit = parseFloat(line.debit) || 0
-          const credit = parseFloat(line.credit) || 0
-
-          if (entryDate < start) {
-            // Before period - add to opening balance
-            openingBalance += (debit - credit)
-          } else if (entryDate >= start && entryDate <= end) {
-            // Within period - add to transactions
-            transactions.push({
-              date: entry.date,
-              description: line.description || entry.description,
-              reference: entry.reference || '',
-              debit: debit,
-              credit: credit,
-              type: entry.type || 'manual'
-            })
-          }
-        }
-      })
-    })
-
-    // Sort by date
-    transactions.sort((a, b) => new Date(a.date) - new Date(b.date))
-
-    // Calculate running balance
-    let runningBalance = openingBalance
-    transactions.forEach(trans => {
-      runningBalance += (trans.debit - trans.credit)
-      trans.balance = runningBalance
-    })
-
-    const totalDebit = transactions.reduce((sum, t) => sum + t.debit, 0)
-    const totalCredit = transactions.reduce((sum, t) => sum + t.credit, 0)
-    const closingBalance = openingBalance + totalDebit - totalCredit
-
+    // تحويل البيانات إلى الشكل المتوقع من قبل واجهة المستخدم
     return {
       entity: {
         id: account.id,
@@ -265,15 +226,18 @@ const AccountStatement = () => {
         code: account.code,
         type: account.type
       },
-      openingBalance,
-      transactions,
-      totalDebit,
-      totalCredit,
-      closingBalance,
+      openingBalance: result.openingBalance,
+      transactions: result.transactions,
+      totalDebit: result.totalDebit,
+      totalCredit: result.totalCredit,
+      closingBalance: result.closingBalance,
       period: {
         start: startDate,
         end: endDate
-      }
+      },
+      // 🆕 معلومات الحسابات الفرعية
+      includesSubAccounts: includeSubAccounts,
+      subAccountsCount: includeSubAccounts ? getAllSubAccounts(account.code).length : 0
     }
   }
 
@@ -1030,6 +994,28 @@ const AccountStatement = () => {
             />
           </div>
 
+          {/* 🆕 خيار تضمين الحسابات الفرعية - يظهر فقط للحسابات المحاسبية */}
+          {entityType === 'account' && selectedEntityId && (() => {
+            const selectedAcc = accounts.find(a => a.id === selectedEntityId)
+            const subAccountsCount = selectedAcc ? getAllSubAccounts(selectedAcc.code).length : 0
+            return subAccountsCount > 0 ? (
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  id="includeSubAccounts"
+                  checked={includeSubAccounts}
+                  onChange={(e) => setIncludeSubAccounts(e.target.checked)}
+                  style={{ width: 'auto', cursor: 'pointer' }}
+                />
+                <label htmlFor="includeSubAccounts" style={{ margin: 0, cursor: 'pointer' }}>
+                  {language === 'ar' 
+                    ? `🌳 تضمين الحسابات الفرعية (${subAccountsCount})` 
+                    : `🌳 Include Sub-Accounts (${subAccountsCount})`}
+                </label>
+              </div>
+            ) : null
+          })()}
+
           <div className="form-group action-buttons">
             <button onClick={generateStatement} className="btn-primary">
               {language === 'ar' ? 'عرض الكشف' : 'Generate Statement'}
@@ -1076,6 +1062,12 @@ const AccountStatement = () => {
                 {entityType === 'account' && statementData.entity.type && (
                   <p><strong>{language === 'ar' ? 'نوع الحساب:' : 'Account Type:'}</strong> {statementData.entity.type}</p>
                 )}
+                {/* 🆕 عرض معلومة الحسابات الفرعية */}
+                {entityType === 'account' && statementData.includesSubAccounts && statementData.subAccountsCount > 0 && (
+                  <p style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                    <strong>🌳 {language === 'ar' ? 'يشمل الحسابات الفرعية:' : 'Includes Sub-Accounts:'}</strong> {statementData.subAccountsCount} {language === 'ar' ? 'حساب' : 'account(s)'}
+                  </p>
+                )}
               </div>
               <div className="date-range">
                 <p><strong>{language === 'ar' ? 'الفترة:' : 'Period:'}</strong> {new Date(startDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')} {language === 'ar' ? 'إلى' : 'to'} {new Date(endDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</p>
@@ -1099,6 +1091,10 @@ const AccountStatement = () => {
                 <th>{language === 'ar' ? 'التاريخ' : 'Date'}</th>
                 <th>{language === 'ar' ? (entityType === 'account' ? 'المرجع' : 'رقم الفاتورة') : (entityType === 'account' ? 'Reference' : 'Invoice #')}</th>
                 <th>{language === 'ar' ? 'الوصف' : 'Description'}</th>
+                {/* 🆕 عمود الحساب الفرعي - يظهر فقط إذا كان الكشف يشمل حسابات فرعية */}
+                {entityType === 'account' && statementData.includesSubAccounts && statementData.subAccountsCount > 0 && (
+                  <th>{language === 'ar' ? 'الحساب الفرعي' : 'Sub-Account'}</th>
+                )}
                 <th>{language === 'ar' ? 'النوع' : 'Type'}</th>
                 <th className="amount-col">{language === 'ar' ? 'مدين' : 'Debit'}</th>
                 <th className="amount-col">{language === 'ar' ? 'دائن' : 'Credit'}</th>
@@ -1111,6 +1107,9 @@ const AccountStatement = () => {
                 <td>{new Date(startDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
                 <td>-</td>
                 <td><strong>{language === 'ar' ? 'رصيد افتتاحي' : 'Opening Balance'}</strong></td>
+                {entityType === 'account' && statementData.includesSubAccounts && statementData.subAccountsCount > 0 && (
+                  <td>-</td>
+                )}
                 <td>-</td>
                 <td className="amount-col">-</td>
                 <td className="amount-col">-</td>
@@ -1150,6 +1149,12 @@ const AccountStatement = () => {
                         )}
                       </td>
                       <td>{trans.description}</td>
+                      {/* 🆕 عمود الحساب الفرعي */}
+                      {entityType === 'account' && statementData.includesSubAccounts && statementData.subAccountsCount > 0 && (
+                        <td style={{ fontSize: '0.85em', color: '#666' }}>
+                          {trans.accountName || '-'}
+                        </td>
+                      )}
                       <td>
                         {isBothRow ? (
                           <span className="type-badge both">

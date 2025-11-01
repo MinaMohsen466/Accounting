@@ -14,6 +14,7 @@ const PaymentVouchers = () => {
     invoices, // 🆕 لربط السند بفاتورة محددة
     addVoucher,
     updateInvoice, // 🆕 لتحديث حالة الفاتورة تلقائياً
+    updateSupplier, // 🆕 لتحديث رصيد المورد عند الدفع من الرصيد الافتتاحي
     deleteVoucher,
     addJournalEntry
   } = useAccounting()
@@ -142,6 +143,57 @@ const PaymentVouchers = () => {
       return
     }
 
+    // ✅ التحقق: يجب وجود فاتورة أو رصيد ابتدائي
+    const voucherAmount = parseFloat(formData.amount)
+    
+    if (!formData.invoiceId) {
+      // إذا لم يتم اختيار فاتورة، تحقق من الرصيد الابتدائي
+      const supplier = suppliers.find(s => s.id === formData.supplierId)
+      const openingBalance = parseFloat(supplier?.balance || 0)
+      
+      // المورد يجب أن يكون لديه رصيد سالب (نحن مدينون له)
+      if (openingBalance >= 0) {
+        showNotification(
+          language === 'ar' 
+            ? '⚠️ يجب اختيار فاتورة محددة أو وجود رصيد ابتدائي سالب للمورد' 
+            : '⚠️ Must select an invoice or supplier must have negative opening balance',
+          'error'
+        )
+        return
+      }
+      
+      // التحقق من أن المبلغ لا يتجاوز الرصيد المستحق (القيمة المطلقة)
+      const absBalance = Math.abs(openingBalance)
+      if (voucherAmount > absBalance + 0.001) {
+        showNotification(
+          language === 'ar'
+            ? `⚠️ المبلغ المدخل (${voucherAmount.toFixed(3)} د.ك) أكبر من الرصيد المستحق (${absBalance.toFixed(3)} د.ك)`
+            : `⚠️ Amount (${voucherAmount.toFixed(3)} KWD) exceeds due balance (${absBalance.toFixed(3)} KWD)`,
+          'error'
+        )
+        return
+      }
+    } else {
+      // ✅ التحقق من أن المبلغ لا يتجاوز المبلغ المستحق في الفاتورة
+      const linkedInvoice = invoices.find(inv => inv.id === formData.invoiceId)
+      if (linkedInvoice) {
+        const invoiceTotal = parseFloat(linkedInvoice.total || 0)
+        const paidAmount = parseFloat(linkedInvoice.paidAmount || 0)
+        const invoiceReturns = getInvoiceReturns(linkedInvoice.id)
+        const netRemaining = invoiceTotal - paidAmount - invoiceReturns
+
+        if (voucherAmount > netRemaining + 0.001) {
+          showNotification(
+            language === 'ar'
+              ? `⚠️ المبلغ المدخل (${voucherAmount.toFixed(3)} د.ك) أكبر من المبلغ المستحق (${netRemaining.toFixed(3)} د.ك)`
+              : `⚠️ Amount (${voucherAmount.toFixed(3)} KWD) exceeds remaining amount (${netRemaining.toFixed(3)} KWD)`,
+            'error'
+          )
+          return
+        }
+      }
+    }
+
     try {
       // 1. إنشاء السند
       const voucherData = {
@@ -237,12 +289,23 @@ const PaymentVouchers = () => {
               paidAmount: netInvoiceTotal > 0 ? netInvoiceTotal : 0
             })
             
-            showNotification(
-              language === 'ar' 
-                ? `✅ تم إنشاء السند وتحديث حالة الفاتورة ${linkedInvoice.invoiceNumber} إلى "مدفوع"` 
-                : `✅ Voucher created and invoice ${linkedInvoice.invoiceNumber} marked as "Paid"`,
-              'success'
-            )
+            // ✅ معالجة الدفع الزائد (رصيد دائن لنا من المورد)
+            const overpayment = totalPaid - netInvoiceTotal
+            if (overpayment > 0.001) {
+              showNotification(
+                language === 'ar' 
+                  ? `✅ تم إنشاء السند وتحديث الفاتورة ${linkedInvoice.invoiceNumber} إلى "مدفوع"\n💰 رصيد دائن لنا: ${overpayment.toFixed(3)} د.ك` 
+                  : `✅ Voucher created and invoice ${linkedInvoice.invoiceNumber} marked as "Paid"\n💰 Credit balance for us: ${overpayment.toFixed(3)} KWD`,
+                'success'
+              )
+            } else {
+              showNotification(
+                language === 'ar' 
+                  ? `✅ تم إنشاء السند وتحديث حالة الفاتورة ${linkedInvoice.invoiceNumber} إلى "مدفوع"` 
+                  : `✅ Voucher created and invoice ${linkedInvoice.invoiceNumber} marked as "Paid"`,
+                'success'
+              )
+            }
           } else {
             // دفع جزئي
             updateInvoice(linkedInvoice.id, {
@@ -259,13 +322,41 @@ const PaymentVouchers = () => {
           }
         }
       } else {
-        // لم يتم ربط السند بفاتورة محددة
-        showNotification(
-          language === 'ar' 
-            ? `تم إنشاء سند الدفع ${newVoucher.voucherNumber} بنجاح` 
-            : `Payment voucher ${newVoucher.voucherNumber} created successfully`,
-          'success'
-        )
+        // ✅ لم يتم ربط السند بفاتورة محددة - إذن هو دفع من الرصيد الافتتاحي
+        // يجب تحديث رصيد المورد
+        const supplier = suppliers.find(s => s.id === formData.supplierId)
+        if (supplier) {
+          const currentBalance = parseFloat(supplier.balance || 0)
+          const voucherAmount = parseFloat(formData.amount)
+          // المورد رصيده سالب (نحن ندين له)، فعند الدفع نزيد الرصيد (يصبح أقل سلبية)
+          const newBalance = currentBalance + voucherAmount
+          
+          console.log('💰 تحديث الرصيد الافتتاحي للمورد:', {
+            supplierName: supplier.name,
+            oldBalance: currentBalance,
+            payment: voucherAmount,
+            newBalance: newBalance
+          })
+          
+          updateSupplier(supplier.id, {
+            balance: newBalance
+          })
+          
+          const remainingDebt = Math.abs(newBalance)
+          showNotification(
+            language === 'ar' 
+              ? `✅ تم إنشاء سند الدفع ${newVoucher.voucherNumber}\n💰 الرصيد المتبقي للمورد: ${remainingDebt.toFixed(3)} د.ك` 
+              : `✅ Payment voucher ${newVoucher.voucherNumber} created\n💰 Supplier remaining balance: ${remainingDebt.toFixed(3)} KWD`,
+            'success'
+          )
+        } else {
+          showNotification(
+            language === 'ar' 
+              ? `تم إنشاء سند الدفع ${newVoucher.voucherNumber} بنجاح` 
+              : `Payment voucher ${newVoucher.voucherNumber} created successfully`,
+            'success'
+          )
+        }
       }
 
       closeModal()
@@ -288,10 +379,33 @@ const PaymentVouchers = () => {
     }
 
     try {
+      // ✅ إذا كان السند غير مرتبط بفاتورة (دفع من الرصيد الافتتاحي)
+      // يجب إرجاع المبلغ إلى رصيد المورد
+      if (!voucher.invoiceId && voucher.supplierId) {
+        const supplier = suppliers.find(s => s.id === voucher.supplierId)
+        if (supplier) {
+          const currentBalance = parseFloat(supplier.balance || 0)
+          const voucherAmount = parseFloat(voucher.amount || 0)
+          // المورد رصيده سالب، فعند حذف السند نطرح المبلغ (يصبح أكثر سلبية)
+          const newBalance = currentBalance - voucherAmount
+          
+          console.log('🔄 إرجاع المبلغ إلى الرصيد الافتتاحي عند حذف السند:', {
+            supplierName: supplier.name,
+            oldBalance: currentBalance,
+            voucherAmount: voucherAmount,
+            newBalance: newBalance
+          })
+          
+          updateSupplier(supplier.id, {
+            balance: newBalance
+          })
+        }
+      }
+      
       deleteVoucher(voucher.id)
       
       showNotification(
-        language === 'ar' ? 'تم حذف سند الدفع بنجاح' : 'Payment voucher deleted successfully',
+        language === 'ar' ? 'تم حذف سند الدفع بنجاح وإرجاع المبلغ للرصيد' : 'Payment voucher deleted and amount returned to balance',
         'success'
       )
     } catch (error) {
@@ -477,40 +591,73 @@ const PaymentVouchers = () => {
                   </select>
                 </div>
 
-                {/* 🆕 حقل اختياري لربط السند بفاتورة محددة */}
-                {formData.supplierId && getUnpaidInvoicesForSupplier(formData.supplierId).length > 0 && (
+                {/* 🆕 حقل اختياري لربط السند بفاتورة محددة أو الرصيد الابتدائي */}
+                {formData.supplierId && (
                   <div className="form-group">
                     <label>
-                      {language === 'ar' ? 'ربط بفاتورة (اختياري)' : 'Link to Invoice (Optional)'}
+                      {language === 'ar' ? 'سداد من (اختياري)' : 'Payment From (Optional)'}
                       <small style={{ display: 'block', color: '#6b7280', fontSize: '0.85em', marginTop: '4px' }}>
                         {language === 'ar' 
-                          ? 'اختر فاتورة لتحديث حالتها تلقائياً عند اكتمال الدفع' 
-                          : 'Select an invoice to auto-update its status when payment is complete'}
+                          ? 'اختر فاتورة أو الرصيد الابتدائي للتسديد' 
+                          : 'Select an invoice or opening balance to pay'}
                       </small>
                     </label>
                     <select
                       value={formData.invoiceId}
                       onChange={(e) => {
-                        const selectedInvoice = invoices.find(inv => inv.id === e.target.value)
-                        if (selectedInvoice) {
-                          // ✅ حساب المبلغ المتبقي = الإجمالي - المدفوع - المرتجعات
-                          const invoiceTotal = parseFloat(selectedInvoice.total || 0)
-                          const paidAmount = parseFloat(selectedInvoice.paidAmount || 0)
-                          const returns = getInvoiceReturns(selectedInvoice.id)
-                          const remaining = invoiceTotal - paidAmount - returns
+                        const value = e.target.value
+                        
+                        if (value === 'OPENING_BALANCE') {
+                          // تسديد من الرصيد الابتدائي
+                          const supplier = suppliers.find(s => s.id === formData.supplierId)
+                          const openingBalance = parseFloat(supplier?.balance || 0)
                           
-                          setFormData({ 
-                            ...formData, 
-                            invoiceId: e.target.value,
-                            amount: remaining > 0 ? remaining.toFixed(3) : 0
+                          setFormData({
+                            ...formData,
+                            invoiceId: '',
+                            amount: openingBalance < 0 ? Math.abs(openingBalance).toFixed(3) : 0
                           })
+                        } else if (value) {
+                          // تسديد فاتورة محددة
+                          const selectedInvoice = invoices.find(inv => inv.id === value)
+                          if (selectedInvoice) {
+                            // ✅ حساب المبلغ المتبقي = الإجمالي - المدفوع - المرتجعات
+                            const invoiceTotal = parseFloat(selectedInvoice.total || 0)
+                            const paidAmount = parseFloat(selectedInvoice.paidAmount || 0)
+                            const returns = getInvoiceReturns(selectedInvoice.id)
+                            const remaining = invoiceTotal - paidAmount - returns
+                            
+                            setFormData({ 
+                              ...formData, 
+                              invoiceId: value,
+                              amount: remaining > 0 ? remaining.toFixed(3) : 0
+                            })
+                          }
                         } else {
                           setFormData({ ...formData, invoiceId: '', amount: 0 })
                         }
                       }}
                     >
-                      <option value="">{language === 'ar' ? '-- بدون ربط بفاتورة --' : '-- No Invoice Link --'}</option>
-                      {getUnpaidInvoicesForSupplier(formData.supplierId).map(invoice => {
+                      <option value="">{language === 'ar' ? '-- بدون سداد --' : '-- No Payment --'}</option>
+                      
+                      {/* خيار الرصيد الابتدائي */}
+                      {(() => {
+                        const supplier = suppliers.find(s => s.id === formData.supplierId)
+                        const openingBalance = parseFloat(supplier?.balance || 0)
+                        if (openingBalance < 0) { // المورد دائن (رصيد سالب)
+                          return (
+                            <option value="OPENING_BALANCE" style={{ fontWeight: 'bold', background: '#ffe0e0' }}>
+                              💰 {language === 'ar' ? 'الرصيد الابتدائي:' : 'Opening Balance:'} {Math.abs(openingBalance).toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}
+                            </option>
+                          )
+                        }
+                        return null
+                      })()}
+                      
+                      {/* الفواتير غير المسددة */}
+                      {getUnpaidInvoicesForSupplier(formData.supplierId).length > 0 && (
+                        <optgroup label={language === 'ar' ? '📋 الفواتير غير المسددة' : '📋 Unpaid Invoices'}>
+                          {getUnpaidInvoicesForSupplier(formData.supplierId).map(invoice => {
                         // ✅ حساب المبلغ المتبقي مع المرتجعات
                         const invoiceTotal = parseFloat(invoice.total || 0)
                         const paidAmount = parseFloat(invoice.paidAmount || 0)
@@ -524,6 +671,8 @@ const PaymentVouchers = () => {
                           </option>
                         )
                       })}
+                        </optgroup>
+                      )}
                     </select>
                   </div>
                 )}
@@ -543,7 +692,17 @@ const PaymentVouchers = () => {
                   <label>{language === 'ar' ? 'الحساب *' : 'Account *'}</label>
                   <select
                     value={formData.bankAccountId}
-                    onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
+                    onChange={(e) => {
+                      const accountId = e.target.value
+                      const selectedAccount = accounts.find(acc => acc.id === accountId)
+                      const isCash = selectedAccount?.type === 'cash'
+                      
+                      setFormData({ 
+                        ...formData, 
+                        bankAccountId: accountId,
+                        paymentMethod: isCash ? 'cash' : formData.paymentMethod
+                      })
+                    }}
                     required
                   >
                     <option value="">{language === 'ar' ? '-- اختر الحساب --' : '-- Select Account --'}</option>
@@ -561,9 +720,24 @@ const PaymentVouchers = () => {
                     value={formData.paymentMethod}
                     onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
                   >
-                    <option value="cash">{language === 'ar' ? 'نقدي' : 'Cash'}</option>
-                    <option value="bank">{language === 'ar' ? 'بنك' : 'Bank'}</option>
-                    <option value="check">{language === 'ar' ? 'شيك' : 'Check'}</option>
+                    {(() => {
+                      const selectedAccount = accounts.find(acc => acc.id === formData.bankAccountId)
+                      const isCashAccount = selectedAccount?.type === 'cash'
+                      
+                      if (isCashAccount) {
+                        // الخزينة = نقدي فقط
+                        return <option value="cash">{language === 'ar' ? 'نقدي' : 'Cash'}</option>
+                      } else {
+                        // البنك = جميع الطرق
+                        return (
+                          <>
+                            <option value="cash">{language === 'ar' ? 'نقدي' : 'Cash'}</option>
+                            <option value="bank">{language === 'ar' ? 'تحويل بنكي' : 'Bank Transfer'}</option>
+                            <option value="check">{language === 'ar' ? 'شيك' : 'Check'}</option>
+                          </>
+                        )
+                      }
+                    })()}
                   </select>
                 </div>
 

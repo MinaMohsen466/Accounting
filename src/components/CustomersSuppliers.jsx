@@ -160,6 +160,28 @@ const CustomersSuppliers = () => {
       let result
       const isCustomer = activeTab === 'customers'
       
+      // ✅ التحقق من الرصيد الابتدائي
+      const balance = parseFloat(formData.balance || 0)
+      if (isCustomer && balance < 0) {
+        showNotification(
+          language === 'ar'
+            ? '⚠️ لا يمكن إضافة رصيد ابتدائي سالب للعميل\nالعميل يجب أن يكون مديناً (رصيد موجب) أو صفر'
+            : '⚠️ Cannot add negative opening balance for customer\nCustomer must have debit balance (positive) or zero',
+          'error'
+        )
+        return
+      }
+      
+      if (!isCustomer && balance > 0) {
+        showNotification(
+          language === 'ar'
+            ? '⚠️ لا يمكن إضافة رصيد ابتدائي موجب للمورد\nالمورد يجب أن يكون دائناً لنا (رصيد سالب) أو صفر'
+            : '⚠️ Cannot add positive opening balance for supplier\nSupplier must have credit balance (negative) or zero',
+          'error'
+        )
+        return
+      }
+      
       if (editingItem) {
         result = isCustomer 
           ? updateCustomer(editingItem.id, formData)
@@ -375,6 +397,8 @@ const CustomersSuppliers = () => {
     })
     
     // 3️⃣ حساب السندات غير المرتبطة بفواتير محددة
+    // ⚠️ ملاحظة مهمة: السندات غير المرتبطة بفاتورة يتم تحديث openingBalance مباشرة
+    // لذلك لا نحتاج لحسابها هنا مرة أخرى، فقط نحسب عددها للإحصائيات
     let vouchersBalance = 0
     let vouchersCount = 0
     
@@ -385,23 +409,17 @@ const CustomersSuppliers = () => {
         !v.invoiceId  // 🔥 فقط السندات غير المرتبطة بفاتورة محددة
       )
       
-      clientVouchers.forEach(voucher => {
-        const voucherAmount = parseFloat(voucher.amount || 0)
-        vouchersCount++
-        
-        if (voucher.type === 'receipt') {
-          // سند قبض = العميل دفع → يقلل رصيده
-          vouchersBalance -= voucherAmount
-        } else if (voucher.type === 'payment') {
-          // سند دفع = دفعنا له → يقلل رصيده (أو يزيد رصيدنا الدائن)
-          vouchersBalance -= voucherAmount
-        }
-      })
+      vouchersCount = clientVouchers.length
+      
+      // ❌ لا نحسب vouchersBalance هنا لأن السندات غير المرتبطة بفاتورة
+      // تقوم بتحديث client.balance مباشرة في ReceiptVouchers.jsx و PaymentVouchers.jsx
+      // إذا حسبناها هنا سيتم احتسابها مرتين!
     }
     
-    // 4️⃣ الرصيد الإجمالي = الافتتاحي + الفواتير غير المدفوعة - السندات غير المرتبطة
+    // 4️⃣ الرصيد الإجمالي = الافتتاحي + الفواتير غير المدفوعة
+    // ✅ openingBalance يتم تحديثه تلقائياً عند إنشاء سندات غير مرتبطة بفواتير
     // ✅ السندات المرتبطة بفواتير محددة تم احتسابها في paidAmount داخل الفواتير
-    const totalBalance = openingBalance + invoicesBalance + vouchersBalance
+    const totalBalance = openingBalance + invoicesBalance
     
     return {
       openingBalance,        // الرصيد الافتتاحي (ثابت)
@@ -726,16 +744,22 @@ const CustomersSuppliers = () => {
                           const balanceInfo = calculateTotalBalance(item)
                           const isPositive = balanceInfo.totalBalance > 0
                           const isNegative = balanceInfo.totalBalance < 0
+                          const isCustomer = activeTab === 'customers'
+                          
+                          // ✅ للعملاء: موجب=مدين (أخضر)، سالب=دائن (أحمر)
+                          // ✅ للموردين: سالب=دائن (أحمر)، موجب=مدين (أخضر) - عكس المنطق
+                          const shouldShowRed = isCustomer ? isNegative : isPositive
+                          const shouldShowGreen = isCustomer ? isPositive : isNegative
                           
                           return (
                             <div className="balance-details">
-                              <div className={`total-balance ${isPositive ? 'positive' : isNegative ? 'negative' : 'zero'}`}>
+                              <div className={`total-balance ${shouldShowGreen ? 'positive' : shouldShowRed ? 'negative' : 'zero'}`}>
                                 <strong>{Math.abs(balanceInfo.totalBalance).toFixed(3)}</strong> {language === 'ar' ? 'د.ك' : 'KWD'}
                                 {isPositive && <span className="balance-type"> ({language === 'ar' ? 'مدين' : 'Debit'})</span>}
                                 {isNegative && <span className="balance-type"> ({language === 'ar' ? 'دائن' : 'Credit'})</span>}
                               </div>
                               
-                              {(balanceInfo.initialBalance !== 0 || balanceInfo.unpaidBalance !== 0) && (
+                              {(balanceInfo.initialBalance !== 0 || balanceInfo.unpaidBalance !== 0 || balanceInfo.vouchersBalance !== 0) && (
                                 <div className="balance-breakdown">
                                   <small>
                                     {language === 'ar' ? 'ابتدائي:' : 'Initial:'} {balanceInfo.initialBalance.toFixed(3)}
@@ -743,6 +767,12 @@ const CustomersSuppliers = () => {
                                       <span>
                                         {' | '}
                                         {language === 'ar' ? 'فواتير:' : 'Invoices:'} {balanceInfo.unpaidBalance.toFixed(3)}
+                                      </span>
+                                    )}
+                                    {balanceInfo.vouchersBalance !== 0 && (
+                                      <span>
+                                        {' | '}
+                                        {language === 'ar' ? 'سندات:' : 'Vouchers:'} {balanceInfo.vouchersBalance.toFixed(3)}
                                       </span>
                                     )}
                                   </small>
@@ -1012,11 +1042,15 @@ const CustomersSuppliers = () => {
                         onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))}
                         placeholder="0.000"
                         className="balance-input"
+                        min={activeTab === 'customers' ? '0' : undefined}
+                        max={activeTab === 'customers' ? undefined : '0'}
                         disabled={editingItem && hasTransactions ? hasTransactions(editingItem.id, activeTab === 'customers' ? 'customer' : 'supplier') : false}
                         title={
                           editingItem && hasTransactions && hasTransactions(editingItem.id, activeTab === 'customers' ? 'customer' : 'supplier')
                             ? (language === 'ar' ? 'لا يمكن تعديل الرصيد الافتتاحي بعد إجراء معاملات' : 'Cannot edit opening balance after transactions')
-                            : ''
+                            : activeTab === 'customers'
+                              ? (language === 'ar' ? 'العملاء: رصيد موجب أو صفر فقط' : 'Customers: Positive or zero only')
+                              : (language === 'ar' ? 'الموردين: رصيد سالب أو صفر فقط' : 'Suppliers: Negative or zero only')
                         }
                       />
                       <span className="currency-symbol">{language === 'ar' ? 'د.ك' : 'KWD'}</span>
@@ -1030,13 +1064,16 @@ const CustomersSuppliers = () => {
                           }
                         </span>
                       ) : (
-                        language === 'ar' 
-                          ? activeTab === 'customers'
-                            ? '• موجب (+): العميل مدين لنا (له دين علينا) | سالب (-): العميل دائن لنا (دفعنا له مقدماً)'
-                            : '• موجب (+): المورد دائن لنا (نحن مدينون له) | سالب (-): المورد مدين لنا (دفعنا له مقدماً)'
-                          : activeTab === 'customers'
-                            ? '• Positive (+): Customer owes us | Negative (-): We owe customer (advance payment)'
-                            : '• Positive (+): We owe supplier | Negative (-): Supplier owes us (advance payment)'
+                        <span style={{ color: activeTab === 'customers' ? '#3498db' : '#e67e22', fontWeight: 'bold' }}>
+                          {language === 'ar' 
+                            ? activeTab === 'customers'
+                              ? '✅ العملاء: رصيد موجب فقط (مدين) أو صفر • لا يمكن أن يكون العميل دائناً لنا'
+                              : '✅ الموردين: رصيد سالب فقط (دائن) أو صفر • نحن مدينون للمورد'
+                            : activeTab === 'customers'
+                              ? '✅ Customers: Positive balance only (debit) or zero • Customer cannot be creditor'
+                              : '✅ Suppliers: Negative balance only (credit) or zero • We owe supplier'
+                          }
+                        </span>
                       )}
                     </small>
                   </div>

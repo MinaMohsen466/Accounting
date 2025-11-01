@@ -18,18 +18,42 @@ let VALID_USERS = {
     createdAt: new Date().toISOString(), 
     active: true,
     permissions: [
+      // Dashboard & Analytics
       'view_dashboard', 'view_analytics',
+      
+      // Journal Entries
       'view_journal_entries', 'create_journal_entries', 'edit_journal_entries',
+      
+      // Chart of Accounts
       'view_chart_of_accounts', 'create_accounts',
+      
+      // Invoices
       'view_invoices', 'create_invoices', 'edit_invoices',
+      
+      // Customers & Suppliers
       'view_customers_suppliers', 'create_customers_suppliers', 'edit_customers_suppliers',
-      'view_inventory', 'create_inventory_items',
-      'view_account_statements', 'manage_account_statements',
-      'view_financial_reports', 'export_reports',
-      'view_settings',
+      
+      // Inventory
+      'view_inventory', 'create_inventory_items', 'edit_inventory_items', 
+      'view_stock_alerts', 'view_expiry_alerts', 'manage_brands', 'manage_colors',
+      
+      // Vouchers
+      'view_vouchers', 'create_vouchers', 'edit_vouchers', 'delete_vouchers', 'manage_vouchers',
+      
+      // Account Statements
+      'view_account_statements', 'manage_account_statements', 'export_statements',
+      
+      // Reports
+      'view_financial_reports', 'export_reports', 'print_reports',
+      
+      // Banking
       'view_banking', 'manage_bank_accounts', 'record_payments', 'record_receipts', 'record_expenses',
+      
+      // Treasury
       'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals',
-      'manage_vouchers', 'create_vouchers', 'delete_vouchers' // 🆕 صلاحيات السندات
+      
+      // Settings
+      'view_settings', 'edit_brand_settings'
     ]
   },
   'accountant': { 
@@ -39,17 +63,38 @@ let VALID_USERS = {
     createdAt: new Date().toISOString(), 
     active: true,
     permissions: [
+      // Dashboard
       'view_dashboard',
-      'view_journal_entries', 'create_journal_entries',
-      'view_chart_of_accounts',
+      
+      // Journal Entries
+      'view_journal_entries', 'create_journal_entries', 'edit_journal_entries',
+      
+      // Chart of Accounts
+      'view_chart_of_accounts', 'create_accounts',
+      
+      // Invoices
       'view_invoices', 'create_invoices',
-      'view_customers_suppliers',
-      'view_inventory',
-      'view_account_statements',
-      'view_financial_reports',
+      
+      // Customers & Suppliers
+      'view_customers_suppliers', 'create_customers_suppliers',
+      
+      // Inventory
+      'view_inventory', 'view_stock_alerts', 'view_expiry_alerts',
+      
+      // Vouchers
+      'view_vouchers', 'create_vouchers', 'edit_vouchers', 'delete_vouchers', 'manage_vouchers',
+      
+      // Account Statements
+      'view_account_statements', 'export_statements',
+      
+      // Reports
+      'view_financial_reports', 'print_reports',
+      
+      // Banking
       'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts',
-      'view_treasury', 'record_cash_deposits', 'record_cash_withdrawals',
-      'manage_vouchers', 'create_vouchers', 'delete_vouchers' // 🆕 صلاحيات السندات
+      
+      // Treasury
+      'view_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
     ]
   },
   'user': { 
@@ -393,19 +438,52 @@ export const AuthProvider = ({ children }) => {
     // Admin has all permissions
     if (user.role === 'admin') {
       return [
+        // Dashboard & Analytics
         'view_dashboard', 'view_analytics',
+        
+        // Journal Entries
         'view_journal_entries', 'create_journal_entries', 'edit_journal_entries', 'delete_journal_entries', 'approve_journal_entries',
+        
+        // Chart of Accounts
         'view_chart_of_accounts', 'create_accounts', 'edit_accounts', 'delete_accounts',
+        
+        // Invoices
         'view_invoices', 'create_invoices', 'edit_invoices', 'delete_invoices', 'approve_invoices',
+        
+        // Customers & Suppliers
         'view_customers_suppliers', 'create_customers_suppliers', 'edit_customers_suppliers', 'delete_customers_suppliers',
-        'view_inventory', 'create_inventory_items', 'edit_inventory_items', 'delete_inventory_items', 'view_stock_alerts', 'view_expiry_alerts',
+        
+        // Inventory
+        'view_inventory', 'create_inventory_items', 'edit_inventory_items', 'delete_inventory_items', 
+        'view_stock_alerts', 'view_expiry_alerts', 'manage_brands', 'manage_colors',
+        
+        // Vouchers (السندات) - 🆕
+        'view_vouchers', 'create_vouchers', 'edit_vouchers', 'delete_vouchers', 'manage_vouchers',
+        
+        // Account Statements
+        'view_account_statements', 'manage_account_statements', 'export_statements',
+        
+        // Financial Reports
         'view_financial_reports', 'export_reports', 'print_reports',
+        
+        // Banking
+        'view_banking', 'manage_bank_accounts', 'record_deposits', 'record_withdrawals', 
+        'record_payments', 'record_receipts', 'record_expenses', 'view_customer_accounts',
+        
+        // Treasury (الخزينة)
+        'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals',
+        
+        // Data Management
         'import_data', 'export_data', 'backup_data', 'restore_data',
-        'view_settings', 'edit_general_settings', 'edit_brand_settings', 'manage_users', 'view_user_logs',
-        'system_maintenance', 'view_system_logs', 'manage_system_backups',
-        'view_banking', 'manage_bank_accounts', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts', 'record_expenses', 'view_customer_accounts',
-        'view_account_statements', 'manage_account_statements',
-        'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals'
+        
+        // Settings
+        'view_settings', 'edit_general_settings', 'edit_brand_settings', 'edit_invoice_settings',
+        
+        // User Management
+        'manage_users', 'view_user_logs', 'create_users', 'edit_users', 'delete_users',
+        
+        // System
+        'system_maintenance', 'view_system_logs', 'manage_system_backups'
       ]
     }
     
