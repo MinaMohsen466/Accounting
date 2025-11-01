@@ -700,11 +700,21 @@ export const useAccounting = () => {
         }
       }
       
-      // إذا كانت الفاتورة مدفوعة، نستخدم حساب الخزينة أو البنك بدلاً من حساب العميل
+      // ✅ تحديد الحساب المستخدم في القيد
+      // 
+      // 🔹 فاتورة مبيعات عادية (ليست مرتجع):
+      //    - إذا مدفوعة: نستخدم الخزينة/البنك
+      //    - إذا آجلة: نستخدم حساب العميل
+      //
+      // 🔹 مرتجع مبيعات:
+      //    - دائماً نستخدم الخزينة (لأننا نرجع المال للعميل)
+      //    - و حساب العميل (لتخفيض مديونيته لنا)
+      
       let paymentAccount = customerAccount
-      if (isPaid) {
+      
+      if (isReturn || isPaid) {
+        // ✅ المرتجع أو الفاتورة المدفوعة: نستخدم الخزينة/البنك
         if (paymentMethod === 'bank' && paymentBankAccountId) {
-          // البحث عن حساب البنك المحدد
           paymentAccount = accounts.find(acc => acc.id === paymentBankAccountId)
           if (!paymentAccount) {
             console.warn('⚠️ لم يتم العثور على حساب البنك، استخدام الخزينة')
@@ -718,7 +728,6 @@ export const useAccounting = () => {
             })
           }
         } else {
-          // استخدام حساب الخزينة للدفع النقدي
           paymentAccount = ensureAccountExists('1001', {
             name: 'الخزينة',
             nameEn: 'Cash',
@@ -728,22 +737,63 @@ export const useAccounting = () => {
             balance: 0
           })
         }
-        console.log('💳 الفاتورة مدفوعة، استخدام حساب:', {
+        console.log('💳 استخدام حساب:', {
           code: paymentAccount.code,
           name: paymentAccount.name,
+          reason: isReturn ? 'مرتجع (إرجاع مال)' : 'مدفوعة',
           paymentMethod
         })
       }
       
-      // Debit Customer/Cash/Bank for total amount (including VAT, minus discount)
-      // إذا كانت فاتورة إرجاع، نعكس المدين والدائن
-      lines.push({
-        accountId: paymentAccount.id,
-        accountName: paymentAccount.name,
-        debit: isReturn ? 0 : total,
-        credit: isReturn ? total : 0,
-        description: `${isReturn ? 'إرجاع ' : ''}فاتورة مبيعات رقم ${invoice.invoiceNumber}`
-      })
+      // ✅ تصحيح منطق مرتجع المبيعات
+      //
+      // 🔹 فاتورة مبيعات عادية:
+      //    - مدين: العميل (أو الخزينة إذا مدفوعة)
+      //    - دائن: المبيعات، الضريبة
+      //    → العميل مدين لنا (أو استلمنا المال في الخزينة)
+      //
+      // 🔹 مرتجع مبيعات:
+      //    - مدين: المبيعات، الضريبة (نعكس القيد)
+      //    - دائن: الخزينة (نرجع المال للعميل)
+      //    - دائن: العميل (نُنقص مديونيته لنا)
+      
+      if (isReturn) {
+        // ✅ في حالة المرتجع: العميل يصبح دائن (نُنقص مديونيته لنا)
+        lines.push({
+          accountId: customerAccount.id,  // ⚠️ استخدم حساب العميل دائماً في المرتجع
+          accountName: customerAccount.name,
+          debit: 0,
+          credit: total,  // دائن (نُنقص مديونية العميل لنا)
+          description: `مرتجع مبيعات رقم ${invoice.invoiceNumber} - تخفيض رصيد العميل`
+        })
+        
+        // ✅ الخزينة: نرجع المال (دائن)
+        const cashAccount = ensureAccountExists('1001', {
+          name: 'الخزينة',
+          nameEn: 'Cash',
+          type: 'asset',
+          category: 'current_assets',
+          description: 'الخزينة النقدية',
+          balance: 0
+        })
+        
+        lines.push({
+          accountId: cashAccount.id,
+          accountName: cashAccount.name,
+          debit: 0,
+          credit: total,  // دائن (نرجع المال)
+          description: `إرجاع مبلغ مرتجع مبيعات رقم ${invoice.invoiceNumber}`
+        })
+      } else {
+        // ✅ فاتورة عادية: العميل/الخزينة/البنك مدين
+        lines.push({
+          accountId: paymentAccount.id,
+          accountName: paymentAccount.name,
+          debit: total,  // مدين (العميل يدين لنا أو استلمنا المال)
+          credit: 0,
+          description: `فاتورة مبيعات رقم ${invoice.invoiceNumber}`
+        })
+      }
       
       // Credit Sales for subtotal (before discount and VAT)
       // إذا كانت فاتورة إرجاع، نعكس المدين والدائن
@@ -870,9 +920,13 @@ export const useAccounting = () => {
         }
       }
       
-      // إذا كانت الفاتورة مدفوعة، نستخدم حساب الخزينة أو البنك بدلاً من حساب المورد
+      // 🔥 تحديد الحساب المستخدم في القيد
       let paymentAccount = supplierAccount
-      if (isPaid) {
+      
+      // ✅ إذا كانت فاتورة إرجاع، نستخدم الخزينة/البنك دائماً (نسترجع المال)
+      // ✅ إذا كانت فاتورة مدفوعة، نستخدم الخزينة/البنك (تم الدفع)
+      // ❌ إذا كانت آجلة (غير مدفوعة وغير مرتجع)، نستخدم حساب المورد
+      if (isReturn || isPaid) {
         if (paymentMethod === 'bank' && paymentBankAccountId) {
           // البحث عن حساب البنك المحدد
           paymentAccount = accounts.find(acc => acc.id === paymentBankAccountId)
@@ -888,7 +942,7 @@ export const useAccounting = () => {
             })
           }
         } else {
-          // استخدام حساب الخزينة للدفع النقدي
+          // استخدام حساب الخزينة للدفع النقدي أو الإرجاع
           paymentAccount = ensureAccountExists('1001', {
             name: 'الخزينة',
             nameEn: 'Cash',
@@ -898,9 +952,10 @@ export const useAccounting = () => {
             balance: 0
           })
         }
-        console.log('💳 الفاتورة مدفوعة، استخدام حساب:', {
+        console.log('💳 استخدام حساب:', {
           code: paymentAccount.code,
           name: paymentAccount.name,
+          reason: isReturn ? 'مرتجع (استرجاع مال)' : 'مدفوعة',
           paymentMethod
         })
       }
@@ -937,15 +992,60 @@ export const useAccounting = () => {
         })
       }
       
-      // Credit Supplier/Cash/Bank for total amount
-      // إذا كانت فاتورة إرجاع، نعكس المدين والدائن
-      lines.push({
-        accountId: paymentAccount.id,
-        accountName: paymentAccount.name,
-        debit: isReturn ? total : 0,
-        credit: isReturn ? 0 : total,
-        description: `${isReturn ? 'إرجاع ' : ''}فاتورة مشتريات رقم ${invoice.invoiceNumber}`
-      })
+      // ✅ تصحيح منطق مرتجع المشتريات
+      // 
+      // 🔹 فاتورة مشتريات عادية (ليست مرتجع):
+      //    - مدين: المشتريات، الضريبة
+      //    - دائن: المورد (أو الخزينة إذا مدفوعة)
+      //    → نحن مدينون للمورد (أو دفعنا له من الخزينة)
+      //
+      // 🔹 مرتجع مشتريات:
+      //    - مدين: المورد (نُنقص مديونيتنا له)
+      //    - مدين: الخزينة (نسترجع المال)
+      //    - دائن: المشتريات، الضريبة (نعكس القيد)
+      //    → المورد يصبح مدين لنا (نُنقص مديونيتنا له)
+      //
+      // ⚠️ الفرق المهم:
+      // - فاتورة عادية: المورد دائن (نحن ندين له)
+      // - مرتجع: المورد مدين (نُنقص مديونيتنا له)
+      
+      if (isReturn) {
+        // ✅ في حالة المرتجع: المورد يصبح مدين (نُنقص مديونيتنا له)
+        lines.push({
+          accountId: supplierAccount.id,  // ⚠️ استخدم حساب المورد دائماً في المرتجع
+          accountName: supplierAccount.name,
+          debit: total,  // مدين (نُنقص مديونيتنا للمورد)
+          credit: 0,
+          description: `مرتجع مشتريات رقم ${invoice.invoiceNumber} - تخفيض رصيد المورد`
+        })
+        
+        // ✅ الخزينة: نسترجع المال (مدين)
+        const cashAccount = ensureAccountExists('1001', {
+          name: 'الخزينة',
+          nameEn: 'Cash',
+          type: 'asset',
+          category: 'current_assets',
+          description: 'الخزينة النقدية',
+          balance: 0
+        })
+        
+        lines.push({
+          accountId: cashAccount.id,
+          accountName: cashAccount.name,
+          debit: total,  // مدين (نسترجع المال)
+          credit: 0,
+          description: `استرجاع مبلغ مرتجع مشتريات رقم ${invoice.invoiceNumber}`
+        })
+      } else {
+        // ✅ فاتورة عادية: المورد/الخزينة/البنك دائن
+        lines.push({
+          accountId: paymentAccount.id,
+          accountName: paymentAccount.name,
+          debit: 0,
+          credit: total,  // دائن (نحن ندين للمورد أو دفعنا من الخزينة)
+          description: `فاتورة مشتريات رقم ${invoice.invoiceNumber}`
+        })
+      }
     }
 
     console.log('📋 القيد النهائي:', {
@@ -967,13 +1067,54 @@ export const useAccounting = () => {
     }
   }
 
+  // 🆕 دالة للحصول على جميع الحسابات الفرعية بشكل تكراري (recursive)
+  const getAllSubAccounts = (parentAccountCode) => {
+    const subAccounts = []
+    
+    // البحث عن جميع الحسابات التي لها هذا الحساب كحساب رئيسي
+    const directChildren = accounts.filter(acc => acc.parentAccount === parentAccountCode)
+    
+    directChildren.forEach(child => {
+      subAccounts.push(child)
+      // البحث التكراري عن الحسابات الفرعية للحساب الفرعي
+      const childSubAccounts = getAllSubAccounts(child.code)
+      subAccounts.push(...childSubAccounts)
+    })
+    
+    return subAccounts
+  }
+
   // Get account statement for a specific account and date range
-  const getAccountStatement = (accountId, startDate, endDate) => {
+  const getAccountStatement = (accountId, startDate, endDate, includeSubAccounts = true) => {
     const start = new Date(startDate)
     const end = new Date(endDate)
     end.setHours(23, 59, 59, 999) // Include the entire end date
     
-    // Get all transactions for this account
+    // 🔍 البحث عن الحساب المطلوب
+    const mainAccount = accounts.find(acc => acc.id === accountId)
+    if (!mainAccount) {
+      console.error('❌ الحساب غير موجود!')
+      return null
+    }
+    
+    // 🌳 إذا كان includeSubAccounts = true، نحصل على جميع الحسابات الفرعية
+    const accountIdsToInclude = [accountId]
+    
+    if (includeSubAccounts) {
+      const subAccounts = getAllSubAccounts(mainAccount.code)
+      subAccounts.forEach(sub => {
+        accountIdsToInclude.push(sub.id)
+      })
+      
+      console.log('📊 كشف حساب شامل:', {
+        mainAccount: mainAccount.name,
+        mainAccountCode: mainAccount.code,
+        subAccountsCount: subAccounts.length,
+        subAccounts: subAccounts.map(s => ({ code: s.code, name: s.name }))
+      })
+    }
+    
+    // Get all transactions for this account (and sub-accounts if applicable)
     const transactions = []
     let openingBalance = 0
     
@@ -982,13 +1123,15 @@ export const useAccounting = () => {
       const entryDate = new Date(entry.date)
       
       entry.lines.forEach(line => {
-        if (line.accountId === accountId) {
+        // ✅ تحقق إذا كان القيد يخص الحساب الرئيسي أو أي من حساباته الفرعية
+        if (accountIdsToInclude.includes(line.accountId)) {
           const transaction = {
             date: entry.date,
             description: line.description || entry.description,
             reference: entry.reference || '',
             debit: parseFloat(line.debit) || 0,
             credit: parseFloat(line.credit) || 0,
+            accountName: line.accountName, // 🆕 اسم الحساب الفرعي
             entryDate: entryDate
           }
           
@@ -1310,10 +1453,92 @@ export const useAccounting = () => {
 
   const deleteVoucher = (id) => {
     try {
+      // 1. جلب السند قبل الحذف
+      const voucher = vouchers.find(v => v.id === id)
+      if (!voucher) {
+        console.error('السند غير موجود')
+        return false
+      }
+
+      console.log('🗑️ حذف السند:', voucher.voucherNumber)
+
+      // 2. حذف أو عكس القيد المحاسبي المرتبط
+      const relatedEntry = journalEntries.find(entry => entry.relatedVoucherId === id)
+      if (relatedEntry) {
+        console.log('🔄 عكس القيد المحاسبي:', relatedEntry.reference)
+        
+        // إنشاء قيد عكسي
+        const reversalEntry = {
+          date: new Date().toISOString().split('T')[0],
+          description: `عكس ${relatedEntry.description} (حذف السند)`,
+          reference: `REV-${relatedEntry.reference}`,
+          type: 'reversal',
+          originalEntryId: relatedEntry.id,
+          lines: relatedEntry.lines.map(line => ({
+            ...line,
+            debit: line.credit,  // عكس المدين والدائن
+            credit: line.debit
+          }))
+        }
+        
+        addJournalEntry(reversalEntry)
+      }
+
+      // 3. إذا كان السند مرتبط بفاتورة، إعادة حساب حالة الفاتورة
+      if (voucher.invoiceId) {
+        const invoice = invoices.find(inv => inv.id === voucher.invoiceId)
+        if (invoice) {
+          console.log('📝 إعادة حساب حالة الفاتورة:', invoice.invoiceNumber)
+          
+          // حساب إجمالي المدفوعات المتبقية (بدون السند المحذوف)
+          const remainingVouchers = vouchers.filter(v => 
+            v.id !== id && 
+            v.invoiceId === voucher.invoiceId &&
+            v.type === voucher.type
+          )
+          
+          const totalPaidViaVouchers = remainingVouchers.reduce((sum, v) => 
+            sum + parseFloat(v.amount || 0), 0
+          )
+          
+          const previouslyPaid = parseFloat(invoice.paidAmount || 0)
+          const voucherAmount = parseFloat(voucher.amount || 0)
+          
+          // طرح مبلغ السند المحذوف
+          const newPaidAmount = Math.max(0, previouslyPaid - voucherAmount)
+          const invoiceTotal = parseFloat(invoice.total || 0)
+          
+          // حساب المرتجعات
+          const invoiceReturns = invoices
+            .filter(inv => inv.isReturn && inv.originalInvoiceId === invoice.id)
+            .reduce((sum, inv) => sum + parseFloat(inv.total || 0), 0)
+          
+          const netInvoiceTotal = invoiceTotal - invoiceReturns
+          
+          // تحديث حالة الفاتورة
+          let newStatus = 'pending'
+          if (newPaidAmount >= netInvoiceTotal) {
+            newStatus = 'paid'
+          } else if (newPaidAmount > 0) {
+            newStatus = 'partial'
+          }
+          
+          updateInvoice(invoice.id, {
+            paymentStatus: newStatus,
+            paidAmount: newPaidAmount
+          })
+          
+          console.log('✅ تم تحديث حالة الفاتورة إلى:', newStatus)
+        }
+      }
+
+      // 4. حذف السند
       if (DataService.deleteVoucher(id)) {
         setVouchers(prev => prev.filter(v => v.id !== id))
+        console.log('✅ تم حذف السند بنجاح')
         return true
       }
+      
       return false
     } catch (err) {
       console.error('Error deleting voucher:', err)
@@ -1353,6 +1578,7 @@ export const useAccounting = () => {
     updateAccount,
     deleteAccount,
     resetAccountsToDefaults, // 🆕 دالة جديدة لإعادة التهيئة
+    getAllSubAccounts, // 🆕 دالة للحصول على جميع الحسابات الفرعية
     
     // Journal entry operations
     addJournalEntry,

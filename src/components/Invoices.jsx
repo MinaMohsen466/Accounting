@@ -2313,7 +2313,7 @@ const Invoices = () => {
           
           // 2. عكس القيود المحاسبية القديمة
           console.log('📊 عكس القيود المحاسبية القديمة')
-          reverseJournalEntriesForInvoice(editingInvoice.invoiceNumber)
+          reverseJournalEntriesForInvoice(editingInvoice)
           
           // 3. تطبيق الفاتورة الجديدة
           console.log('✨ تطبيق الفاتورة المعدلة الجديدة')
@@ -2352,18 +2352,7 @@ const Invoices = () => {
           // لأن القيد المحاسبي التلقائي (INV-) يتضمن بالفعل حساب الخزينة/البنك
           // عندما تكون الفاتورة مدفوعة (paymentStatus: 'paid')
           
-          // Deduct from balance if requested
-          console.log('🔍 فحص خيار خصم من الرصيد:', {
-            deductFromBalance: formData.deductFromBalance,
-            invoiceData: result.data
-          })
-          
-          if (formData.deductFromBalance) {
-            console.log('💳 خصم من الرصيد الابتدائي...')
-            deductFromBalance(result.data)
-          } else {
-            console.log('⏭️ تخطي خصم من الرصيد - الخيار غير مفعل')
-          }
+          // ❌ تم إزالة خيار "خصم من الرصيد الابتدائي" - غير منطقي محاسبياً
         }
       }
 
@@ -2411,16 +2400,83 @@ const Invoices = () => {
   }
 
   const handleDelete = async (invoice) => {
-    if (window.confirm(`${t('confirmDelete')} "${invoice.invoiceNumber}"؟`)) {
+    // ✅ 1. التحقق من أن الفاتورة ليست مرتجع (المرتجعات لا يمكن حذفها)
+    if (invoice.isReturn) {
+      alert(
+        language === 'ar'
+          ? '❌ لا يمكن حذف المرتجعات!\n\nالمرتجعات لا تحتوي على زر حذف ولا يمكن حذفها.'
+          : '❌ Cannot delete returns!\n\nReturns do not have a delete button and cannot be deleted.'
+      )
+      return
+    }
+    
+    // ✅ 2. التحقق من عدم وجود مرتجعات مرتبطة بالفاتورة
+    const relatedReturns = invoices.filter(inv => 
+      inv.isReturn && inv.originalInvoiceId === invoice.id
+    )
+    
+    if (relatedReturns.length > 0) {
+      alert(
+        language === 'ar'
+          ? `❌ لا يمكن حذف هذه الفاتورة!\n\nيوجد ${relatedReturns.length} مرتجع مرتبط بهذه الفاتورة.\nيجب حذف المرتجعات أولاً قبل حذف الفاتورة الأصلية.`
+          : `❌ Cannot delete this invoice!\n\nThere are ${relatedReturns.length} return(s) linked to this invoice.\nYou must delete the returns first before deleting the original invoice.`
+      )
+      return
+    }
+    
+    // ✅ 3. التحقق من توفر الكميات في المخزون (فقط لفواتير المشتريات)
+    if (invoice.type === 'purchase' && invoice.items && invoice.items.length > 0) {
+      const inventoryItems = getInventoryItems()
+      const insufficientItems = []
+      
+      invoice.items.forEach(item => {
+        const inventoryItem = inventoryItems.find(inv => inv.name === item.itemName)
+        if (inventoryItem) {
+          const currentQty = parseFloat(inventoryItem.quantity) || 0
+          const itemQty = parseFloat(item.quantity) || 0
+          
+          // عند حذف فاتورة مشتريات، سنخصم الكمية من المخزون
+          // لذلك يجب التأكد من توفر الكمية
+          if (currentQty < itemQty) {
+            insufficientItems.push({
+              name: item.itemName,
+              required: itemQty,
+              available: currentQty,
+              shortage: itemQty - currentQty
+            })
+          }
+        }
+      })
+      
+      if (insufficientItems.length > 0) {
+        const itemsList = insufficientItems.map(item => 
+          `• ${item.name}: متوفر ${item.available} (مطلوب ${item.required}) - نقص: ${item.shortage}`
+        ).join('\n')
+        
+        alert(
+          language === 'ar'
+            ? `❌ لا يمكن حذف فاتورة المشتريات!\n\nالأصناف التالية غير متوفرة بالكميات المطلوبة:\n\n${itemsList}\n\nيجب توفر الكمية في المخزون قبل الحذف.`
+            : `❌ Cannot delete purchase invoice!\n\nThe following items are not available in sufficient quantities:\n\n${itemsList}\n\nQuantities must be available in inventory before deletion.`
+        )
+        return
+      }
+    }
+    
+    // ✅ 4. تأكيد الحذف من المستخدم
+    const confirmMessage = language === 'ar'
+      ? `هل أنت متأكد من حذف الفاتورة "${invoice.invoiceNumber}"؟\n\nسيتم:\n• عكس القيود المحاسبية\n• ${invoice.type === 'sales' ? 'إضافة الكميات إلى' : 'خصم الكميات من'} المخزون\n• حذف الفاتورة نهائياً`
+      : `Are you sure you want to delete invoice "${invoice.invoiceNumber}"?\n\nThis will:\n• Reverse accounting entries\n• ${invoice.type === 'sales' ? 'Add quantities to' : 'Deduct quantities from'} inventory\n• Delete the invoice permanently`
+    
+    if (window.confirm(confirmMessage)) {
       console.log('🗑️ حذف الفاتورة:', invoice.invoiceNumber)
       
-      // 1. عكس القيود المحاسبية المرتبطة بالفاتورة
+      // 5. عكس القيود المحاسبية المرتبطة بالفاتورة
       reverseJournalEntriesForInvoice(invoice)
       
-      // 2. عكس تأثير المخزون
+      // 6. عكس تأثير المخزون
       reverseInventoryEffectsOnDelete(invoice)
       
-      // 3. حذف الفاتورة
+      // 7. حذف الفاتورة
       const result = deleteInvoice(invoice.id)
       if (result.success) {
         showNotification(t('invoiceDeletedSuccess'))
@@ -2974,7 +3030,7 @@ const Invoices = () => {
                           className="btn btn-secondary btn-sm"
                           onClick={() => openModal(invoice)}
                         >
-                          {t('view')}
+                          {invoice.type === 'sales' && !invoice.isReturn ? '✏️ ' : ''}{language === 'ar' ? 'عرض/تعديل' : 'View/Edit'}
                         </button>
                       )}
                       {hasPermission('print_reports') && (
@@ -2992,6 +3048,15 @@ const Invoices = () => {
                           style={{ backgroundColor: '#ff9800', borderColor: '#ff9800' }}
                         >
                           🔄 {language === 'ar' ? 'إرجاع' : 'Return'}
+                        </button>
+                      )}
+                      {/* زر الحذف: يظهر فقط للفواتير الأصلية وليس للمرتجعات */}
+                      {hasPermission('delete_invoices') && !invoice.isReturn && (
+                        <button 
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(invoice)}
+                        >
+                          🗑️ {language === 'ar' ? 'حذف' : 'Delete'}
                         </button>
                       )}
                     </div>
@@ -3640,19 +3705,7 @@ const Invoices = () => {
                           </small>
                         </div>
 
-                        <div className="form-group" style={{ marginBottom: '6px' }}>
-                          <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px' }}>
-                            <input
-                              type="checkbox"
-                              checked={formData.deductFromBalance}
-                              onChange={(e) => setFormData(prev => ({ ...prev, deductFromBalance: e.target.checked }))}
-                              style={{ width: '18px', height: '18px' }}
-                            />
-                            <span style={{ color: '#9b59b6', fontWeight: 'bold' }}>
-                              💳 خصم من الرصيد الابتدائي
-                            </span>
-                          </label>
-                        </div>
+                        {/* ❌ تم إزالة خيار "خصم من الرصيد الابتدائي" - غير منطقي محاسبياً */}
                       </div>
 
                       {formData.recordPaymentNow && (
@@ -3816,7 +3869,7 @@ const Invoices = () => {
               <button className="close-btn" onClick={() => setShowReturnModal(false)}>&times;</button>
             </div>
 
-            <div className="modal-body" style={{ padding: '20px' }}>
+            <div className="modal-body" style={{ padding: '20px', maxHeight: 'calc(90vh - 200px)', overflowY: 'auto' }}>
               {/* رسالة توضيحية */}
               <div style={{
                 backgroundColor: returningInvoice.type === 'purchase' ? '#d1ecf1' : '#fff3cd',
@@ -3890,7 +3943,8 @@ const Invoices = () => {
               {/* جدول العناصر */}
               <div style={{ marginBottom: '20px' }}>
                 <h4 style={{ marginBottom: '10px' }}>{language === 'ar' ? 'العناصر:' : 'Items:'}</h4>
-                <table className="items-table" style={{ width: '100%', fontSize: '13px' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="items-table" style={{ width: '100%', fontSize: '13px' }}>
                   <thead>
                     <tr>
                       <th style={{ width: '40px' }}>#</th>
@@ -3964,6 +4018,7 @@ const Invoices = () => {
                     </tr>
                   </tfoot>
                 </table>
+                </div>
               </div>
 
               {/* سبب الإرجاع */}

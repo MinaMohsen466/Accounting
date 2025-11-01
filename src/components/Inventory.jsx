@@ -852,9 +852,10 @@ const Inventory = () => {
                   />
                 </div>
 
-                {/* Purchase Payment Options (only for new items) - Enhanced Visibility */}
-                {!editingItem && (
-                  <div className="purchase-payment-section" style={{
+                {/* ❌ تم إزالة قسم "خيارات دفع الشراء" - لا يمكن الدفع من خانة إضافة منتج */}
+                {/* الدفع يتم عبر فاتورة الشراء فقط */}
+                {false && !editingItem && (
+                  <div className="purchase-payment-section-REMOVED" style={{
                     marginTop: '25px',
                     padding: '20px',
                     background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',

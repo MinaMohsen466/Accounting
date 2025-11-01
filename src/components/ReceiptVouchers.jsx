@@ -14,6 +14,7 @@ const ReceiptVouchers = () => {
     invoices, // 🆕 لربط السند بفاتورة محددة
     addVoucher,
     updateInvoice, // 🆕 لتحديث حالة الفاتورة تلقائياً
+    updateCustomer, // 🆕 لتحديث رصيد العميل عند الدفع من الرصيد الافتتاحي
     deleteVoucher,
     addJournalEntry
   } = useAccounting()
@@ -142,6 +143,55 @@ const ReceiptVouchers = () => {
       return
     }
 
+    // ✅ التحقق: يجب وجود فاتورة أو رصيد ابتدائي
+    const voucherAmount = parseFloat(formData.amount)
+    
+    if (!formData.invoiceId) {
+      // إذا لم يتم اختيار فاتورة، تحقق من الرصيد الابتدائي
+      const customer = customers.find(c => c.id === formData.customerId)
+      const openingBalance = parseFloat(customer?.balance || 0)
+      
+      if (openingBalance <= 0) {
+        showNotification(
+          language === 'ar' 
+            ? '⚠️ يجب اختيار فاتورة محددة أو وجود رصيد ابتدائي موجب للعميل' 
+            : '⚠️ Must select an invoice or customer must have positive opening balance',
+          'error'
+        )
+        return
+      }
+      
+      // التحقق من أن المبلغ لا يتجاوز الرصيد الابتدائي
+      if (voucherAmount > openingBalance + 0.001) {
+        showNotification(
+          language === 'ar'
+            ? `⚠️ المبلغ المدخل (${voucherAmount.toFixed(3)} د.ك) أكبر من الرصيد الابتدائي (${openingBalance.toFixed(3)} د.ك)`
+            : `⚠️ Amount (${voucherAmount.toFixed(3)} KWD) exceeds opening balance (${openingBalance.toFixed(3)} KWD)`,
+          'error'
+        )
+        return
+      }
+    } else {
+      // ✅ التحقق من أن المبلغ لا يتجاوز المبلغ المستحق في الفاتورة
+      const linkedInvoice = invoices.find(inv => inv.id === formData.invoiceId)
+      if (linkedInvoice) {
+        const invoiceTotal = parseFloat(linkedInvoice.total || 0)
+        const paidAmount = parseFloat(linkedInvoice.paidAmount || 0)
+        const invoiceReturns = getInvoiceReturns(linkedInvoice.id)
+        const netRemaining = invoiceTotal - paidAmount - invoiceReturns
+
+        if (voucherAmount > netRemaining + 0.001) {
+          showNotification(
+            language === 'ar'
+              ? `⚠️ المبلغ المدخل (${voucherAmount.toFixed(3)} د.ك) أكبر من المبلغ المستحق (${netRemaining.toFixed(3)} د.ك)`
+              : `⚠️ Amount (${voucherAmount.toFixed(3)} KWD) exceeds remaining amount (${netRemaining.toFixed(3)} KWD)`,
+            'error'
+          )
+          return
+        }
+      }
+    }
+
     try {
       // 1. إنشاء السند
       const voucherData = {
@@ -237,12 +287,23 @@ const ReceiptVouchers = () => {
               paidAmount: netInvoiceTotal > 0 ? netInvoiceTotal : 0
             })
             
-            showNotification(
-              language === 'ar' 
-                ? `✅ تم إنشاء السند وتحديث حالة الفاتورة ${linkedInvoice.invoiceNumber} إلى "مدفوع"` 
-                : `✅ Voucher created and invoice ${linkedInvoice.invoiceNumber} marked as "Paid"`,
-              'success'
-            )
+            // ✅ معالجة الدفع الزائد (رصيد دائن للعميل)
+            const overpayment = totalPaid - netInvoiceTotal
+            if (overpayment > 0.001) {
+              showNotification(
+                language === 'ar' 
+                  ? `✅ تم إنشاء السند وتحديث الفاتورة ${linkedInvoice.invoiceNumber} إلى "مدفوع"\n💰 رصيد دائن للعميل: ${overpayment.toFixed(3)} د.ك` 
+                  : `✅ Voucher created and invoice ${linkedInvoice.invoiceNumber} marked as "Paid"\n💰 Customer credit balance: ${overpayment.toFixed(3)} KWD`,
+                'success'
+              )
+            } else {
+              showNotification(
+                language === 'ar' 
+                  ? `✅ تم إنشاء السند وتحديث حالة الفاتورة ${linkedInvoice.invoiceNumber} إلى "مدفوع"` 
+                  : `✅ Voucher created and invoice ${linkedInvoice.invoiceNumber} marked as "Paid"`,
+                'success'
+              )
+            }
           } else {
             // دفع جزئي
             updateInvoice(linkedInvoice.id, {
@@ -259,13 +320,39 @@ const ReceiptVouchers = () => {
           }
         }
       } else {
-        // لم يتم ربط السند بفاتورة محددة
-        showNotification(
-          language === 'ar' 
-            ? `تم إنشاء سند القبض ${newVoucher.voucherNumber} بنجاح` 
-            : `Receipt voucher ${newVoucher.voucherNumber} created successfully`,
-          'success'
-        )
+        // ✅ لم يتم ربط السند بفاتورة محددة - إذن هو دفع من الرصيد الافتتاحي
+        // يجب تحديث رصيد العميل
+        const customer = customers.find(c => c.id === formData.customerId)
+        if (customer) {
+          const currentBalance = parseFloat(customer.balance || 0)
+          const voucherAmount = parseFloat(formData.amount)
+          const newBalance = currentBalance - voucherAmount
+          
+          console.log('💰 تحديث الرصيد الافتتاحي للعميل:', {
+            customerName: customer.name,
+            oldBalance: currentBalance,
+            payment: voucherAmount,
+            newBalance: newBalance
+          })
+          
+          updateCustomer(customer.id, {
+            balance: newBalance
+          })
+          
+          showNotification(
+            language === 'ar' 
+              ? `✅ تم إنشاء سند القبض ${newVoucher.voucherNumber}\n💰 الرصيد المتبقي للعميل: ${newBalance.toFixed(3)} د.ك` 
+              : `✅ Receipt voucher ${newVoucher.voucherNumber} created\n💰 Customer remaining balance: ${newBalance.toFixed(3)} KWD`,
+            'success'
+          )
+        } else {
+          showNotification(
+            language === 'ar' 
+              ? `تم إنشاء سند القبض ${newVoucher.voucherNumber} بنجاح` 
+              : `Receipt voucher ${newVoucher.voucherNumber} created successfully`,
+            'success'
+          )
+        }
       }
 
       closeModal()
@@ -288,6 +375,28 @@ const ReceiptVouchers = () => {
     }
 
     try {
+      // ✅ إذا كان السند غير مرتبط بفاتورة (دفع من الرصيد الافتتاحي)
+      // يجب إرجاع المبلغ إلى رصيد العميل
+      if (!voucher.invoiceId && voucher.customerId) {
+        const customer = customers.find(c => c.id === voucher.customerId)
+        if (customer) {
+          const currentBalance = parseFloat(customer.balance || 0)
+          const voucherAmount = parseFloat(voucher.amount || 0)
+          const newBalance = currentBalance + voucherAmount // إرجاع المبلغ
+          
+          console.log('🔄 إرجاع المبلغ إلى الرصيد الافتتاحي عند حذف السند:', {
+            customerName: customer.name,
+            oldBalance: currentBalance,
+            voucherAmount: voucherAmount,
+            newBalance: newBalance
+          })
+          
+          updateCustomer(customer.id, {
+            balance: newBalance
+          })
+        }
+      }
+      
       // حذف السند
       deleteVoucher(voucher.id)
       
@@ -295,7 +404,7 @@ const ReceiptVouchers = () => {
       // سيتم إضافة هذا لاحقاً في useAccounting
 
       showNotification(
-        language === 'ar' ? 'تم حذف سند القبض بنجاح' : 'Receipt voucher deleted successfully',
+        language === 'ar' ? 'تم حذف سند القبض بنجاح وإرجاع المبلغ للرصيد' : 'Receipt voucher deleted and amount returned to balance',
         'success'
       )
     } catch (error) {
@@ -481,53 +590,88 @@ const ReceiptVouchers = () => {
                   </select>
                 </div>
 
-                {/* 🆕 حقل اختياري لربط السند بفاتورة محددة */}
-                {formData.customerId && getUnpaidInvoicesForCustomer(formData.customerId).length > 0 && (
+                {/* 🆕 حقل اختياري لربط السند بفاتورة محددة أو الرصيد الابتدائي */}
+                {formData.customerId && (
                   <div className="form-group">
                     <label>
-                      {language === 'ar' ? 'ربط بفاتورة (اختياري)' : 'Link to Invoice (Optional)'}
+                      {language === 'ar' ? 'سداد من (اختياري)' : 'Payment From (Optional)'}
                       <small style={{ display: 'block', color: '#6b7280', fontSize: '0.85em', marginTop: '4px' }}>
                         {language === 'ar' 
-                          ? 'اختر فاتورة لتحديث حالتها تلقائياً عند اكتمال الدفع' 
-                          : 'Select an invoice to auto-update its status when payment is complete'}
+                          ? 'اختر فاتورة أو الرصيد الابتدائي للتسديد' 
+                          : 'Select an invoice or opening balance to pay'}
                       </small>
                     </label>
                     <select
                       value={formData.invoiceId}
                       onChange={(e) => {
-                        const selectedInvoice = invoices.find(inv => inv.id === e.target.value)
-                        if (selectedInvoice) {
-                          // ✅ حساب المبلغ المتبقي = الإجمالي - المدفوع - المرتجعات
-                          const invoiceTotal = parseFloat(selectedInvoice.total || 0)
-                          const paidAmount = parseFloat(selectedInvoice.paidAmount || 0)
-                          const returns = getInvoiceReturns(selectedInvoice.id)
-                          const remaining = invoiceTotal - paidAmount - returns
+                        const value = e.target.value
+                        
+                        if (value === 'OPENING_BALANCE') {
+                          // تسديد من الرصيد الابتدائي
+                          const customer = customers.find(c => c.id === formData.customerId)
+                          const openingBalance = parseFloat(customer?.balance || 0)
                           
-                          setFormData({ 
-                            ...formData, 
-                            invoiceId: e.target.value,
-                            amount: remaining > 0 ? remaining.toFixed(3) : 0
+                          setFormData({
+                            ...formData,
+                            invoiceId: '',
+                            amount: openingBalance > 0 ? openingBalance.toFixed(3) : 0
                           })
+                        } else if (value) {
+                          // تسديد فاتورة محددة
+                          const selectedInvoice = invoices.find(inv => inv.id === value)
+                          if (selectedInvoice) {
+                            // ✅ حساب المبلغ المتبقي = الإجمالي - المدفوع - المرتجعات
+                            const invoiceTotal = parseFloat(selectedInvoice.total || 0)
+                            const paidAmount = parseFloat(selectedInvoice.paidAmount || 0)
+                            const returns = getInvoiceReturns(selectedInvoice.id)
+                            const remaining = invoiceTotal - paidAmount - returns
+                            
+                            setFormData({ 
+                              ...formData, 
+                              invoiceId: value,
+                              amount: remaining > 0 ? remaining.toFixed(3) : 0
+                            })
+                          }
                         } else {
                           setFormData({ ...formData, invoiceId: '', amount: 0 })
                         }
                       }}
                     >
-                      <option value="">{language === 'ar' ? '-- بدون ربط بفاتورة --' : '-- No Invoice Link --'}</option>
-                      {getUnpaidInvoicesForCustomer(formData.customerId).map(invoice => {
-                        // ✅ حساب المبلغ المتبقي مع المرتجعات
-                        const invoiceTotal = parseFloat(invoice.total || 0)
-                        const paidAmount = parseFloat(invoice.paidAmount || 0)
-                        const returns = getInvoiceReturns(invoice.id)
-                        const remaining = invoiceTotal - paidAmount - returns
-                        
-                        return (
-                          <option key={invoice.id} value={invoice.id}>
-                            {invoice.invoiceNumber} - {language === 'ar' ? 'المتبقي:' : 'Remaining:'} {remaining.toFixed(3)}
-                            {returns > 0 && ` (${language === 'ar' ? 'مرتجع' : 'returned'}: ${returns.toFixed(3)})`}
-                          </option>
-                        )
-                      })}
+                      <option value="">{language === 'ar' ? '-- بدون سداد --' : '-- No Payment --'}</option>
+                      
+                      {/* خيار الرصيد الابتدائي */}
+                      {(() => {
+                        const customer = customers.find(c => c.id === formData.customerId)
+                        const openingBalance = parseFloat(customer?.balance || 0)
+                        if (openingBalance > 0) {
+                          return (
+                            <option value="OPENING_BALANCE" style={{ fontWeight: 'bold', background: '#e3f2fd' }}>
+                              💰 {language === 'ar' ? 'الرصيد الابتدائي:' : 'Opening Balance:'} {openingBalance.toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}
+                            </option>
+                          )
+                        }
+                        return null
+                      })()}
+                      
+                      {/* الفواتير غير المسددة */}
+                      {getUnpaidInvoicesForCustomer(formData.customerId).length > 0 && (
+                        <optgroup label={language === 'ar' ? '📋 الفواتير غير المسددة' : '📋 Unpaid Invoices'}>
+                          {getUnpaidInvoicesForCustomer(formData.customerId).map(invoice => {
+                            // ✅ حساب المبلغ المتبقي مع المرتجعات
+                            const invoiceTotal = parseFloat(invoice.total || 0)
+                            const paidAmount = parseFloat(invoice.paidAmount || 0)
+                            const returns = getInvoiceReturns(invoice.id)
+                            const remaining = invoiceTotal - paidAmount - returns
+                            
+                            return (
+                              <option key={invoice.id} value={invoice.id}>
+                                {invoice.invoiceNumber} - {language === 'ar' ? 'المتبقي:' : 'Remaining:'} {remaining.toFixed(3)}
+                                {returns > 0 && ` (${language === 'ar' ? 'مرتجع' : 'returned'}: ${returns.toFixed(3)})`}
+                              </option>
+                            )
+                          })}
+                        </optgroup>
+                      )}
                     </select>
                   </div>
                 )}
@@ -547,7 +691,17 @@ const ReceiptVouchers = () => {
                   <label>{language === 'ar' ? 'الحساب *' : 'Account *'}</label>
                   <select
                     value={formData.bankAccountId}
-                    onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
+                    onChange={(e) => {
+                      const accountId = e.target.value
+                      const selectedAccount = accounts.find(acc => acc.id === accountId)
+                      const isCash = selectedAccount?.type === 'cash'
+                      
+                      setFormData({ 
+                        ...formData, 
+                        bankAccountId: accountId,
+                        paymentMethod: isCash ? 'cash' : formData.paymentMethod // تحديث تلقائي للطريقة
+                      })
+                    }}
                     required
                   >
                     <option value="">{language === 'ar' ? '-- اختر الحساب --' : '-- Select Account --'}</option>
@@ -565,9 +719,24 @@ const ReceiptVouchers = () => {
                     value={formData.paymentMethod}
                     onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
                   >
-                    <option value="cash">{language === 'ar' ? 'نقدي' : 'Cash'}</option>
-                    <option value="bank">{language === 'ar' ? 'بنك' : 'Bank'}</option>
-                    <option value="check">{language === 'ar' ? 'شيك' : 'Check'}</option>
+                    {(() => {
+                      const selectedAccount = accounts.find(acc => acc.id === formData.bankAccountId)
+                      const isCashAccount = selectedAccount?.type === 'cash'
+                      
+                      if (isCashAccount) {
+                        // الخزينة = نقدي فقط
+                        return <option value="cash">{language === 'ar' ? 'نقدي' : 'Cash'}</option>
+                      } else {
+                        // البنك = جميع الطرق
+                        return (
+                          <>
+                            <option value="cash">{language === 'ar' ? 'نقدي' : 'Cash'}</option>
+                            <option value="bank">{language === 'ar' ? 'تحويل بنكي' : 'Bank Transfer'}</option>
+                            <option value="check">{language === 'ar' ? 'شيك' : 'Check'}</option>
+                          </>
+                        )
+                      }
+                    })()}
                   </select>
                 </div>
 

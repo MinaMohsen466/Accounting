@@ -45,12 +45,29 @@ export class ImportService {
 
   static normalizeKey(key) {
     const keyMappings = {
+      // Core Data
       'accounting_accounts': 'accounts',
       'accounting_journal_entries': 'journalEntries',
       'accounting_invoices': 'invoices',
       'accounting_customers': 'customers',
       'accounting_suppliers': 'suppliers',
-      'accounting_inventory': 'inventoryItems'
+      'accounting_inventory': 'inventoryItems',
+      
+      // Vouchers (السندات) - 🆕
+      'accounting_vouchers': 'vouchers',
+      'vouchers': 'vouchers',
+      
+      // Brands & Colors - 🆕
+      'brands': 'brands',
+      'colors': 'colors',
+      
+      // Settings
+      'app_settings': 'app_settings',
+      'app_brandSettings': 'app_brandSettings',
+      'app_language': 'app_language',
+      
+      // Users
+      'app_users': 'app_users'
     }
     
     return keyMappings[key] || key

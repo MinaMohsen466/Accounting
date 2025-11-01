@@ -44,9 +44,17 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
     'delete_inventory_items': 'حذف عناصر المخزون',
     'view_stock_alerts': 'عرض تنبيهات المخزون',
     'view_expiry_alerts': 'عرض تنبيهات انتهاء الصلاحية',
-  // Account Statements
-  'view_account_statements': 'عرض كشف الحساب',
-  'manage_account_statements': 'إدارة كشف الحساب',
+    
+    // Vouchers (Receipt & Payment)
+    'view_vouchers': 'عرض السندات',
+    'create_receipt_vouchers': 'إنشاء سندات قبض',
+    'create_payment_vouchers': 'إنشاء سندات صرف',
+    'edit_vouchers': 'تعديل السندات',
+    'delete_vouchers': 'حذف السندات',
+    
+    // Account Statements
+    'view_account_statements': 'عرض كشف الحساب',
+    'manage_account_statements': 'إدارة كشف الحساب',
     
     // Banking
     'view_banking': 'عرض البنوك',
@@ -99,7 +107,8 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
       'view_customers_suppliers', 'create_customers_suppliers', 'edit_customers_suppliers',
       'view_inventory', 'create_inventory_items', 'edit_inventory_items',
       'view_stock_alerts', 'view_expiry_alerts',
-  'view_account_statements', 'manage_account_statements',
+      'view_vouchers', 'create_receipt_vouchers', 'create_payment_vouchers', 'edit_vouchers',
+      'view_account_statements', 'manage_account_statements',
       'view_banking', 'manage_bank_accounts', 'record_deposits', 'record_withdrawals', 
       'record_payments', 'record_receipts', 'record_expenses',
       'view_treasury', 'manage_treasury', 'record_cash_deposits', 'record_cash_withdrawals',
@@ -115,10 +124,11 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
       'view_customers_suppliers', 'create_customers_suppliers', 'edit_customers_suppliers',
       'view_inventory', 'create_inventory_items', 'edit_inventory_items',
       'view_stock_alerts', 'view_expiry_alerts',
-  'view_account_statements',
+      'view_vouchers', 'create_receipt_vouchers', 'create_payment_vouchers', 'edit_vouchers',
+      'view_account_statements',
       'view_banking', 'record_deposits', 'record_withdrawals', 'record_payments', 'record_receipts',
       'view_treasury', 'record_cash_deposits', 'record_cash_withdrawals',
-  'view_financial_reports', 'export_reports'
+      'view_financial_reports', 'export_reports'
     ],
     user: [
       'view_dashboard',
@@ -127,7 +137,8 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
       'view_invoices',
       'view_customers_suppliers',
       'view_inventory',
-  'view_account_statements',
+      'view_vouchers',
+      'view_account_statements',
       'view_banking',
       'view_treasury',
       'view_stock_alerts', 'view_expiry_alerts',
@@ -188,6 +199,10 @@ const UserPermissionsModal = ({ isOpen, onClose, userToEdit, onSave }) => {
     'المخزون والتنبيهات': [
       'view_inventory', 'create_inventory_items', 'edit_inventory_items',
       'delete_inventory_items', 'view_stock_alerts', 'view_expiry_alerts'
+    ],
+    'السندات (قبض وصرف)': [
+      'view_vouchers', 'create_receipt_vouchers', 'create_payment_vouchers',
+      'edit_vouchers', 'delete_vouchers'
     ],
     'كشوف الحساب والحسابات': [
       'view_account_statements', 'manage_account_statements', 'view_customer_accounts'

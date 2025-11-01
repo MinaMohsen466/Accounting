@@ -176,6 +176,42 @@ const ChartOfAccounts = () => {
       return
     }
 
+    // 🔄 منع الدوائر (Circular Reference Prevention)
+    if (formData.parentAccount) {
+      // تحقق من أن الحساب الرئيسي ليس نفس الحساب الحالي
+      if (formData.parentAccount === formData.code) {
+        showNotification(
+          language === 'ar' 
+            ? '⚠️ لا يمكن أن يكون الحساب رئيسياً لنفسه!' 
+            : '⚠️ Account cannot be its own parent!',
+          'error'
+        )
+        return
+      }
+
+      // تحقق من أن الحساب الرئيسي ليس حساباً فرعياً من الحساب الحالي
+      let checkParent = formData.parentAccount
+      const visited = new Set()
+      
+      while (checkParent) {
+        if (checkParent === formData.code) {
+          showNotification(
+            language === 'ar'
+              ? '⚠️ لا يمكن إنشاء دائرة في شجرة الحسابات! الحساب الرئيسي المختار هو حساب فرعي من هذا الحساب.'
+              : '⚠️ Cannot create circular reference! Selected parent is a sub-account of this account.',
+            'error'
+          )
+          return
+        }
+        
+        if (visited.has(checkParent)) break
+        visited.add(checkParent)
+        
+        const parentAcc = accounts.find(a => a.code === checkParent)
+        checkParent = parentAcc?.parentAccount
+      }
+    }
+
     try {
       let result
       if (editingAccount) {
@@ -208,13 +244,35 @@ const ChartOfAccounts = () => {
     }
   }
 
+  // 🌳 دالة لبناء شجرة الحسابات بشكل تسلسلي
+  const buildAccountTree = (parentCode = '', level = 0) => {
+    return accounts
+      .filter(acc => (acc.parentAccount || '') === parentCode)
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .flatMap(account => [
+        { ...account, level },
+        ...buildAccountTree(account.code, level + 1)
+      ])
+  }
+
   // Filter and search accounts
-  const filteredAccounts = accounts.filter(account => {
+  let filteredAccounts = accounts.filter(account => {
     const matchesType = filterType === 'all' || account.type === filterType
     const matchesSearch = account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          account.code.includes(searchTerm)
     return matchesType && matchesSearch
   })
+
+  // 🌳 إذا لم يكن هناك بحث، نعرض الحسابات بشكل شجري
+  if (!searchTerm) {
+    filteredAccounts = buildAccountTree().filter(account => {
+      const matchesType = filterType === 'all' || account.type === filterType
+      return matchesType
+    })
+  } else {
+    // مع البحث، نعرض النتائج بشكل مسطح
+    filteredAccounts = filteredAccounts.sort((a, b) => a.code.localeCompare(b.code))
+  }
 
   if (loading) {
     return <div className="loading">{t('loadingData')}</div>
@@ -309,18 +367,35 @@ const ChartOfAccounts = () => {
             <tbody>
               {filteredAccounts.map(account => {
                 const isSubAccount = account.parentAccount && account.parentAccount !== ''
+                const level = account.level || 0
+                const indentation = level * 30 // 30px per level
+                
                 return (
                   <tr key={account.id} className={isSubAccount ? 'sub-account-row' : ''}>
                     <td>{account.code}</td>
                     <td>
-                      {isSubAccount && <span style={{ marginRight: language === 'ar' ? '20px' : '0', marginLeft: language === 'ar' ? '0' : '20px' }}>↳ </span>}
-                      {account.name}
+                      <span style={{ 
+                        marginRight: language === 'ar' ? `${indentation}px` : '0', 
+                        marginLeft: language === 'ar' ? '0' : `${indentation}px`,
+                        display: 'inline-block'
+                      }}>
+                        {level > 0 && (
+                          <span style={{ marginRight: language === 'ar' ? '5px' : '0', marginLeft: language === 'ar' ? '0' : '5px' }}>
+                            {'└─ '.repeat(1)}
+                          </span>
+                        )}
+                        {level === 0 && !isSubAccount && '📁 '}
+                        {account.name}
+                      </span>
                     </td>
                     <td>{accountTypes[account.type]}</td>
                     <td>{accountCategories[account.category]}</td>
                     <td>
                       {account.parentAccount 
-                        ? `${account.parentAccount}`
+                        ? (() => {
+                            const parent = accounts.find(a => a.code === account.parentAccount)
+                            return parent ? `${parent.code} - ${parent.name}` : account.parentAccount
+                          })()
                         : (language === 'ar' ? '-' : '-')
                       }
                     </td>
