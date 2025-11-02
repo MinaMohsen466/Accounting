@@ -354,8 +354,10 @@ const CustomersSuppliers = () => {
     const openingBalance = parseFloat(client.balance || 0)
     
     // 2️⃣ حساب الفواتير غير المدفوعة (أو المدفوعة جزئياً)
+    // ⚠️ استثناء فواتير المرتجعات لأنها تُعالج عبر القيود المحاسبية فقط
     const clientInvoices = invoices.filter(inv => 
-      inv.clientId === client.id || inv.clientName === client.name
+      (inv.clientId === client.id || inv.clientName === client.name) &&
+      !inv.isReturn  // 🔥 استثناء المرتجعات لتجنب الاحتساب المزدوج
     )
     
     let invoicesBalance = 0  // رصيد الفواتير الإجمالي
@@ -373,25 +375,13 @@ const CustomersSuppliers = () => {
       }
 
       if (invoice.type === 'sales') {
-        // فواتير المبيعات
-        if (invoice.isReturn) {
-          // ❌ مرتجع مبيعات = نرد للعميل (يقلل رصيده)
-          invoicesBalance -= amount
-        } else {
-          // ✅ فاتورة مبيعات = العميل مدين (فقط المبلغ غير المدفوع)
-          invoicesBalance += (amount - paidAmt)
-        }
+        // ✅ فاتورة مبيعات = العميل مدين (فقط المبلغ غير المدفوع)
+        invoicesBalance += (amount - paidAmt)
         paidBalance += paidAmt
         
       } else if (invoice.type === 'purchase') {
-        // فواتير المشتريات
-        if (invoice.isReturn) {
-          // ❌ مرتجع مشتريات = المورد يرد لنا (يقلل رصيده)
-          invoicesBalance -= amount
-        } else {
-          // ✅ فاتورة مشتريات = نحن مدينون للمورد (فقط المبلغ غير المدفوع)
-          invoicesBalance += (amount - paidAmt)
-        }
+        // ✅ فاتورة مشتريات = نحن مدينون للمورد (فقط المبلغ غير المدفوع)
+        invoicesBalance += (amount - paidAmt)
         paidBalance += paidAmt
       }
     })
@@ -419,20 +409,26 @@ const CustomersSuppliers = () => {
     // 4️⃣ الرصيد الإجمالي = الافتتاحي + الفواتير غير المدفوعة
     // ✅ openingBalance يتم تحديثه تلقائياً عند إنشاء سندات غير مرتبطة بفواتير
     // ✅ السندات المرتبطة بفواتير محددة تم احتسابها في paidAmount داخل الفواتير
+    // ✅ فواتير المرتجعات يتم معالجتها عبر القيود المحاسبية فقط (تجنب الاحتساب المزدوج)
     const totalBalance = openingBalance + invoicesBalance
+    
+    // احسب جميع الفواتير (بما فيها المرتجعات) للإحصائيات
+    const allClientInvoices = invoices.filter(inv => 
+      inv.clientId === client.id || inv.clientName === client.name
+    )
     
     return {
       openingBalance,        // الرصيد الافتتاحي (ثابت)
       initialBalance: openingBalance,  // للتوافق
-      invoicesBalance,       // رصيد الفواتير (غير المدفوع فقط)
+      invoicesBalance,       // رصيد الفواتير (غير المدفوع فقط - بدون مرتجعات)
       unpaidBalance: invoicesBalance,  // للتوافق
       vouchersBalance,       // رصيد السندات غير المرتبطة (سالب)
       vouchersCount,         // عدد السندات غير المرتبطة
       paidBalance,           // المدفوع من الفواتير (عبر السندات المرتبطة)
       totalBalance,          // الرصيد النهائي = افتتاحي + فواتير - سندات
-      invoiceCount: clientInvoices.length,
-      unpaidInvoices: clientInvoices.filter(inv => inv.paymentStatus !== 'paid').length,
-      paidInvoices: clientInvoices.filter(inv => inv.paymentStatus === 'paid').length,
+      invoiceCount: allClientInvoices.length,  // جميع الفواتير بما فيها المرتجعات
+      unpaidInvoices: allClientInvoices.filter(inv => inv.paymentStatus !== 'paid' && !inv.isReturn).length,
+      paidInvoices: allClientInvoices.filter(inv => inv.paymentStatus === 'paid' && !inv.isReturn).length,
       partialInvoices: partialCount,
       partialPaidAmount
     }
@@ -1032,6 +1028,54 @@ const CustomersSuppliers = () => {
                 </div>
 
                 <div className="form-row">
+                  {/* عرض الرصيد الإجمالي الحالي (للقراءة فقط) عند التعديل */}
+                  {editingItem && (
+                    <div className="form-group">
+                      <label>{language === 'ar' ? 'الرصيد الحالي الإجمالي' : 'Current Total Balance'}</label>
+                      <div className="currency-input-group">
+                        <input
+                          type="text"
+                          value={(() => {
+                            const balanceInfo = calculateTotalBalance(editingItem)
+                            const total = balanceInfo.totalBalance
+                            const isPositive = total > 0
+                            const isNegative = total < 0
+                            
+                            // عرض الرصيد بالعلامة الصحيحة حسب نوع الحساب
+                            if (activeTab === 'customers') {
+                              // للعميل: إذا كان موجب = مدين (طبيعي)، سالب = دائن (غير طبيعي)
+                              return `${total.toFixed(3)} ${isPositive ? (language === 'ar' ? '(مدين)' : '(Debit)') : isNegative ? (language === 'ar' ? '(دائن)' : '(Credit)') : ''}`
+                            } else {
+                              // للمورد: إذا كان سالب = دائن (طبيعي)، موجب = مدين (غير طبيعي)
+                              return `${total.toFixed(3)} ${isNegative ? (language === 'ar' ? '(دائن)' : '(Credit)') : isPositive ? (language === 'ar' ? '(مدين)' : '(Debit)') : ''}`
+                            }
+                          })()}
+                          disabled
+                          className="balance-input"
+                          style={{ 
+                            backgroundColor: '#f8f9fa',
+                            fontWeight: 'bold',
+                            color: (() => {
+                              const total = calculateTotalBalance(editingItem).totalBalance
+                              if (activeTab === 'customers') {
+                                return total > 0 ? '#27ae60' : total < 0 ? '#e74c3c' : '#95a5a6'
+                              } else {
+                                return total < 0 ? '#27ae60' : total > 0 ? '#e74c3c' : '#95a5a6'
+                              }
+                            })()
+                          }}
+                        />
+                        <span className="currency-symbol">{language === 'ar' ? 'د.ك' : 'KWD'}</span>
+                      </div>
+                      <small className="field-hint" style={{ color: '#7f8c8d' }}>
+                        {language === 'ar' 
+                          ? 'الرصيد الإجمالي = الرصيد الافتتاحي + الفواتير - المدفوعات'
+                          : 'Total Balance = Opening Balance + Invoices - Payments'
+                        }
+                      </small>
+                    </div>
+                  )}
+                  
                   <div className="form-group">
                     <label>{language === 'ar' ? 'الرصيد الافتتاحي' : 'Opening Balance'} *</label>
                     <div className="currency-input-group">
