@@ -760,12 +760,11 @@ export const useAccounting = () => {
       if (isReturn) {
         // ✅ في حالة مرتجع المبيعات:
         // القيد الصحيح:
-        //   من حـ/ المبيعات (مدين - نُنقص الإيرادات)
-        //   من حـ/ ضريبة القيمة المضافة (مدين - نُنقص الالتزام)
+        //   من حـ/ مردودات المبيعات (مدين - نسجل المرتجع)
         //       إلى حـ/ الخزينة (دائن - نرجع المال فعلياً)
         //
-        // ⚠️ ملاحظة: رصيد العميل يُحسب تلقائياً في كشف الحساب من الفواتير
-        //   لذلك لا نحتاج لسطر منفصل للعميل في القيد
+        // ملاحظة: رصيد العميل لا يتأثر بالقيد لأن الفاتورة نفسها (isReturn=true)
+        // يتم استثناؤها من حساب الرصيد في calculateTotalBalance
         
         const cashAccount = ensureAccountExists('1001', {
           name: 'الخزينة',
@@ -1009,16 +1008,14 @@ export const useAccounting = () => {
       // - مرتجع: المورد مدين (نُنقص مديونيتنا له)
       
       if (isReturn) {
-        // ✅ في حالة المرتجع: المورد يصبح مدين (نُنقص مديونيتنا له)
-        lines.push({
-          accountId: supplierAccount.id,  // ⚠️ استخدم حساب المورد دائماً في المرتجع
-          accountName: supplierAccount.name,
-          debit: total,  // مدين (نُنقص مديونيتنا للمورد)
-          credit: 0,
-          description: `مرتجع مشتريات رقم ${invoice.invoiceNumber} - تخفيض رصيد المورد`
-        })
+        // ✅ في حالة مرتجع المشتريات:
+        // القيد الصحيح:
+        //   من حـ/ الخزينة (مدين - نسترجع المال)
+        //       إلى حـ/ مردودات المشتريات (دائن - نسجل المرتجع)
+        //
+        // ملاحظة: رصيد المورد لا يتأثر بالقيد لأن الفاتورة نفسها (isReturn=true)
+        // يتم استثناؤها من حساب الرصيد في calculateTotalBalance
         
-        // ✅ الخزينة: نسترجع المال (مدين)
         const cashAccount = ensureAccountExists('1001', {
           name: 'الخزينة',
           nameEn: 'Cash',
@@ -1031,7 +1028,7 @@ export const useAccounting = () => {
         lines.push({
           accountId: cashAccount.id,
           accountName: cashAccount.name,
-          debit: total,  // مدين (نسترجع المال)
+          debit: total,  // مدين (نسترجع المال في الخزينة)
           credit: 0,
           description: `استرجاع مبلغ مرتجع مشتريات رقم ${invoice.invoiceNumber}`
         })
