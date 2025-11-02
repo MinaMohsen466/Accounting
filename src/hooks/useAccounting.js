@@ -429,15 +429,15 @@ export const useAccounting = () => {
       // 1. إضافة المورد أولاً
       const newSupplier = DataService.addSupplier(supplierData)
       if (newSupplier) {
-        // 2. إنشاء حساب محاسبي للمورد تلقائياً
+        // 2. إنشاء حساب محاسبي للمورد تلقائياً (حساب فرعي من 2001 - الموردون)
         const supplierAccount = {
-          code: `2101-${newSupplier.id.slice(0, 8)}`,
+          code: `2001-${newSupplier.id.slice(0, 8)}`,
           name: `مورد: ${newSupplier.name}`,
           nameEn: `Supplier: ${newSupplier.name}`,
           type: 'liability',
           category: 'current_liabilities',
           subcategory: 'accounts_payable',
-          parentAccount: '2101',
+          parentAccount: '2001',  // ✅ الحساب الأب: 2001 - الموردون
           description: `حساب المورد ${newSupplier.name}`,
           linkedEntityType: 'supplier',
           linkedEntityId: newSupplier.id,
@@ -758,16 +758,15 @@ export const useAccounting = () => {
       //    - دائن: العميل (نُنقص مديونيته لنا)
       
       if (isReturn) {
-        // ✅ في حالة المرتجع: العميل يصبح دائن (نُنقص مديونيته لنا)
-        lines.push({
-          accountId: customerAccount.id,  // ⚠️ استخدم حساب العميل دائماً في المرتجع
-          accountName: customerAccount.name,
-          debit: 0,
-          credit: total,  // دائن (نُنقص مديونية العميل لنا)
-          description: `مرتجع مبيعات رقم ${invoice.invoiceNumber} - تخفيض رصيد العميل`
-        })
+        // ✅ في حالة مرتجع المبيعات:
+        // القيد الصحيح:
+        //   من حـ/ المبيعات (مدين - نُنقص الإيرادات)
+        //   من حـ/ ضريبة القيمة المضافة (مدين - نُنقص الالتزام)
+        //       إلى حـ/ الخزينة (دائن - نرجع المال فعلياً)
+        //
+        // ⚠️ ملاحظة: رصيد العميل يُحسب تلقائياً في كشف الحساب من الفواتير
+        //   لذلك لا نحتاج لسطر منفصل للعميل في القيد
         
-        // ✅ الخزينة: نرجع المال (دائن)
         const cashAccount = ensureAccountExists('1001', {
           name: 'الخزينة',
           nameEn: 'Cash',
@@ -781,7 +780,7 @@ export const useAccounting = () => {
           accountId: cashAccount.id,
           accountName: cashAccount.name,
           debit: 0,
-          credit: total,  // دائن (نرجع المال)
+          credit: total,  // دائن (نرجع المال من الخزينة)
           description: `إرجاع مبلغ مرتجع مبيعات رقم ${invoice.invoiceNumber}`
         })
       } else {
@@ -1147,24 +1146,125 @@ export const useAccounting = () => {
       })
     })
     
-    // Sort transactions by date
-    transactions.sort((a, b) => a.entryDate - b.entryDate)
+    // NOTE: We will sort and calculate running balances AFTER we
+    // include invoices and vouchers (below) so the resulting
+    // transactions list contains both journal lines and invoice/voucher
+    // pseudo-transactions before computing totals and balances.
     
-    // Calculate running balance
-    let runningBalance = openingBalance
-    const transactionsWithBalance = transactions.map(trans => {
-      runningBalance += trans.debit - trans.credit
-      return {
-        ...trans,
-        balance: runningBalance
+    let transactionsWithBalance = []
+    let totalDebit = 0
+    let totalCredit = 0
+    let closingBalance = openingBalance
+    
+    // ------------------------------------------------------------------
+    // Include invoices and vouchers for accounts that represent customers
+    // or suppliers (so parent accounts like 1101 / 2001 show their
+    // sub-accounts' invoice activity as well).
+    // ------------------------------------------------------------------
+    try {
+      const accountIsAR = mainAccount.code && String(mainAccount.code).startsWith('1101')
+      const accountIsAP = mainAccount.code && String(mainAccount.code).startsWith('2001')
+
+      if (accountIsAR || accountIsAP) {
+        // Find sub accounts that are linked to customers/suppliers
+        const linkedAccounts = accounts.filter(acc => accountIdsToInclude.includes(acc.id) && (acc.linkedEntityType === 'customer' || acc.linkedEntityType === 'supplier'))
+
+        // For each linked account, pull invoices and vouchers
+        linkedAccounts.forEach(acc => {
+          const entityId = acc.linkedEntityId
+          if (!entityId) return
+
+          // invoices
+          invoices.forEach(inv => {
+            const invDate = new Date(inv.date)
+            const total = parseFloat(inv.total) || 0
+            let debit = 0, credit = 0
+
+            if (acc.linkedEntityType === 'customer' && inv.type === 'sales' && (inv.customerId === entityId || inv.clientId === entityId)) {
+              if (inv.isReturn) credit = total; else debit = total
+            }
+
+            if (acc.linkedEntityType === 'supplier' && inv.type === 'purchase' && (inv.supplierId === entityId || inv.clientId === entityId)) {
+              if (inv.isReturn) debit = total; else credit = total
+            }
+
+            if (debit !== 0 || credit !== 0) {
+              const txn = {
+                date: inv.date,
+                description: inv.isReturn ? (inv.type === 'sales' ? 'مرتجع مبيعات' : 'مرتجع مشتريات') : (inv.type === 'sales' ? 'فاتورة مبيعات' : 'فاتورة مشتريات'),
+                reference: inv.invoiceNumber || '',
+                debit,
+                credit,
+                accountName: acc.name,
+                entryDate: invDate
+              }
+
+              if (invDate < start) {
+                openingBalance += txn.debit - txn.credit
+              } else if (invDate >= start && invDate <= end) {
+                transactions.push(txn)
+              }
+            }
+          })
+
+          // vouchers (receipt/payment)
+          vouchers.forEach(v => {
+            const vDate = new Date(v.date)
+            const amount = parseFloat(v.amount) || 0
+            let debit = 0, credit = 0
+
+            if (acc.linkedEntityType === 'customer' && v.type === 'receipt' && v.customerId === entityId) {
+              credit = amount
+            }
+
+            if (acc.linkedEntityType === 'supplier' && v.type === 'payment' && v.supplierId === entityId) {
+              debit = amount
+            }
+
+            if (debit !== 0 || credit !== 0) {
+              const txn = {
+                date: v.date,
+                description: v.type === 'receipt' ? `سند قبض ${v.voucherNumber}` : `سند دفع ${v.voucherNumber}`,
+                reference: v.voucherNumber || '',
+                debit,
+                credit,
+                accountName: acc.name,
+                entryDate: vDate
+              }
+
+              if (vDate < start) {
+                openingBalance += txn.debit - txn.credit
+              } else if (vDate >= start && vDate <= end) {
+                transactions.push(txn)
+              }
+            }
+          })
+        })
       }
-    })
-    
-    // Calculate totals
-    const totalDebit = transactions.reduce((sum, trans) => sum + trans.debit, 0)
-    const totalCredit = transactions.reduce((sum, trans) => sum + trans.credit, 0)
-    const closingBalance = openingBalance + totalDebit - totalCredit
-    
+    } catch (err) {
+      console.error('Error including invoices/vouchers in account statement:', err)
+    }
+
+    // After including invoices/vouchers we must sort and compute running
+    // balances and totals so the returned statement is correct.
+    try {
+      transactions.sort((a, b) => a.entryDate - b.entryDate)
+      let runningBalance = openingBalance
+      transactionsWithBalance = transactions.map(trans => {
+        runningBalance += trans.debit - trans.credit
+        return {
+          ...trans,
+          balance: runningBalance
+        }
+      })
+
+      totalDebit = transactions.reduce((sum, trans) => sum + (trans.debit || 0), 0)
+      totalCredit = transactions.reduce((sum, trans) => sum + (trans.credit || 0), 0)
+      closingBalance = openingBalance + totalDebit - totalCredit
+    } catch (err) {
+      console.error('Error finalizing account statement balances:', err)
+    }
+
     return {
       accountId,
       startDate,

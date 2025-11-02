@@ -17,6 +17,8 @@ const Invoices = () => {
     addInvoice,
     updateInvoice,
     deleteInvoice,
+  updateCustomer,
+  updateSupplier,
     getInventoryItems,
     updateInventoryItem,
     addJournalEntry,
@@ -2690,6 +2692,17 @@ const Invoices = () => {
           })
           console.log(`  � تقليل رصيد الخزينة/البنوك: -${returnTotal.toFixed(3)} د.ك`)
         }
+        
+        // ------------------------------------------------------------------
+        // NOTE: Do NOT modify stored opening balances here. Opening balances
+        // are persisted on the customer/supplier records and statements are
+        // calculated from that opening balance plus invoices/vouchers and
+        // journal entries. Updating the stored opening balance during return
+        // creation caused double-counting and inconsistent statements.
+        // The return's financial effect is recorded via the invoice (isReturn)
+        // and the generated journal entry (createJournalEntryFromInvoice).
+        // ------------------------------------------------------------------
+        console.log('ℹ️ مرتجع تم إنشاؤه - لم يتم تعديل الأرصدة الافتتاحية لتجنب الازدواجية. يتم الاعتماد على الفاتورة والقيد المحاسبي.')
 
         console.log('✅ عملية الإرجاع اكتملت بنجاح')
         
