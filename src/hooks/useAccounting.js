@@ -603,11 +603,18 @@ export const useAccounting = () => {
     const paymentMethod = invoice.paymentMethod || 'cash'
     const paymentBankAccountId = invoice.paymentBankAccountId
     
+    // ✅ للمرتجعات: تحقق من حالة دفع الفاتورة الأصلية
+    // نخصم من الخزينة فقط إذا كانت الفاتورة الأصلية مدفوعة
+    const originalInvoicePaid = isReturn 
+      ? (invoice.originalInvoicePaymentStatus === 'paid')
+      : isPaid
+    
     console.log('🔍 بدء إنشاء القيد من الفاتورة:', {
       invoiceNumber: invoice.invoiceNumber,
       type: invoice.type,
       isReturn,
       isPaid,
+      originalInvoicePaid,
       paymentMethod,
       paymentBankAccountId,
       subtotal: invoice.subtotal,
@@ -707,13 +714,55 @@ export const useAccounting = () => {
       //    - إذا آجلة: نستخدم حساب العميل
       //
       // 🔹 مرتجع مبيعات:
-      //    - دائماً نستخدم الخزينة (لأننا نرجع المال للعميل)
-      //    - و حساب العميل (لتخفيض مديونيته لنا)
+      //    - إذا الفاتورة الأصلية مدفوعة: نستخدم الخزينة (نرجع المال فعلياً)
+      //    - إذا الفاتورة الأصلية آجلة/غير مدفوعة: نستخدم حساب العميل فقط
       
       let paymentAccount = customerAccount
       
-      if (isReturn || isPaid) {
-        // ✅ المرتجع أو الفاتورة المدفوعة: نستخدم الخزينة/البنك
+      if (isReturn) {
+        // ✅ للمرتجعات: نستخدم الخزينة فقط إذا كانت الفاتورة الأصلية مدفوعة
+        if (originalInvoicePaid) {
+          if (paymentMethod === 'bank' && paymentBankAccountId) {
+            paymentAccount = accounts.find(acc => acc.id === paymentBankAccountId)
+            if (!paymentAccount) {
+              console.warn('⚠️ لم يتم العثور على حساب البنك، استخدام الخزينة')
+              paymentAccount = ensureAccountExists('1001', {
+                name: 'الخزينة',
+                nameEn: 'Cash',
+                type: 'asset',
+                category: 'current_assets',
+                description: 'الخزينة النقدية',
+                balance: 0
+              })
+            }
+          } else {
+            paymentAccount = ensureAccountExists('1001', {
+              name: 'الخزينة',
+              nameEn: 'Cash',
+              type: 'asset',
+              category: 'current_assets',
+              description: 'الخزينة النقدية',
+              balance: 0
+            })
+          }
+          console.log('💳 استخدام حساب:', {
+            code: paymentAccount.code,
+            name: paymentAccount.name,
+            reason: 'مرتجع من فاتورة مدفوعة (نرجع المال فعلياً)',
+            paymentMethod
+          })
+        } else {
+          // الفاتورة الأصلية لم تكن مدفوعة، نستخدم حساب العميل فقط
+          paymentAccount = customerAccount
+          console.log('💳 استخدام حساب:', {
+            code: paymentAccount.code,
+            name: paymentAccount.name,
+            reason: 'مرتجع من فاتورة آجلة (لا نرجع مال)',
+            paymentMethod
+          })
+        }
+      } else if (isPaid) {
+        // ✅ فاتورة عادية مدفوعة: نستخدم الخزينة/البنك
         if (paymentMethod === 'bank' && paymentBankAccountId) {
           paymentAccount = accounts.find(acc => acc.id === paymentBankAccountId)
           if (!paymentAccount) {
@@ -740,7 +789,7 @@ export const useAccounting = () => {
         console.log('💳 استخدام حساب:', {
           code: paymentAccount.code,
           name: paymentAccount.name,
-          reason: isReturn ? 'مرتجع (إرجاع مال)' : 'مدفوعة',
+          reason: 'فاتورة مدفوعة',
           paymentMethod
         })
       }
@@ -759,28 +808,21 @@ export const useAccounting = () => {
       
       if (isReturn) {
         // ✅ في حالة مرتجع المبيعات:
-        // القيد الصحيح:
+        // إذا كانت الفاتورة الأصلية مدفوعة:
         //   من حـ/ مردودات المبيعات (مدين - نسجل المرتجع)
         //       إلى حـ/ الخزينة (دائن - نرجع المال فعلياً)
-        //
-        // ملاحظة: رصيد العميل لا يتأثر بالقيد لأن الفاتورة نفسها (isReturn=true)
-        // يتم استثناؤها من حساب الرصيد في calculateTotalBalance
-        
-        const cashAccount = ensureAccountExists('1001', {
-          name: 'الخزينة',
-          nameEn: 'Cash',
-          type: 'asset',
-          category: 'current_assets',
-          description: 'الخزينة النقدية',
-          balance: 0
-        })
+        // إذا كانت الفاتورة الأصلية آجلة:
+        //   من حـ/ مردودات المبيعات (مدين - نسجل المرتجع)
+        //       إلى حـ/ العميل (دائن - نقلل مديونيته)
         
         lines.push({
-          accountId: cashAccount.id,
-          accountName: cashAccount.name,
+          accountId: paymentAccount.id,
+          accountName: paymentAccount.name,
           debit: 0,
-          credit: total,  // دائن (نرجع المال من الخزينة)
-          description: `إرجاع مبلغ مرتجع مبيعات رقم ${invoice.invoiceNumber}`
+          credit: total,  // دائن (نرجع المال من الخزينة أو نقلل مديونية العميل)
+          description: originalInvoicePaid 
+            ? `إرجاع مبلغ مرتجع مبيعات رقم ${invoice.invoiceNumber}`
+            : `تخفيض مديونية عميل - مرتجع مبيعات رقم ${invoice.invoiceNumber}`
         })
       } else {
         // ✅ فاتورة عادية: العميل/الخزينة/البنك مدين
@@ -921,12 +963,54 @@ export const useAccounting = () => {
       // 🔥 تحديد الحساب المستخدم في القيد
       let paymentAccount = supplierAccount
       
-      // ✅ إذا كانت فاتورة إرجاع، نستخدم الخزينة/البنك دائماً (نسترجع المال)
+      // ✅ إذا كانت فاتورة إرجاع، نستخدم الخزينة/البنك فقط إذا كانت الفاتورة الأصلية مدفوعة
       // ✅ إذا كانت فاتورة مدفوعة، نستخدم الخزينة/البنك (تم الدفع)
       // ❌ إذا كانت آجلة (غير مدفوعة وغير مرتجع)، نستخدم حساب المورد
-      if (isReturn || isPaid) {
+      if (isReturn) {
+        // ✅ للمرتجعات: نستخدم الخزينة فقط إذا كانت الفاتورة الأصلية مدفوعة
+        if (originalInvoicePaid) {
+          if (paymentMethod === 'bank' && paymentBankAccountId) {
+            paymentAccount = accounts.find(acc => acc.id === paymentBankAccountId)
+            if (!paymentAccount) {
+              console.warn('⚠️ لم يتم العثور على حساب البنك، استخدام الخزينة')
+              paymentAccount = ensureAccountExists('1001', {
+                name: 'الخزينة',
+                nameEn: 'Cash',
+                type: 'asset',
+                category: 'current_assets',
+                description: 'الخزينة النقدية',
+                balance: 0
+              })
+            }
+          } else {
+            paymentAccount = ensureAccountExists('1001', {
+              name: 'الخزينة',
+              nameEn: 'Cash',
+              type: 'asset',
+              category: 'current_assets',
+              description: 'الخزينة النقدية',
+              balance: 0
+            })
+          }
+          console.log('💳 استخدام حساب:', {
+            code: paymentAccount.code,
+            name: paymentAccount.name,
+            reason: 'مرتجع من فاتورة مدفوعة (نسترجع المال فعلياً)',
+            paymentMethod
+          })
+        } else {
+          // الفاتورة الأصلية لم تكن مدفوعة، نستخدم حساب المورد فقط
+          paymentAccount = supplierAccount
+          console.log('💳 استخدام حساب:', {
+            code: paymentAccount.code,
+            name: paymentAccount.name,
+            reason: 'مرتجع من فاتورة آجلة (لا نسترجع مال)',
+            paymentMethod
+          })
+        }
+      } else if (isPaid) {
+        // ✅ فاتورة عادية مدفوعة: نستخدم الخزينة/البنك
         if (paymentMethod === 'bank' && paymentBankAccountId) {
-          // البحث عن حساب البنك المحدد
           paymentAccount = accounts.find(acc => acc.id === paymentBankAccountId)
           if (!paymentAccount) {
             console.warn('⚠️ لم يتم العثور على حساب البنك، استخدام الخزينة')
@@ -940,7 +1024,6 @@ export const useAccounting = () => {
             })
           }
         } else {
-          // استخدام حساب الخزينة للدفع النقدي أو الإرجاع
           paymentAccount = ensureAccountExists('1001', {
             name: 'الخزينة',
             nameEn: 'Cash',
@@ -953,7 +1036,7 @@ export const useAccounting = () => {
         console.log('💳 استخدام حساب:', {
           code: paymentAccount.code,
           name: paymentAccount.name,
-          reason: isReturn ? 'مرتجع (استرجاع مال)' : 'مدفوعة',
+          reason: 'فاتورة مدفوعة',
           paymentMethod
         })
       }
@@ -1009,28 +1092,21 @@ export const useAccounting = () => {
       
       if (isReturn) {
         // ✅ في حالة مرتجع المشتريات:
-        // القيد الصحيح:
+        // إذا كانت الفاتورة الأصلية مدفوعة:
         //   من حـ/ الخزينة (مدين - نسترجع المال)
         //       إلى حـ/ مردودات المشتريات (دائن - نسجل المرتجع)
-        //
-        // ملاحظة: رصيد المورد لا يتأثر بالقيد لأن الفاتورة نفسها (isReturn=true)
-        // يتم استثناؤها من حساب الرصيد في calculateTotalBalance
-        
-        const cashAccount = ensureAccountExists('1001', {
-          name: 'الخزينة',
-          nameEn: 'Cash',
-          type: 'asset',
-          category: 'current_assets',
-          description: 'الخزينة النقدية',
-          balance: 0
-        })
+        // إذا كانت الفاتورة الأصلية آجلة:
+        //   من حـ/ المورد (مدين - نقلل المديونية)
+        //       إلى حـ/ مردودات المشتريات (دائن - نسجل المرتجع)
         
         lines.push({
-          accountId: cashAccount.id,
-          accountName: cashAccount.name,
-          debit: total,  // مدين (نسترجع المال في الخزينة)
+          accountId: paymentAccount.id,
+          accountName: paymentAccount.name,
+          debit: total,  // مدين (نسترجع المال أو نقلل المديونية)
           credit: 0,
-          description: `استرجاع مبلغ مرتجع مشتريات رقم ${invoice.invoiceNumber}`
+          description: originalInvoicePaid 
+            ? `استرجاع مبلغ مرتجع مشتريات رقم ${invoice.invoiceNumber}`
+            : `تخفيض مديونية مورد - مرتجع مشتريات رقم ${invoice.invoiceNumber}`
         })
       } else {
         // ✅ فاتورة عادية: المورد/الخزينة/البنك دائن

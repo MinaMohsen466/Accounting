@@ -119,6 +119,25 @@ const ReceiptVouchers = () => {
     })
   }
 
+  // ✅ دالة لحساب الرصيد الكامل للعميل (الافتتاحي + الفواتير غير المسددة - المرتجعات)
+  const calculateCustomerTotalBalance = (customerId) => {
+    if (!customerId) return 0
+    
+    const customer = customers.find(c => c.id === customerId)
+    const openingBalance = parseFloat(customer?.balance || 0)
+    
+    // حساب الفواتير غير المسددة
+    const unpaidInvoices = getUnpaidInvoicesForCustomer(customerId)
+    const unpaidTotal = unpaidInvoices.reduce((sum, inv) => {
+      const invoiceTotal = parseFloat(inv.total || 0)
+      const paidAmount = parseFloat(inv.paidAmount || 0)
+      const returns = getInvoiceReturns(inv.id)
+      return sum + (invoiceTotal - paidAmount - returns)
+    }, 0)
+    
+    return openingBalance + unpaidTotal
+  }
+
   // Get cash/bank accounts for payment
   const cashBankAccounts = accounts.filter(acc => 
     acc.type === 'cash' || acc.type === 'bank'
@@ -639,14 +658,18 @@ const ReceiptVouchers = () => {
                     >
                       <option value="">{language === 'ar' ? '-- بدون سداد --' : '-- No Payment --'}</option>
                       
-                      {/* خيار الرصيد الابتدائي */}
+                      {/* خيار رصيد العميل (الافتتاحي + الفواتير غير المسددة - المرتجعات) */}
                       {(() => {
                         const customer = customers.find(c => c.id === formData.customerId)
                         const openingBalance = parseFloat(customer?.balance || 0)
-                        if (openingBalance > 0) {
+                        const totalBalance = calculateCustomerTotalBalance(formData.customerId)
+                        const unpaidInvoicesTotal = totalBalance - openingBalance
+                        
+                        if (totalBalance > 0) {
                           return (
                             <option value="OPENING_BALANCE" style={{ fontWeight: 'bold', background: '#e3f2fd' }}>
-                              💰 {language === 'ar' ? 'الرصيد الابتدائي:' : 'Opening Balance:'} {openingBalance.toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}
+                              💰 {language === 'ar' ? 'رصيد العميل:' : 'Customer Balance:'} {totalBalance.toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}
+                              {unpaidInvoicesTotal > 0 && ` (${language === 'ar' ? 'مرتجع' : 'returned'}: ${unpaidInvoicesTotal.toFixed(3)})`}
                             </option>
                           )
                         }

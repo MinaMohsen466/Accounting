@@ -116,6 +116,25 @@ const PaymentVouchers = () => {
     })
   }
 
+  // ✅ دالة لحساب الرصيد الكامل للمورد (الافتتاحي + الفواتير غير المسددة - المرتجعات)
+  const calculateSupplierTotalBalance = (supplierId) => {
+    if (!supplierId) return 0
+    
+    const supplier = suppliers.find(s => s.id === supplierId)
+    const openingBalance = parseFloat(supplier?.balance || 0)
+    
+    // حساب الفواتير غير المسددة
+    const unpaidInvoices = getUnpaidInvoicesForSupplier(supplierId)
+    const unpaidTotal = unpaidInvoices.reduce((sum, inv) => {
+      const invoiceTotal = parseFloat(inv.total || 0)
+      const paidAmount = parseFloat(inv.paidAmount || 0)
+      const returns = getInvoiceReturns(inv.id)
+      return sum + (invoiceTotal - paidAmount - returns)
+    }, 0)
+    
+    return openingBalance + unpaidTotal
+  }
+
   // Get payment vouchers only
   const paymentVouchers = vouchers.filter(v => v.type === 'payment')
 
@@ -640,14 +659,18 @@ const PaymentVouchers = () => {
                     >
                       <option value="">{language === 'ar' ? '-- بدون سداد --' : '-- No Payment --'}</option>
                       
-                      {/* خيار الرصيد الابتدائي */}
+                      {/* خيار رصيد المورد (الافتتاحي + الفواتير غير المسددة - المرتجعات) */}
                       {(() => {
                         const supplier = suppliers.find(s => s.id === formData.supplierId)
                         const openingBalance = parseFloat(supplier?.balance || 0)
-                        if (openingBalance < 0) { // المورد دائن (رصيد سالب)
+                        const totalBalance = calculateSupplierTotalBalance(formData.supplierId)
+                        const unpaidInvoicesTotal = totalBalance - openingBalance
+                        
+                        if (totalBalance < 0) { // المورد دائن (رصيد سالب = نحن مدينون له)
                           return (
                             <option value="OPENING_BALANCE" style={{ fontWeight: 'bold', background: '#ffe0e0' }}>
-                              💰 {language === 'ar' ? 'الرصيد الابتدائي:' : 'Opening Balance:'} {Math.abs(openingBalance).toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}
+                              💰 {language === 'ar' ? 'رصيد المورد:' : 'Supplier Balance:'} {Math.abs(totalBalance).toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}
+                              {unpaidInvoicesTotal < 0 && ` (${language === 'ar' ? 'مرتجع' : 'returned'}: ${Math.abs(unpaidInvoicesTotal).toFixed(3)})`}
                             </option>
                           )
                         }

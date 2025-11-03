@@ -2649,7 +2649,8 @@ const Invoices = () => {
         discountAmount: 0,
         vatAmount: 0,
         total: returnTotal,
-        paymentStatus: 'n/a', // 🔥 فواتير المرتجع لا تحتاج حالة دفع
+        paymentStatus: returningInvoice.paymentStatus || 'n/a', // ✅ نحفظ حالة دفع الفاتورة الأصلية
+        originalInvoicePaymentStatus: returningInvoice.paymentStatus, // ✅ لمعرفة هل نخصم من الخزينة
         paidAmount: 0, // لا يوجد مبلغ مدفوع في المرتجعات
         createJournalEntry: true, // ✅ ننشئ قيود للمبلغ المرتجع
         paymentMethod: returningInvoice.paymentMethod || 'cash',
