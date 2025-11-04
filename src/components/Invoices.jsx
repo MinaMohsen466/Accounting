@@ -2494,35 +2494,19 @@ const Invoices = () => {
   const openReturnModal = (invoice) => {
     console.log('🔄 فتح نموذج إرجاع للفاتورة:', invoice.invoiceNumber)
     
-    // 🔥 حساب الكميات المرتجعة سابقاً من هذه الفاتورة
-    const previousReturns = invoices.filter(inv => 
-      inv.isReturn && 
-      inv.originalInvoiceId === invoice.id
-    )
+    // ✅ الفاتورة الأصلية الآن يتم تحديثها مباشرة عند الإرجاع
+    // لذا الكمية الحالية في الفاتورة هي الكمية المتاحة للإرجاع
     
     // إعداد عناصر الإرجاع مع الكميات القابلة للإرجاع
     const items = (invoice.items || []).map(item => {
-      const originalQty = parseFloat(item.quantity) || 0
-      
-      // حساب الكمية المرتجعة سابقاً من هذا المنتج
-      let returnedQty = 0
-      previousReturns.forEach(returnInv => {
-        const returnedItem = (returnInv.items || []).find(ri => ri.itemName === item.itemName)
-        if (returnedItem) {
-          returnedQty += parseFloat(returnedItem.quantity) || 0
-        }
-      })
-      
-      // الكمية المتاحة للإرجاع = الأصلية - المرتجعة سابقاً
-      const availableToReturn = Math.max(0, originalQty - returnedQty)
+      const currentQty = parseFloat(item.quantity) || 0
       
       return {
         ...item,
         returnQuantity: 0, // الكمية المراد إرجاعها الآن
-        maxQuantity: availableToReturn, // ✅ الكمية المتاحة للإرجاع (بعد طرح المرتجع سابقاً)
-        originalQuantity: originalQty, // الكمية الأصلية
-        previouslyReturned: returnedQty, // الكمية المرتجعة سابقاً
-        canReturn: availableToReturn > 0
+        maxQuantity: currentQty, // ✅ الكمية المتاحة للإرجاع = الكمية الحالية في الفاتورة
+        originalQuantity: currentQty, // الكمية الحالية
+        canReturn: currentQty > 0
       }
     })
     
@@ -2612,8 +2596,67 @@ const Invoices = () => {
       console.log(`💰 المبلغ الإجمالي للفاتورة الأصلية: ${returningInvoice.total.toFixed(3)} د.ك`)
       console.log(`� المبلغ المرتجع: ${returnTotal.toFixed(3)} د.ك`)
       
-      // إنشاء فاتورة إرجاع مع قيود محاسبية للمبلغ المرتجع فقط
-      console.log('📝 إنشاء فاتورة إرجاع مع قيود محاسبية')
+      // ==================== الخطوة 1: تعديل الفاتورة الأصلية ====================
+      console.log('📝 الخطوة 1: تعديل الفاتورة الأصلية')
+      
+      // حساب الكميات والأسعار الجديدة بعد الإرجاع
+      const updatedOriginalItems = returningInvoice.items.map(originalItem => {
+        const returnedItem = itemsToReturn.find(ret => ret.itemName === originalItem.itemName)
+        
+        if (returnedItem) {
+          const newQuantity = parseFloat(originalItem.quantity) - returnedItem.returnQuantity
+          const originalQty = parseFloat(originalItem.quantity)
+          
+          // حساب الخصم والإجمالي بشكل نسبي
+          const proportionalDiscount = originalQty > 0 
+            ? (parseFloat(originalItem.discount || 0) * newQuantity) / originalQty 
+            : 0
+          const itemSubtotal = newQuantity * parseFloat(originalItem.unitPrice || 0)
+          const itemTotal = itemSubtotal - proportionalDiscount
+          
+          console.log(`  📦 ${originalItem.itemName}: الكمية ${originalItem.quantity} -> ${newQuantity}`)
+          
+          return {
+            ...originalItem,
+            quantity: newQuantity,
+            discount: proportionalDiscount,
+            total: itemTotal
+          }
+        }
+        return originalItem
+      }).filter(item => parseFloat(item.quantity) > 0) // إزالة العناصر ذات الكمية صفر
+      
+      // حساب إجمالي الفاتورة الأصلية بعد التعديل
+      const newOriginalSubtotal = updatedOriginalItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) * parseFloat(item.unitPrice || 0)), 0
+      )
+      const newOriginalDiscountAmount = updatedOriginalItems.reduce((sum, item) => 
+        sum + parseFloat(item.discount || 0), 0
+      )
+      const newOriginalTotal = newOriginalSubtotal - newOriginalDiscountAmount
+      
+      console.log(`  💰 الإجمالي الجديد للفاتورة الأصلية: ${newOriginalTotal.toFixed(3)} د.ك`)
+      console.log(`  💰 الإجمالي القديم: ${returningInvoice.total.toFixed(3)} د.ك`)
+      
+      // تحديث الفاتورة الأصلية
+      const updatedOriginalInvoice = {
+        ...returningInvoice,
+        items: updatedOriginalItems,
+        subtotal: newOriginalSubtotal,
+        discountAmount: newOriginalDiscountAmount,
+        total: newOriginalTotal,
+        // تعديل المبلغ المدفوع إذا كان أكبر من الإجمالي الجديد
+        paidAmount: Math.min(returningInvoice.paidAmount || 0, newOriginalTotal)
+      }
+      
+      updateInvoice(returningInvoice.id, updatedOriginalInvoice)
+      console.log('  ✅ تم تحديث الفاتورة الأصلية بالكميات والأسعار الجديدة')
+      
+      // ==================== الخطوة 2: إنشاء فاتورة إرجاع ====================
+      // القيد المحاسبي سيُنشأ فقط إذا كانت الفاتورة الأصلية مدفوعة
+      console.log('📝 الخطوة 2: إنشاء فاتورة إرجاع')
+      console.log(`   حالة دفع الفاتورة الأصلية: ${returningInvoice.paymentStatus}`)
+      console.log(`   سيتم إنشاء قيد محاسبي: ${returningInvoice.paymentStatus === 'paid' ? 'نعم ✅' : 'لا ❌'}`)
       const returnInvoiceData = {
         type: returningInvoice.type,
         clientId: returningInvoice.clientId,
@@ -2652,7 +2695,9 @@ const Invoices = () => {
         paymentStatus: returningInvoice.paymentStatus || 'n/a', // ✅ نحفظ حالة دفع الفاتورة الأصلية
         originalInvoicePaymentStatus: returningInvoice.paymentStatus, // ✅ لمعرفة هل نخصم من الخزينة
         paidAmount: 0, // لا يوجد مبلغ مدفوع في المرتجعات
-        createJournalEntry: true, // ✅ ننشئ قيود للمبلغ المرتجع
+        // ✅ إنشاء قيد محاسبي فقط إذا كانت الفاتورة الأصلية مدفوعة
+        // إذا كانت الفاتورة الأصلية آجلة/متأخرة/جزئية، لا يتم إنشاء قيد
+        createJournalEntry: returningInvoice.paymentStatus === 'paid',
         paymentMethod: returningInvoice.paymentMethod || 'cash',
         paymentBankAccountId: returningInvoice.paymentBankAccountId || null
       }

@@ -220,7 +220,8 @@ export const useAccounting = () => {
         subtotal: newInvoice?.subtotal,
         discountAmount: newInvoice?.discountAmount,
         vatAmount: newInvoice?.vatAmount,
-        total: newInvoice?.total
+        total: newInvoice?.total,
+        paymentStatus: newInvoice?.paymentStatus
       })
       
       if (newInvoice) {
@@ -230,9 +231,11 @@ export const useAccounting = () => {
         setSuppliers(DataService.getSuppliers())
         window.dispatchEvent(new Event('accountingDataUpdated'))
         
-        // Create automatic journal entry for the invoice
-        if (invoiceData.createJournalEntry) {
-          console.log('🔄 إنشاء قيد يومي تلقائي...')
+        // ✅ إنشاء قيد محاسبي فقط إذا كانت الفاتورة مدفوعة بالكامل
+        // الفواتير الآجلة/المتأخرة/الجزئية لا يتم إنشاء قيد لها
+        // سيتم إنشاء القيد عند الدفع من خلال السندات
+        if (invoiceData.createJournalEntry && newInvoice.paymentStatus === 'paid') {
+          console.log('🔄 إنشاء قيد يومي تلقائي للفاتورة المدفوعة...')
           const journalEntry = createJournalEntryFromInvoice(newInvoice)
           console.log('📋 القيد المُنشأ:', {
             reference: journalEntry.reference,
@@ -258,8 +261,11 @@ export const useAccounting = () => {
               console.log('✅ القيد القديم تم عكسه، يمكن إنشاء قيد جديد:', journalEntry.reference)
             }
             addJournalEntry(journalEntry)
-            console.log('✅ تم إضافة القيد بنجاح')
+            console.log('✅ تم إضافة القيد بنجاح للفاتورة المدفوعة')
           }
+        } else if (invoiceData.createJournalEntry && newInvoice.paymentStatus !== 'paid') {
+          console.log('ℹ️ الفاتورة ليست مدفوعة بالكامل (حالة: ' + newInvoice.paymentStatus + ') - لن يتم إنشاء قيد محاسبي')
+          console.log('   → سيتم إنشاء القيد عند الدفع من خلال السندات')
         }
         
         return { success: true, data: newInvoice }

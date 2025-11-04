@@ -14,9 +14,10 @@ const ReceiptVouchers = () => {
     invoices, // 🆕 لربط السند بفاتورة محددة
     addVoucher,
     updateInvoice, // 🆕 لتحديث حالة الفاتورة تلقائياً
-    updateCustomer, // 🆕 لتحديث رصيد العميل عند الدفع من الرصيد الافتتاحي
+    updateCustomer, // 🆕 لتحديث رصيد العميل
     deleteVoucher,
-    addJournalEntry
+    addJournalEntry,
+    createJournalEntryFromInvoice // 🆕 لإنشاء قيد محاسبي للفاتورة عند الدفع
   } = useAccounting()
   const { t, language } = useLanguage()
   const { hasPermission } = useAuth()
@@ -85,16 +86,6 @@ const ReceiptVouchers = () => {
   // Get receipt vouchers only
   const receiptVouchers = vouchers.filter(v => v.type === 'receipt')
 
-  // 🆕 دالة لحساب إجمالي المرتجعات المرتبطة بفاتورة معينة
-  const getInvoiceReturns = (invoiceId) => {
-    if (!invoiceId) return 0
-    const returns = invoices.filter(inv => 
-      inv.isReturn &&
-      inv.originalInvoiceId === invoiceId  // فواتير مرتجع مرتبطة بالفاتورة الأصلية
-    )
-    return returns.reduce((sum, inv) => sum + parseFloat(inv.total || 0), 0)
-  }
-
   // 🆕 دالة للحصول على فواتير المبيعات غير المدفوعة بالكامل للعميل
   const getUnpaidInvoicesForCustomer = (customerId) => {
     if (!customerId) return []
@@ -108,32 +99,34 @@ const ReceiptVouchers = () => {
         return false
       }
       
-      // ✅ حساب المبلغ المتبقي الفعلي (بعد المرتجعات)
+      // ✅ الفاتورة الآن يتم تعديلها مباشرة عند الإرجاع، فلا داعي لطرح المرتجعات
       const invoiceTotal = parseFloat(inv.total || 0)
       const paidAmount = parseFloat(inv.paidAmount || 0)
-      const returns = getInvoiceReturns(inv.id)
-      const netRemaining = invoiceTotal - paidAmount - returns
+      const netRemaining = invoiceTotal - paidAmount
       
       // إظهار الفاتورة فقط إذا كان هناك رصيد متبقي
       return netRemaining > 0.001  // نستخدم 0.001 لتجنب مشاكل الفواصل العشرية
     })
   }
 
-  // ✅ دالة لحساب الرصيد الكامل للعميل (الافتتاحي + الفواتير غير المسددة - المرتجعات)
+  // ✅ دالة لحساب الرصيد الكامل للعميل (الافتتاحي + الفواتير غير المسددة)
   const calculateCustomerTotalBalance = (customerId) => {
     if (!customerId) return 0
     
     const customer = customers.find(c => c.id === customerId)
     const openingBalance = parseFloat(customer?.balance || 0)
     
-    // حساب الفواتير غير المسددة
+    // حساب الفواتير غير المسددة (الفاتورة الآن محدثة بالقيمة الصحيحة بعد الإرجاع)
     const unpaidInvoices = getUnpaidInvoicesForCustomer(customerId)
     const unpaidTotal = unpaidInvoices.reduce((sum, inv) => {
       const invoiceTotal = parseFloat(inv.total || 0)
       const paidAmount = parseFloat(inv.paidAmount || 0)
-      const returns = getInvoiceReturns(inv.id)
-      return sum + (invoiceTotal - paidAmount - returns)
+      const remaining = invoiceTotal - paidAmount
+      console.log(`📊 فاتورة ${inv.invoiceNumber}: الإجمالي=${invoiceTotal.toFixed(3)}, المدفوع=${paidAmount.toFixed(3)}, المتبقي=${remaining.toFixed(3)}`)
+      return sum + remaining
     }, 0)
+    
+    console.log(`💰 رصيد العميل: افتتاحي=${openingBalance.toFixed(3)} + فواتير=${unpaidTotal.toFixed(3)} = ${(openingBalance + unpaidTotal).toFixed(3)}`)
     
     return openingBalance + unpaidTotal
   }
@@ -196,8 +189,7 @@ const ReceiptVouchers = () => {
       if (linkedInvoice) {
         const invoiceTotal = parseFloat(linkedInvoice.total || 0)
         const paidAmount = parseFloat(linkedInvoice.paidAmount || 0)
-        const invoiceReturns = getInvoiceReturns(linkedInvoice.id)
-        const netRemaining = invoiceTotal - paidAmount - invoiceReturns
+        const netRemaining = invoiceTotal - paidAmount
 
         if (voucherAmount > netRemaining + 0.001) {
           showNotification(
@@ -284,16 +276,13 @@ const ReceiptVouchers = () => {
           // إجمالي المدفوعات
           const totalPaid = previouslyPaid + totalPaidViaVouchers
           
-          // 🔥 حساب إجمالي الفاتورة بعد طرح المرتجعات
-          const invoiceTotal = parseFloat(linkedInvoice.total || 0)
-          const invoiceReturns = getInvoiceReturns(linkedInvoice.id)
-          const netInvoiceTotal = invoiceTotal - invoiceReturns
+          // ✅ الفاتورة الآن يتم تعديلها مباشرة عند الإرجاع، فلا داعي لطرح المرتجعات
+          // نستخدم القيمة المحدثة للفاتورة مباشرة
+          const netInvoiceTotal = parseFloat(linkedInvoice.total || 0)
           
           console.log('💰 تحديث حالة الفاتورة:', {
             invoiceNumber: linkedInvoice.invoiceNumber,
-            originalTotal: invoiceTotal,
-            returns: invoiceReturns,
-            netTotal: netInvoiceTotal,
+            currentTotal: netInvoiceTotal,
             totalPaid: totalPaid,
             shouldBePaid: totalPaid >= netInvoiceTotal
           })
@@ -301,10 +290,19 @@ const ReceiptVouchers = () => {
           // تحديث حالة الفاتورة
           if (netInvoiceTotal <= 0 || totalPaid >= netInvoiceTotal) {
             // المبلغ مدفوع بالكامل (أو الفاتورة مرتجعة بالكامل)
+            const wasNotPaid = linkedInvoice.paymentStatus !== 'paid'
+            
             updateInvoice(linkedInvoice.id, {
               paymentStatus: 'paid',
               paidAmount: netInvoiceTotal > 0 ? netInvoiceTotal : 0
             })
+            
+            // ✅ إنشاء قيد محاسبي للفاتورة إذا كانت آجلة وأصبحت الآن مدفوعة
+            if (wasNotPaid && netInvoiceTotal > 0) {
+              console.log('📊 إنشاء قيد محاسبي للفاتورة بعد الدفع الكامل')
+              const updatedInvoice = { ...linkedInvoice, paymentStatus: 'paid', paidAmount: netInvoiceTotal }
+              createJournalEntryFromInvoice(updatedInvoice)
+            }
             
             // ✅ معالجة الدفع الزائد (رصيد دائن للعميل)
             const overpayment = totalPaid - netInvoiceTotal
@@ -639,11 +637,10 @@ const ReceiptVouchers = () => {
                           // تسديد فاتورة محددة
                           const selectedInvoice = invoices.find(inv => inv.id === value)
                           if (selectedInvoice) {
-                            // ✅ حساب المبلغ المتبقي = الإجمالي - المدفوع - المرتجعات
+                            // ✅ حساب المبلغ المتبقي = الإجمالي - المدفوع (الفاتورة محدثة بعد الإرجاع)
                             const invoiceTotal = parseFloat(selectedInvoice.total || 0)
                             const paidAmount = parseFloat(selectedInvoice.paidAmount || 0)
-                            const returns = getInvoiceReturns(selectedInvoice.id)
-                            const remaining = invoiceTotal - paidAmount - returns
+                            const remaining = invoiceTotal - paidAmount
                             
                             setFormData({ 
                               ...formData, 
@@ -658,7 +655,7 @@ const ReceiptVouchers = () => {
                     >
                       <option value="">{language === 'ar' ? '-- بدون سداد --' : '-- No Payment --'}</option>
                       
-                      {/* خيار رصيد العميل (الافتتاحي + الفواتير غير المسددة - المرتجعات) */}
+                      {/* خيار رصيد العميل (الافتتاحي + الفواتير غير المسددة) */}
                       {(() => {
                         const customer = customers.find(c => c.id === formData.customerId)
                         const openingBalance = parseFloat(customer?.balance || 0)
@@ -669,7 +666,7 @@ const ReceiptVouchers = () => {
                           return (
                             <option value="OPENING_BALANCE" style={{ fontWeight: 'bold', background: '#e3f2fd' }}>
                               💰 {language === 'ar' ? 'رصيد العميل:' : 'Customer Balance:'} {totalBalance.toFixed(3)} {language === 'ar' ? 'د.ك' : 'KWD'}
-                              {unpaidInvoicesTotal > 0 && ` (${language === 'ar' ? 'مرتجع' : 'returned'}: ${unpaidInvoicesTotal.toFixed(3)})`}
+                              {openingBalance > 0 && unpaidInvoicesTotal > 0 && ` (${language === 'ar' ? 'افتتاحي' : 'opening'}: ${openingBalance.toFixed(3)} + ${language === 'ar' ? 'فواتير' : 'invoices'}: ${unpaidInvoicesTotal.toFixed(3)})`}
                             </option>
                           )
                         }
@@ -680,16 +677,14 @@ const ReceiptVouchers = () => {
                       {getUnpaidInvoicesForCustomer(formData.customerId).length > 0 && (
                         <optgroup label={language === 'ar' ? '📋 الفواتير غير المسددة' : '📋 Unpaid Invoices'}>
                           {getUnpaidInvoicesForCustomer(formData.customerId).map(invoice => {
-                            // ✅ حساب المبلغ المتبقي مع المرتجعات
+                            // ✅ حساب المبلغ المتبقي (الفاتورة محدثة بعد الإرجاع)
                             const invoiceTotal = parseFloat(invoice.total || 0)
                             const paidAmount = parseFloat(invoice.paidAmount || 0)
-                            const returns = getInvoiceReturns(invoice.id)
-                            const remaining = invoiceTotal - paidAmount - returns
+                            const remaining = invoiceTotal - paidAmount
                             
                             return (
                               <option key={invoice.id} value={invoice.id}>
                                 {invoice.invoiceNumber} - {language === 'ar' ? 'المتبقي:' : 'Remaining:'} {remaining.toFixed(3)}
-                                {returns > 0 && ` (${language === 'ar' ? 'مرتجع' : 'returned'}: ${returns.toFixed(3)})`}
                               </option>
                             )
                           })}

@@ -348,23 +348,42 @@ const CustomersSuppliers = () => {
 
   const currentData = activeTab === 'customers' ? customers : suppliers
   
-  // دالة حساب الرصيد الإجمالي (الافتتاحي + الفواتير - السندات)
+  // ✅ دالة حساب الرصيد الإجمالي (بناءً على السندات المدفوعة فعلياً)
   const calculateTotalBalance = (client) => {
-    // 1️⃣ الرصيد الافتتاحي (Opening Balance) - ثابت لا يتغير
+    // 1️⃣ الرصيد الافتتاحي (Opening Balance)
     const openingBalance = parseFloat(client.balance || 0)
     
-    // 2️⃣ حساب جميع الفواتير (بما فيها المرتجعات)
-    // ✅ الفواتير العادية تضيف للرصيد، المرتجعات تطرح من الرصيد
+    // 2️⃣ حساب جميع الفواتير للعميل/المورد
     const clientInvoices = invoices.filter(inv => 
       inv.clientId === client.id || inv.clientName === client.name
     )
     
-    let invoicesBalance = 0  // رصيد الفواتير الإجمالي
-    let paidBalance = 0      // المدفوع من الفواتير
+    // 3️⃣ حساب السندات المرتبطة بالفواتير (المدفوعات الفعلية)
+    let paidViaVouchers = 0
+    
+    if (vouchers && vouchers.length > 0) {
+      const clientVouchers = vouchers.filter(v => 
+        (v.customerId === client.id || v.customerName === client.name ||
+         v.supplierId === client.id || v.supplierName === client.name) &&
+        v.invoiceId  // ✅ فقط السندات المرتبطة بفاتورة محددة
+      )
+      
+      clientVouchers.forEach(voucher => {
+        paidViaVouchers += parseFloat(voucher.amount || 0)
+      })
+    }
+    
+    // 4️⃣ حساب الرصيد من الفواتير غير المدفوعة فقط
+    let unpaidInvoicesTotal = 0
     let partialCount = 0
     let partialPaidAmount = 0
 
     clientInvoices.forEach(invoice => {
+      // ⚠️ تجاهل فواتير المرتجع - لأن الفاتورة الأصلية تم تحديثها مباشرة
+      if (invoice.isReturn) {
+        return
+      }
+
       const amount = parseFloat(invoice.total || 0)
       const paidAmt = parseFloat(invoice.paidAmount || 0)
 
@@ -373,95 +392,52 @@ const CustomersSuppliers = () => {
         partialPaidAmount += paidAmt
       }
 
+      // ✅ حساب المبلغ المتبقي غير المدفوع في كل فاتورة
+      const unpaidAmount = amount - paidAmt
+
+      // ✅ الفواتير العادية فقط (المرتجعات تم تجاهلها أعلاه)
       if (invoice.type === 'sales') {
-        if (invoice.isReturn) {
-          // ✅ مرتجع مبيعات = نطرح من رصيد العميل
-          invoicesBalance -= (amount - paidAmt)
-          paidBalance += paidAmt
-        } else {
-          // ✅ فاتورة مبيعات عادية = العميل مدين
-          invoicesBalance += (amount - paidAmt)
-          paidBalance += paidAmt
-        }
-        
+        unpaidInvoicesTotal += unpaidAmount
       } else if (invoice.type === 'purchase') {
-        if (invoice.isReturn) {
-          // ✅ مرتجع مشتريات = نطرح من رصيد المورد
-          invoicesBalance -= (amount - paidAmt)
-          paidBalance += paidAmt
-        } else {
-          // ✅ فاتورة مشتريات عادية = نحن مدينون للمورد
-          invoicesBalance += (amount - paidAmt)
-          paidBalance += paidAmt
-        }
+        unpaidInvoicesTotal += unpaidAmount
       }
     })
     
-    // 3️⃣ حساب السندات غير المرتبطة بفواتير محددة
-    // ⚠️ ملاحظة مهمة: السندات غير المرتبطة بفاتورة يتم تحديث openingBalance مباشرة
-    // لذلك لا نحتاج لحسابها هنا مرة أخرى، فقط نحسب عددها للإحصائيات
-    let vouchersBalance = 0
-    let vouchersCount = 0
+    // 5️⃣ الرصيد الإجمالي = الافتتاحي + الفواتير غير المدفوعة
+    const totalBalance = openingBalance + unpaidInvoicesTotal
     
-    if (vouchers && vouchers.length > 0) {
-      const clientVouchers = vouchers.filter(v => 
-        (v.customerId === client.id || v.customerName === client.name ||
-         v.supplierId === client.id || v.supplierName === client.name) &&
-        !v.invoiceId  // 🔥 فقط السندات غير المرتبطة بفاتورة محددة
-      )
-      
-      vouchersCount = clientVouchers.length
-      
-      // ❌ لا نحسب vouchersBalance هنا لأن السندات غير المرتبطة بفاتورة
-      // تقوم بتحديث client.balance مباشرة في ReceiptVouchers.jsx و PaymentVouchers.jsx
-      // إذا حسبناها هنا سيتم احتسابها مرتين!
-    }
-    
-    // 4️⃣ الرصيد الإجمالي = الافتتاحي + الفواتير - المرتجعات
-    // ✅ openingBalance يتم تحديثه تلقائياً عند إنشاء سندات غير مرتبطة بفواتير
-    // ✅ السندات المرتبطة بفواتير محددة تم احتسابها في paidAmount داخل الفواتير
-    // ✅ فواتير المرتجعات تُطرح من الرصيد مباشرة في invoicesBalance
-    const totalBalance = openingBalance + invoicesBalance
-    
-    // ✅ حساب الفواتير غير المسددة بنفس المنطق المستخدم في السندات
+    // 6️⃣ حساب الفواتير غير المسددة (الفاتورة محدثة بالقيمة الصحيحة)
     const actualUnpaidInvoices = clientInvoices.filter(inv => {
-      if (inv.isReturn) return false // تجاهل المرتجعات
+      if (inv.isReturn) return false
+      if (inv.paymentStatus === 'paid') return false
       
       const invoiceTotal = parseFloat(inv.total || 0)
       const paidAmount = parseFloat(inv.paidAmount || 0)
+      const netRemaining = invoiceTotal - paidAmount
       
-      // حساب المرتجعات لهذه الفاتورة
-      const invoiceReturns = invoices
-        .filter(returnInv => returnInv.isReturn && returnInv.originalInvoiceId === inv.id)
-        .reduce((sum, returnInv) => sum + parseFloat(returnInv.total || 0), 0)
-      
-      const netRemaining = invoiceTotal - paidAmount - invoiceReturns
-      
-      // الفاتورة غير مسددة إذا كان المتبقي > 0.001 دينار
       return netRemaining > 0.001
     }).length
     
+    const paidInvoices = clientInvoices.filter(inv => {
+      if (inv.isReturn) return false
+      return inv.paymentStatus === 'paid'
+    }).length
+    
     return {
-      openingBalance,        // الرصيد الافتتاحي (ثابت)
-      initialBalance: openingBalance,  // للتوافق
-      invoicesBalance,       // رصيد الفواتير (مع المرتجعات: فواتير عادية موجب - مرتجعات سالب)
-      unpaidBalance: invoicesBalance,  // للتوافق
-      vouchersBalance,       // رصيد السندات غير المرتبطة (سالب)
-      vouchersCount,         // عدد السندات غير المرتبطة
-      paidBalance,           // المدفوع من الفواتير (عبر السندات المرتبطة)
-      totalBalance,          // الرصيد النهائي = افتتاحي + فواتير - مرتجعات
-      invoiceCount: clientInvoices.length,  // جميع الفواتير بما فيها المرتجعات
-      unpaidInvoices: actualUnpaidInvoices,  // ✅ عدد الفواتير غير المسددة بناءً على الرصيد الفعلي
-      paidInvoices: clientInvoices.filter(inv => {
-        if (inv.isReturn) return false
-        const invoiceTotal = parseFloat(inv.total || 0)
-        const paidAmount = parseFloat(inv.paidAmount || 0)
-        const invoiceReturns = invoices
-          .filter(returnInv => returnInv.isReturn && returnInv.originalInvoiceId === inv.id)
-          .reduce((sum, returnInv) => sum + parseFloat(returnInv.total || 0), 0)
-        const netRemaining = invoiceTotal - paidAmount - invoiceReturns
-        return netRemaining <= 0.001  // مدفوعة بالكامل
-      }).length,
+      openingBalance,        // الرصيد الافتتاحي
+      initialBalance: openingBalance,
+      invoicesBalance: unpaidInvoicesTotal,  // إجمالي الفواتير غير المدفوعة
+      unpaidBalance: totalBalance,     // الرصيد غير المدفوع
+      vouchersBalance: paidViaVouchers, // المدفوع عبر السندات
+      vouchersCount: vouchers?.filter(v => 
+        (v.customerId === client.id || v.customerName === client.name ||
+         v.supplierId === client.id || v.supplierName === client.name)
+      ).length || 0,
+      paidBalance: paidViaVouchers,     // المدفوع
+      totalBalance,                     // الرصيد الإجمالي = افتتاحي + فواتير غير مدفوعة
+      invoiceCount: clientInvoices.length,
+      unpaidInvoices: actualUnpaidInvoices,
+      paidInvoices,
       partialInvoices: partialCount,
       partialPaidAmount
     }
