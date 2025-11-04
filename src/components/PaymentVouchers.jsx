@@ -383,6 +383,27 @@ const PaymentVouchers = () => {
   }
 
   const handleDelete = async (voucher) => {
+    // 🔒 التحقق: إذا كان السند مرتبط بفاتورة تم إرجاع جزء منها
+    if (voucher.invoiceId) {
+      const linkedInvoice = invoices.find(inv => inv.id === voucher.invoiceId)
+      if (linkedInvoice) {
+        // البحث عن فواتير مرتجع مرتبطة بهذه الفاتورة
+        const hasReturns = invoices.some(inv => 
+          inv.isReturn && inv.originalInvoiceId === linkedInvoice.id
+        )
+        
+        if (hasReturns) {
+          showNotification(
+            language === 'ar' 
+              ? `⚠️ لا يمكن حذف السند ${voucher.voucherNumber}\nالفاتورة ${linkedInvoice.invoiceNumber} تحتوي على مرتجعات\nيجب حذف المرتجعات أولاً` 
+              : `⚠️ Cannot delete voucher ${voucher.voucherNumber}\nInvoice ${linkedInvoice.invoiceNumber} has returns\nDelete returns first`,
+            'error'
+          )
+          return
+        }
+      }
+    }
+
     if (!window.confirm(
       language === 'ar' 
         ? `هل أنت متأكد من حذف سند الدفع ${voucher.voucherNumber}؟` 
